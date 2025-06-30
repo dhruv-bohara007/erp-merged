@@ -15,7 +15,8 @@ import {
   Trash2, 
   Eye,
   Calendar,
-  DollarSign
+  DollarSign,
+  Plus
 } from 'lucide-react';
 
 interface Invoice {
