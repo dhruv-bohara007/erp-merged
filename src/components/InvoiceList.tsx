@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,67 +18,17 @@ import {
   IndianRupee,
   Plus
 } from 'lucide-react';
-
-interface Invoice {
-  id: string;
-  invoiceNumber: string;
-  clientName: string;
-  clientEmail: string;
-  amount: number;
-  status: 'paid' | 'unpaid' | 'overdue' | 'draft';
-  issueDate: string;
-  dueDate: string;
-  paidDate?: string;
-}
+import { useInvoices } from '@/hooks/useFirestore';
+import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 
 const InvoiceList = () => {
-  const [invoices, setInvoices] = useState<Invoice[]>([
-    {
-      id: '1',
-      invoiceNumber: 'INV-001',
-      clientName: 'ABC Corporation',
-      clientEmail: 'contact@abc.com',
-      amount: 125000,
-      status: 'paid',
-      issueDate: '2024-01-15',
-      dueDate: '2024-02-15',
-      paidDate: '2024-02-10'
-    },
-    {
-      id: '2',
-      invoiceNumber: 'INV-002',
-      clientName: 'XYZ Ltd',
-      clientEmail: 'info@xyz.com',
-      amount: 60000,
-      status: 'unpaid',
-      issueDate: '2024-01-20',
-      dueDate: '2024-02-20'
-    },
-    {
-      id: '3',
-      invoiceNumber: 'INV-003',
-      clientName: 'DEF Inc',
-      clientEmail: 'hello@def.com',
-      amount: 160000,
-      status: 'overdue',
-      issueDate: '2024-01-10',
-      dueDate: '2024-02-10'
-    },
-    {
-      id: '4',
-      invoiceNumber: 'INV-004',
-      clientName: 'GHI Corp',
-      clientEmail: 'support@ghi.com',
-      amount: 90000,
-      status: 'draft',
-      issueDate: '2024-01-25',
-      dueDate: '2024-02-25'
-    }
-  ]);
-
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { invoices, loading, deleteInvoice, updateInvoice } = useInvoices();
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [dateFilter, setDateFilter] = useState('all');
 
   const filteredInvoices = invoices.filter(invoice => {
     const matchesSearch = invoice.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -89,35 +40,72 @@ const InvoiceList = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'paid': return 'bg-green-100 text-green-800';
-      case 'unpaid': return 'bg-yellow-100 text-yellow-800';
-      case 'overdue': return 'bg-red-100 text-red-800';
+      case 'sent': return 'bg-blue-100 text-blue-800';
       case 'draft': return 'bg-gray-100 text-gray-800';
+      case 'overdue': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const handleMarkAsPaid = (id: string) => {
-    setInvoices(invoices.map(invoice => 
-      invoice.id === id 
-        ? { ...invoice, status: 'paid' as const, paidDate: new Date().toISOString().split('T')[0] }
-        : invoice
-    ));
+  const handleMarkAsPaid = async (id: string) => {
+    try {
+      await updateInvoice(id, { status: 'paid' });
+      toast({
+        title: "Success",
+        description: "Invoice marked as paid",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update invoice",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDeleteInvoice = (id: string) => {
-    setInvoices(invoices.filter(invoice => invoice.id !== id));
+  const handleDeleteInvoice = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this invoice?')) return;
+    
+    try {
+      await deleteInvoice(id);
+      toast({
+        title: "Success",
+        description: "Invoice deleted successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete invoice",
+        variant: "destructive",
+      });
+    }
   };
 
-  const totalAmount = filteredInvoices.reduce((sum, invoice) => sum + invoice.amount, 0);
-  const paidAmount = filteredInvoices.filter(inv => inv.status === 'paid').reduce((sum, invoice) => sum + invoice.amount, 0);
-  const unpaidAmount = filteredInvoices.filter(inv => inv.status === 'unpaid').reduce((sum, invoice) => sum + invoice.amount, 0);
-  const overdueAmount = filteredInvoices.filter(inv => inv.status === 'overdue').reduce((sum, invoice) => sum + invoice.amount, 0);
+  // Calculate totals for filtered invoices
+  const totalAmount = filteredInvoices.reduce((sum, invoice) => sum + invoice.totalAmount, 0);
+  const paidAmount = filteredInvoices.filter(inv => inv.status === 'paid').reduce((sum, invoice) => sum + invoice.totalAmount, 0);
+  const unpaidAmount = filteredInvoices.filter(inv => inv.status === 'sent' || inv.status === 'draft').reduce((sum, invoice) => sum + invoice.totalAmount, 0);
+  const overdueAmount = filteredInvoices.filter(inv => inv.status === 'overdue').reduce((sum, invoice) => sum + invoice.totalAmount, 0);
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto p-6 flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading invoices...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Invoice Management</h1>
-        <Button className="bg-blue-600 hover:bg-blue-700">
+        <Button 
+          className="bg-blue-600 hover:bg-blue-700"
+          onClick={() => navigate('/invoices/new')}
+        >
           <Plus className="w-4 h-4 mr-2" />
           Create Invoice
         </Button>
@@ -186,7 +174,7 @@ const InvoiceList = () => {
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <CardTitle>All Invoices</CardTitle>
+            <CardTitle>All Invoices ({filteredInvoices.length})</CardTitle>
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -203,108 +191,131 @@ const InvoiceList = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
-                  <SelectItem value="unpaid">Unpaid</SelectItem>
-                  <SelectItem value="overdue">Overdue</SelectItem>
                   <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="sent">Sent</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="overdue">Overdue</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="outline">
-                <Filter className="w-4 h-4 mr-2" />
-                More Filters
-              </Button>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Invoice #</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Issue Date</TableHead>
-                  <TableHead>Due Date</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredInvoices.map((invoice) => (
-                  <TableRow key={invoice.id}>
-                    <TableCell>
-                      <div className="font-medium">{invoice.invoiceNumber}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{invoice.clientName}</div>
-                        <div className="text-sm text-gray-500">{invoice.clientEmail}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium">₹{invoice.amount.toLocaleString()}</div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getStatusColor(invoice.status)}>
-                        {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center text-sm">
-                        <Calendar className="w-3 h-3 mr-1 text-gray-400" />
-                        {new Date(invoice.issueDate).toLocaleDateString()}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className={`flex items-center text-sm ${
-                        invoice.status === 'overdue' ? 'text-red-600' : ''
-                      }`}>
-                        <Calendar className="w-3 h-3 mr-1 text-gray-400" />
-                        {new Date(invoice.dueDate).toLocaleDateString()}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" title="View Invoice">
-                          <Eye className="w-3 h-3" />
-                        </Button>
-                        <Button variant="outline" size="sm" title="Download PDF">
-                          <Download className="w-3 h-3" />
-                        </Button>
-                        <Button variant="outline" size="sm" title="Send Email">
-                          <Mail className="w-3 h-3" />
-                        </Button>
-                        {invoice.status === 'unpaid' && (
+          {filteredInvoices.length === 0 ? (
+            <div className="text-center py-12">
+              <FileText className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-4 text-sm font-medium text-gray-900">No invoices found</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {invoices.length === 0 
+                  ? "Get started by creating your first invoice."
+                  : "Try adjusting your search or filter criteria."
+                }
+              </p>
+              {invoices.length === 0 && (
+                <div className="mt-6">
+                  <Button onClick={() => navigate('/invoices/new')}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Invoice
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Invoice #</TableHead>
+                    <TableHead>Client</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Issue Date</TableHead>
+                    <TableHead>Due Date</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredInvoices.map((invoice) => (
+                    <TableRow key={invoice.id}>
+                      <TableCell>
+                        <div className="font-medium">{invoice.invoiceNumber}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{invoice.clientName}</div>
+                          <div className="text-sm text-gray-500">{invoice.clientEmail}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">₹{invoice.totalAmount.toLocaleString()}</div>
+                        <div className="text-sm text-gray-500">GST: ₹{invoice.totalGst.toLocaleString()}</div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(invoice.status)}>
+                          {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center text-sm">
+                          <Calendar className="w-3 h-3 mr-1 text-gray-400" />
+                          {invoice.issueDate.toLocaleDateString()}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className={`flex items-center text-sm ${
+                          invoice.status === 'overdue' ? 'text-red-600' : ''
+                        }`}>
+                          <Calendar className="w-3 h-3 mr-1 text-gray-400" />
+                          {invoice.dueDate.toLocaleDateString()}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" title="View Invoice">
+                            <Eye className="w-3 h-3" />
+                          </Button>
+                          <Button variant="outline" size="sm" title="Download PDF">
+                            <Download className="w-3 h-3" />
+                          </Button>
+                          <Button variant="outline" size="sm" title="Send Email">
+                            <Mail className="w-3 h-3" />
+                          </Button>
+                          {(invoice.status === 'sent' || invoice.status === 'overdue') && (
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleMarkAsPaid(invoice.id)}
+                              className="text-green-600 hover:text-green-700"
+                              title="Mark as Paid"
+                            >
+                              ✓
+                            </Button>
+                          )}
                           <Button 
                             variant="outline" 
                             size="sm" 
-                            onClick={() => handleMarkAsPaid(invoice.id)}
-                            className="text-green-600 hover:text-green-700"
-                            title="Mark as Paid"
+                            title="Edit Invoice"
+                            onClick={() => navigate(`/invoices/edit/${invoice.id}`)}
                           >
-                            ✓
+                            <Edit className="w-3 h-3" />
                           </Button>
-                        )}
-                        <Button variant="outline" size="sm" title="Edit Invoice">
-                          <Edit className="w-3 h-3" />
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleDeleteInvoice(invoice.id)}
-                          className="text-red-600 hover:text-red-700"
-                          title="Delete Invoice"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleDeleteInvoice(invoice.id)}
+                            className="text-red-600 hover:text-red-700"
+                            title="Delete Invoice"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
