@@ -19,97 +19,75 @@ import {
   IndianRupee,
   FileText
 } from 'lucide-react';
-
-interface Client {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  gstin: string;
-  pan: string;
-  totalInvoices: number;
-  totalAmount: number;
-  outstandingAmount: number;
-  status: 'active' | 'inactive';
-}
+import { useClients } from '@/hooks/useFirestore';
+import { useToast } from '@/hooks/use-toast';
 
 const ClientManagement = () => {
-  const [clients, setClients] = useState<Client[]>([
-    {
-      id: '1',
-      name: 'ABC Corporation',
-      email: 'contact@abc.com',
-      phone: '+91 98765 43210',
-      address: '123 Business Street, Mumbai, Maharashtra 400001',
-      gstin: '27AABCU9603R1ZX',
-      pan: 'AABCU9603R',
-      totalInvoices: 15,
-      totalAmount: 2500000,
-      outstandingAmount: 350000,
-      status: 'active'
-    },
-    {
-      id: '2',
-      name: 'XYZ Ltd',
-      email: 'info@xyz.com',
-      phone: '+91 87654 32109',
-      address: '456 Commerce Avenue, Delhi, Delhi 110001',
-      gstin: '07AABCX1234P1ZY',
-      pan: 'AABCX1234P',
-      totalInvoices: 8,
-      totalAmount: 1200000,
-      outstandingAmount: 0,
-      status: 'active'
-    },
-    {
-      id: '3',
-      name: 'DEF Inc',
-      email: 'hello@def.com',
-      phone: '+91 76543 21098',
-      address: '789 Industry Boulevard, Bangalore, Karnataka 560001',
-      gstin: '29AABCD5678Q1ZW',
-      pan: 'AABCD5678Q',
-      totalInvoices: 22,
-      totalAmount: 4500000,
-      outstandingAmount: 890000,
-      status: 'active'
-    }
-  ]);
-
+  const { clients, loading, error, addClient, updateClient, deleteClient } = useClients();
+  const { toast } = useToast();
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [newClient, setNewClient] = useState({
     name: '',
     email: '',
     phone: '',
     address: '',
+    city: '',
+    state: '',
+    pincode: '',
     gstin: '',
-    pan: ''
+    status: 'active' as const
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.gstin.toLowerCase().includes(searchTerm.toLowerCase())
+    (client.gstin && client.gstin.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const handleAddClient = () => {
-    const client: Client = {
-      id: Date.now().toString(),
-      ...newClient,
-      totalInvoices: 0,
-      totalAmount: 0,
-      outstandingAmount: 0,
-      status: 'active'
-    };
-    setClients([...clients, client]);
-    setNewClient({ name: '', email: '', phone: '', address: '', gstin: '', pan: '' });
-    setIsDialogOpen(false);
+  const handleAddClient = async () => {
+    try {
+      await addClient(newClient);
+      setNewClient({ 
+        name: '', 
+        email: '', 
+        phone: '', 
+        address: '', 
+        city: '', 
+        state: '', 
+        pincode: '', 
+        gstin: '', 
+        status: 'active' 
+      });
+      setIsDialogOpen(false);
+      toast({
+        title: "Success",
+        description: "Client added successfully",
+      });
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to add client",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDeleteClient = (id: string) => {
-    setClients(clients.filter(client => client.id !== id));
+  const handleDeleteClient = async (id: string) => {
+    try {
+      await deleteClient(id);
+      toast({
+        title: "Success",
+        description: "Client deleted successfully",
+      });
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to delete client",
+        variant: "destructive",
+      });
+    }
   };
 
   const formatIndianCurrency = (amount: number) => {
@@ -119,6 +97,22 @@ const ClientManagement = () => {
       maximumFractionDigits: 0
     }).format(amount);
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto p-6">
+        <div className="text-center">Loading clients...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto p-6">
+        <div className="text-center text-red-600">Error: {error}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
@@ -174,12 +168,30 @@ const ClientManagement = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="pan">PAN</Label>
+                <Label htmlFor="city">City</Label>
                 <Input
-                  id="pan"
-                  value={newClient.pan}
-                  onChange={(e) => setNewClient({...newClient, pan: e.target.value})}
-                  placeholder="Enter PAN"
+                  id="city"
+                  value={newClient.city}
+                  onChange={(e) => setNewClient({...newClient, city: e.target.value})}
+                  placeholder="Enter city"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="state">State</Label>
+                <Input
+                  id="state"
+                  value={newClient.state}
+                  onChange={(e) => setNewClient({...newClient, state: e.target.value})}
+                  placeholder="Enter state"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pincode">PIN Code</Label>
+                <Input
+                  id="pincode"
+                  value={newClient.pincode}
+                  onChange={(e) => setNewClient({...newClient, pincode: e.target.value})}
+                  placeholder="Enter PIN code"
                 />
               </div>
               <div className="col-span-2 space-y-2">
@@ -188,7 +200,7 @@ const ClientManagement = () => {
                   id="address"
                   value={newClient.address}
                   onChange={(e) => setNewClient({...newClient, address: e.target.value})}
-                  placeholder="Enter complete address with state and PIN code"
+                  placeholder="Enter complete address"
                   rows={3}
                 />
               </div>
@@ -238,7 +250,7 @@ const ClientManagement = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                <p className="text-2xl font-bold">{formatIndianCurrency(clients.reduce((sum, c) => sum + c.totalAmount, 0))}</p>
+                <p className="text-2xl font-bold">₹0</p>
               </div>
               <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
                 <IndianRupee className="h-4 w-4 text-green-600" />
@@ -252,7 +264,7 @@ const ClientManagement = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Outstanding</p>
-                <p className="text-2xl font-bold">{formatIndianCurrency(clients.reduce((sum, c) => sum + c.outstandingAmount, 0))}</p>
+                <p className="text-2xl font-bold">₹0</p>
               </div>
               <div className="h-8 w-8 bg-orange-100 rounded-full flex items-center justify-center">
                 <IndianRupee className="h-4 w-4 text-orange-600" />
@@ -286,10 +298,8 @@ const ClientManagement = () => {
               <TableRow>
                 <TableHead>Client Name</TableHead>
                 <TableHead>Contact</TableHead>
+                <TableHead>Location</TableHead>
                 <TableHead>GST Details</TableHead>
-                <TableHead>Invoices</TableHead>
-                <TableHead>Total Amount</TableHead>
-                <TableHead>Outstanding</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -320,23 +330,14 @@ const ClientManagement = () => {
                   </TableCell>
                   <TableCell>
                     <div className="space-y-1">
+                      <div className="text-sm">{client.city}</div>
+                      <div className="text-xs text-gray-500">{client.state} - {client.pincode}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-1">
                       <div className="text-xs text-gray-500">GSTIN</div>
-                      <div className="font-mono text-sm">{client.gstin}</div>
-                      <div className="text-xs text-gray-500">PAN: {client.pan}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-center">
-                      <div className="font-medium">{client.totalInvoices}</div>
-                      <div className="text-xs text-gray-500">invoices</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium">{formatIndianCurrency(client.totalAmount)}</div>
-                  </TableCell>
-                  <TableCell>
-                    <div className={`font-medium ${client.outstandingAmount > 0 ? 'text-orange-600' : 'text-green-600'}`}>
-                      {formatIndianCurrency(client.outstandingAmount)}
+                      <div className="font-mono text-sm">{client.gstin || 'N/A'}</div>
                     </div>
                   </TableCell>
                   <TableCell>

@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { 
   Search, 
-  Filter, 
   Download, 
   Calendar, 
   IndianRupee,
@@ -17,61 +17,10 @@ import {
   Smartphone,
   Building
 } from 'lucide-react';
-
-interface Payment {
-  id: string;
-  invoiceNumber: string;
-  clientName: string;
-  amount: number;
-  paymentMethod: 'neft' | 'rtgs' | 'upi' | 'cash' | 'credit_card' | 'debit_card' | 'cheque' | 'imps';
-  paymentDate: string;
-  status: 'completed' | 'pending' | 'failed';
-  referenceNumber?: string;
-}
+import { usePayments } from '@/hooks/useFirestore';
 
 const Payments = () => {
-  const [payments, setPayments] = useState<Payment[]>([
-    {
-      id: '1',
-      invoiceNumber: 'INV-001',
-      clientName: 'ABC Corporation',
-      amount: 125000,
-      paymentMethod: 'neft',
-      paymentDate: '2024-02-10',
-      status: 'completed',
-      referenceNumber: 'NEFT123456789'
-    },
-    {
-      id: '2',
-      invoiceNumber: 'INV-003',
-      clientName: 'DEF Inc',
-      amount: 89500,
-      paymentMethod: 'upi',
-      paymentDate: '2024-02-08',
-      status: 'completed',
-      referenceNumber: 'UPI789012345'
-    },
-    {
-      id: '3',
-      invoiceNumber: 'INV-005',
-      clientName: 'GHI Corp',
-      amount: 156000,
-      paymentMethod: 'cheque',
-      paymentDate: '2024-02-12',
-      status: 'pending',
-      referenceNumber: 'CHQ001234'
-    },
-    {
-      id: '4',
-      invoiceNumber: 'INV-007',
-      clientName: 'JKL Ltd',
-      amount: 47500,
-      paymentMethod: 'cash',
-      paymentDate: '2024-02-11',
-      status: 'completed'
-    }
-  ]);
-
+  const { payments, loading, error } = usePayments();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [methodFilter, setMethodFilter] = useState('all');
@@ -109,6 +58,22 @@ const Payments = () => {
 
   const totalReceived = filteredPayments.filter(p => p.status === 'completed').reduce((sum, payment) => sum + payment.amount, 0);
   const pendingAmount = filteredPayments.filter(p => p.status === 'pending').reduce((sum, payment) => sum + payment.amount, 0);
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto p-6">
+        <div className="text-center">Loading payments...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto p-6">
+        <div className="text-center text-red-600">Error: {error}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
@@ -155,7 +120,7 @@ const Payments = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">This Month</p>
-                <p className="text-2xl font-bold">₹{(totalReceived * 0.4).toFixed(0)}</p>
+                <p className="text-2xl font-bold">₹{payments.length > 0 ? (totalReceived * 0.4).toFixed(0) : '0'}</p>
               </div>
               <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
                 <Calendar className="h-4 w-4 text-blue-600" />
@@ -225,45 +190,53 @@ const Payments = () => {
                   <TableHead>Payment Method</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Reference</TableHead>
+                  <TableHead>Notes</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredPayments.map((payment) => (
-                  <TableRow key={payment.id}>
-                    <TableCell>
-                      <div className="font-medium">{payment.invoiceNumber}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium">{payment.clientName}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium">₹{payment.amount.toLocaleString()}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {getPaymentMethodIcon(payment.paymentMethod)}
-                        <span className="capitalize">{payment.paymentMethod.toUpperCase()}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center text-sm">
-                        <Calendar className="w-3 h-3 mr-1 text-gray-400" />
-                        {new Date(payment.paymentDate).toLocaleDateString()}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getStatusColor(payment.status)}>
-                        {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm text-gray-500">
-                        {payment.referenceNumber || '-'}
-                      </div>
+                {filteredPayments.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                      No payments found
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  filteredPayments.map((payment) => (
+                    <TableRow key={payment.id}>
+                      <TableCell>
+                        <div className="font-medium">{payment.invoiceNumber}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">{payment.clientName}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">₹{payment.amount.toLocaleString()}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {getPaymentMethodIcon(payment.paymentMethod)}
+                          <span className="capitalize">{payment.paymentMethod.toUpperCase()}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center text-sm">
+                          <Calendar className="w-3 h-3 mr-1 text-gray-400" />
+                          {payment.paymentDate.toLocaleDateString()}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(payment.status)}>
+                          {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm text-gray-500">
+                          {payment.notes || '-'}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
