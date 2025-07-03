@@ -132,7 +132,7 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
                     <SelectContent>
                       {invoices.map((invoice) => (
                         <SelectItem key={invoice.id} value={invoice.id}>
-                          {invoice.invoiceNumber} - {invoice.clientName} - ₹{invoice.totalAmount.toLocaleString()}
+                          {invoice.invoiceNumber} - {invoice.clientName} - ₹{(invoice.totalAmount || 0).toLocaleString()}
                         </SelectItem>
                       ))}
                     </SelectContent>

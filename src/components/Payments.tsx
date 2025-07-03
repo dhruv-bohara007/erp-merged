@@ -8,6 +8,7 @@ import PaymentModal from './PaymentModal';
 import PaymentSummaryCards from './PaymentSummaryCards';
 import PaymentFilters from './PaymentFilters';
 import PaymentTable from './PaymentTable';
+import PaymentSync from './PaymentSync';
 
 const Payments = () => {
   const { payments, loading, error } = usePayments();
@@ -42,6 +43,8 @@ const Payments = () => {
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
+      <PaymentSync />
+      
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Payment Management</h1>
         <Button 
