@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,8 +32,8 @@ const InvoiceList = () => {
   const [statusFilter, setStatusFilter] = useState('all');
 
   const filteredInvoices = invoices.filter(invoice => {
-    const matchesSearch = invoice.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         invoice.clientName.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (invoice.invoiceNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (invoice.clientName || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -81,11 +82,11 @@ const InvoiceList = () => {
     }
   };
 
-  // Calculate totals for filtered invoices
-  const totalAmount = filteredInvoices.reduce((sum, invoice) => sum + invoice.totalAmount, 0);
-  const paidAmount = filteredInvoices.filter(inv => inv.status === 'paid').reduce((sum, invoice) => sum + invoice.totalAmount, 0);
-  const unpaidAmount = filteredInvoices.filter(inv => inv.status === 'sent' || inv.status === 'draft').reduce((sum, invoice) => sum + invoice.totalAmount, 0);
-  const overdueAmount = filteredInvoices.filter(inv => inv.status === 'overdue').reduce((sum, invoice) => sum + invoice.totalAmount, 0);
+  // Calculate totals for filtered invoices with null checks
+  const totalAmount = filteredInvoices.reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
+  const paidAmount = filteredInvoices.filter(inv => inv.status === 'paid').reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
+  const unpaidAmount = filteredInvoices.filter(inv => inv.status === 'sent' || inv.status === 'draft').reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
+  const overdueAmount = filteredInvoices.filter(inv => inv.status === 'overdue').reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
 
   if (loading) {
     return (
@@ -238,27 +239,27 @@ const InvoiceList = () => {
                   {filteredInvoices.map((invoice) => (
                     <TableRow key={invoice.id}>
                       <TableCell>
-                        <div className="font-medium">{invoice.invoiceNumber}</div>
+                        <div className="font-medium">{invoice.invoiceNumber || 'N/A'}</div>
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{invoice.clientName}</div>
-                          <div className="text-sm text-gray-500">{invoice.clientEmail}</div>
+                          <div className="font-medium">{invoice.clientName || 'N/A'}</div>
+                          <div className="text-sm text-gray-500">{invoice.clientEmail || 'N/A'}</div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium">₹{invoice.totalAmount.toLocaleString()}</div>
-                        <div className="text-sm text-gray-500">GST: ₹{invoice.totalGst.toLocaleString()}</div>
+                        <div className="font-medium">₹{(invoice.totalAmount || 0).toLocaleString()}</div>
+                        <div className="text-sm text-gray-500">GST: ₹{(invoice.totalGst || 0).toLocaleString()}</div>
                       </TableCell>
                       <TableCell>
-                        <Badge className={getStatusColor(invoice.status)}>
-                          {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                        <Badge className={getStatusColor(invoice.status || 'draft')}>
+                          {(invoice.status || 'draft').charAt(0).toUpperCase() + (invoice.status || 'draft').slice(1)}
                         </Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center text-sm">
                           <Calendar className="w-3 h-3 mr-1 text-gray-400" />
-                          {invoice.issueDate.toLocaleDateString()}
+                          {invoice.issueDate ? invoice.issueDate.toLocaleDateString() : 'N/A'}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -266,7 +267,7 @@ const InvoiceList = () => {
                           invoice.status === 'overdue' ? 'text-red-600' : ''
                         }`}>
                           <Calendar className="w-3 h-3 mr-1 text-gray-400" />
-                          {invoice.dueDate.toLocaleDateString()}
+                          {invoice.dueDate ? invoice.dueDate.toLocaleDateString() : 'N/A'}
                         </div>
                       </TableCell>
                       <TableCell>
