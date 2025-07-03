@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,7 +18,6 @@ import {
   Upload,
   Save
 } from 'lucide-react';
-import InitializeFirestore from './InitializeFirestore';
 
 const Settings = () => {
   const [businessInfo, setBusinessInfo] = useState({
@@ -58,9 +58,6 @@ const Settings = () => {
           <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
           <p className="text-gray-600 mt-2">Manage your account and application preferences</p>
         </div>
-
-        {/* Initialize Firestore Section */}
-        <InitializeFirestore />
 
         <Tabs defaultValue="business" className="space-y-6">
           <TabsList className="grid w-full grid-cols-5">
