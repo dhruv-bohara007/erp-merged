@@ -8,6 +8,8 @@ import Index from "./pages/Index";
 import InvoiceForm from "./components/InvoiceForm";
 import InvoiceList from "./components/InvoiceList";
 import ClientManagement from "./components/ClientManagement";
+import Payments from "./components/Payments";
+import Reports from "./components/Reports";
 import Settings from "./components/Settings";
 import Navigation from "./components/Navigation";
 import NotFound from "./pages/NotFound";
@@ -44,6 +46,22 @@ const App = () => (
                 <Navigation />
                 <div className="lg:pl-64">
                   <ClientManagement />
+                </div>
+              </div>
+            } />
+            <Route path="/payments" element={
+              <div>
+                <Navigation />
+                <div className="lg:pl-64">
+                  <Payments />
+                </div>
+              </div>
+            } />
+            <Route path="/reports" element={
+              <div>
+                <Navigation />
+                <div className="lg:pl-64">
+                  <Reports />
                 </div>
               </div>
             } />
