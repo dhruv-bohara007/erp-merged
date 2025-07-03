@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   FileText, 
   Users, 
-  DollarSign, 
+  IndianRupee, 
   Calendar, 
   TrendingUp, 
   AlertCircle,
@@ -21,12 +21,12 @@ const Dashboard = () => {
 
   // Sample data for charts
   const revenueData = [
-    { month: 'Jan', revenue: 45000 },
-    { month: 'Feb', revenue: 52000 },
-    { month: 'Mar', revenue: 48000 },
-    { month: 'Apr', revenue: 61000 },
-    { month: 'May', revenue: 55000 },
-    { month: 'Jun', revenue: 67000 },
+    { month: 'Jan', revenue: 450000 },
+    { month: 'Feb', revenue: 520000 },
+    { month: 'Mar', revenue: 480000 },
+    { month: 'Apr', revenue: 610000 },
+    { month: 'May', revenue: 550000 },
+    { month: 'Jun', revenue: 670000 },
   ];
 
   const statusData = [
@@ -36,11 +36,19 @@ const Dashboard = () => {
   ];
 
   const recentActivities = [
-    { id: 1, type: 'payment', message: 'Payment received from ABC Corp', amount: '$2,500', time: '2 hours ago' },
-    { id: 2, type: 'invoice', message: 'Invoice #INV-001 sent to XYZ Ltd', amount: '$1,200', time: '4 hours ago' },
-    { id: 3, type: 'overdue', message: 'Invoice #INV-098 is overdue', amount: '$800', time: '1 day ago' },
-    { id: 4, type: 'payment', message: 'Payment received from DEF Inc', amount: '$3,200', time: '2 days ago' },
+    { id: 1, type: 'payment', message: 'Payment received from ABC Corp', amount: '₹2,50,000', time: '2 hours ago' },
+    { id: 2, type: 'invoice', message: 'Invoice #INV-001 sent to XYZ Ltd', amount: '₹1,20,000', time: '4 hours ago' },
+    { id: 3, type: 'overdue', message: 'Invoice #INV-098 is overdue', amount: '₹80,000', time: '1 day ago' },
+    { id: 4, type: 'payment', message: 'Payment received via UPI from DEF Inc', amount: '₹3,20,000', time: '2 days ago' },
   ];
+
+  const formatIndianCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -79,10 +87,10 @@ const Dashboard = () => {
           <Card className="border-l-4 border-l-green-500">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">Paid Amount</CardTitle>
-              <DollarSign className="h-4 w-4 text-green-500" />
+              <IndianRupee className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$45,231</div>
+              <div className="text-2xl font-bold">₹45,23,100</div>
               <p className="text-xs text-gray-500">+18% from last month</p>
             </CardContent>
           </Card>
@@ -93,7 +101,7 @@ const Dashboard = () => {
               <Calendar className="h-4 w-4 text-orange-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$12,580</div>
+              <div className="text-2xl font-bold">₹12,58,000</div>
               <p className="text-xs text-gray-500">23 invoices pending</p>
             </CardContent>
           </Card>
@@ -104,7 +112,7 @@ const Dashboard = () => {
               <AlertCircle className="h-4 w-4 text-red-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$3,420</div>
+              <div className="text-2xl font-bold">₹3,42,000</div>
               <p className="text-xs text-gray-500">5 invoices overdue</p>
             </CardContent>
           </Card>
@@ -125,8 +133,8 @@ const Dashboard = () => {
                 <BarChart data={revenueData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip formatter={(value) => [`$${value}`, 'Revenue']} />
+                  <YAxis tickFormatter={(value) => `₹${(value/100000).toFixed(0)}L`} />
+                  <Tooltip formatter={(value) => [formatIndianCurrency(Number(value)), 'Revenue']} />
                   <Bar dataKey="revenue" fill="#3B82F6" />
                 </BarChart>
               </ResponsiveContainer>
@@ -216,7 +224,7 @@ const Dashboard = () => {
                 Manage Clients
               </Button>
               <Button variant="outline" className="h-20 flex-col">
-                <DollarSign className="w-6 h-6 mb-2" />
+                <IndianRupee className="w-6 h-6 mb-2" />
                 Record Payment
               </Button>
               <Button variant="outline" className="h-20 flex-col">

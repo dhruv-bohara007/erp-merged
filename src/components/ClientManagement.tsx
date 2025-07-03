@@ -16,7 +16,7 @@ import {
   Mail, 
   Phone, 
   MapPin,
-  DollarSign,
+  IndianRupee,
   FileText
 } from 'lucide-react';
 
@@ -26,7 +26,8 @@ interface Client {
   email: string;
   phone: string;
   address: string;
-  taxId: string;
+  gstin: string;
+  pan: string;
   totalInvoices: number;
   totalAmount: number;
   outstandingAmount: number;
@@ -39,23 +40,25 @@ const ClientManagement = () => {
       id: '1',
       name: 'ABC Corporation',
       email: 'contact@abc.com',
-      phone: '+1 (555) 123-4567',
-      address: '123 Business St, City, State 12345',
-      taxId: 'TX123456789',
+      phone: '+91 98765 43210',
+      address: '123 Business Street, Mumbai, Maharashtra 400001',
+      gstin: '27AABCU9603R1ZX',
+      pan: 'AABCU9603R',
       totalInvoices: 15,
-      totalAmount: 25000,
-      outstandingAmount: 3500,
+      totalAmount: 2500000,
+      outstandingAmount: 350000,
       status: 'active'
     },
     {
       id: '2',
       name: 'XYZ Ltd',
       email: 'info@xyz.com',
-      phone: '+1 (555) 987-6543',
-      address: '456 Commerce Ave, City, State 67890',
-      taxId: 'TX987654321',
+      phone: '+91 87654 32109',
+      address: '456 Commerce Avenue, Delhi, Delhi 110001',
+      gstin: '07AABCX1234P1ZY',
+      pan: 'AABCX1234P',
       totalInvoices: 8,
-      totalAmount: 12000,
+      totalAmount: 1200000,
       outstandingAmount: 0,
       status: 'active'
     },
@@ -63,12 +66,13 @@ const ClientManagement = () => {
       id: '3',
       name: 'DEF Inc',
       email: 'hello@def.com',
-      phone: '+1 (555) 456-7890',
-      address: '789 Industry Blvd, City, State 54321',
-      taxId: 'TX456789123',
+      phone: '+91 76543 21098',
+      address: '789 Industry Boulevard, Bangalore, Karnataka 560001',
+      gstin: '29AABCD5678Q1ZW',
+      pan: 'AABCD5678Q',
       totalInvoices: 22,
-      totalAmount: 45000,
-      outstandingAmount: 8900,
+      totalAmount: 4500000,
+      outstandingAmount: 890000,
       status: 'active'
     }
   ]);
@@ -79,13 +83,15 @@ const ClientManagement = () => {
     email: '',
     phone: '',
     address: '',
-    taxId: ''
+    gstin: '',
+    pan: ''
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.email.toLowerCase().includes(searchTerm.toLowerCase())
+    client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    client.gstin.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleAddClient = () => {
@@ -98,12 +104,20 @@ const ClientManagement = () => {
       status: 'active'
     };
     setClients([...clients, client]);
-    setNewClient({ name: '', email: '', phone: '', address: '', taxId: '' });
+    setNewClient({ name: '', email: '', phone: '', address: '', gstin: '', pan: '' });
     setIsDialogOpen(false);
   };
 
   const handleDeleteClient = (id: string) => {
     setClients(clients.filter(client => client.id !== id));
+  };
+
+  const formatIndianCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(amount);
   };
 
   return (
@@ -147,16 +161,25 @@ const ClientManagement = () => {
                   id="phone"
                   value={newClient.phone}
                   onChange={(e) => setNewClient({...newClient, phone: e.target.value})}
-                  placeholder="Enter phone number"
+                  placeholder="+91 XXXXX XXXXX"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="taxId">Tax ID</Label>
+                <Label htmlFor="gstin">GSTIN</Label>
                 <Input
-                  id="taxId"
-                  value={newClient.taxId}
-                  onChange={(e) => setNewClient({...newClient, taxId: e.target.value})}
-                  placeholder="Enter tax ID"
+                  id="gstin"
+                  value={newClient.gstin}
+                  onChange={(e) => setNewClient({...newClient, gstin: e.target.value})}
+                  placeholder="Enter GSTIN"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pan">PAN</Label>
+                <Input
+                  id="pan"
+                  value={newClient.pan}
+                  onChange={(e) => setNewClient({...newClient, pan: e.target.value})}
+                  placeholder="Enter PAN"
                 />
               </div>
               <div className="col-span-2 space-y-2">
@@ -165,7 +188,7 @@ const ClientManagement = () => {
                   id="address"
                   value={newClient.address}
                   onChange={(e) => setNewClient({...newClient, address: e.target.value})}
-                  placeholder="Enter complete address"
+                  placeholder="Enter complete address with state and PIN code"
                   rows={3}
                 />
               </div>
@@ -215,10 +238,10 @@ const ClientManagement = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                <p className="text-2xl font-bold">${clients.reduce((sum, c) => sum + c.totalAmount, 0).toLocaleString()}</p>
+                <p className="text-2xl font-bold">{formatIndianCurrency(clients.reduce((sum, c) => sum + c.totalAmount, 0))}</p>
               </div>
               <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
-                <DollarSign className="h-4 w-4 text-green-600" />
+                <IndianRupee className="h-4 w-4 text-green-600" />
               </div>
             </div>
           </CardContent>
@@ -229,10 +252,10 @@ const ClientManagement = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Outstanding</p>
-                <p className="text-2xl font-bold">${clients.reduce((sum, c) => sum + c.outstandingAmount, 0).toLocaleString()}</p>
+                <p className="text-2xl font-bold">{formatIndianCurrency(clients.reduce((sum, c) => sum + c.outstandingAmount, 0))}</p>
               </div>
               <div className="h-8 w-8 bg-orange-100 rounded-full flex items-center justify-center">
-                <DollarSign className="h-4 w-4 text-orange-600" />
+                <IndianRupee className="h-4 w-4 text-orange-600" />
               </div>
             </div>
           </CardContent>
@@ -248,7 +271,7 @@ const ClientManagement = () => {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
-                  placeholder="Search clients..."
+                  placeholder="Search clients, GSTIN..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 w-64"
@@ -263,6 +286,7 @@ const ClientManagement = () => {
               <TableRow>
                 <TableHead>Client Name</TableHead>
                 <TableHead>Contact</TableHead>
+                <TableHead>GST Details</TableHead>
                 <TableHead>Invoices</TableHead>
                 <TableHead>Total Amount</TableHead>
                 <TableHead>Outstanding</TableHead>
@@ -295,17 +319,24 @@ const ClientManagement = () => {
                     </div>
                   </TableCell>
                   <TableCell>
+                    <div className="space-y-1">
+                      <div className="text-xs text-gray-500">GSTIN</div>
+                      <div className="font-mono text-sm">{client.gstin}</div>
+                      <div className="text-xs text-gray-500">PAN: {client.pan}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
                     <div className="text-center">
                       <div className="font-medium">{client.totalInvoices}</div>
                       <div className="text-xs text-gray-500">invoices</div>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium">${client.totalAmount.toLocaleString()}</div>
+                    <div className="font-medium">{formatIndianCurrency(client.totalAmount)}</div>
                   </TableCell>
                   <TableCell>
                     <div className={`font-medium ${client.outstandingAmount > 0 ? 'text-orange-600' : 'text-green-600'}`}>
-                      ${client.outstandingAmount.toLocaleString()}
+                      {formatIndianCurrency(client.outstandingAmount)}
                     </div>
                   </TableCell>
                   <TableCell>
