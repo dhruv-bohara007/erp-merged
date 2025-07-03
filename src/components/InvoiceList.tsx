@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,7 +15,8 @@ import {
   Eye,
   Calendar,
   IndianRupee,
-  Plus
+  Plus,
+  FileText
 } from 'lucide-react';
 import { useInvoices } from '@/hooks/useFirestore';
 import { useNavigate } from 'react-router-dom';
