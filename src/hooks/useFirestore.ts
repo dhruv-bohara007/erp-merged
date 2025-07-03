@@ -235,5 +235,18 @@ export const usePayments = () => {
     return () => unsubscribe();
   }, []);
 
-  return { payments, loading, error };
+  const addPayment = async (payment: Omit<Payment, 'id' | 'createdAt'>) => {
+    try {
+      const docRef = await addDoc(collection(db, 'payments'), {
+        ...payment,
+        paymentDate: Timestamp.fromDate(payment.paymentDate),
+        createdAt: Timestamp.now(),
+      });
+      return docRef.id;
+    } catch (err) {
+      throw new Error(err instanceof Error ? err.message : 'Failed to add payment');
+    }
+  };
+
+  return { payments, loading, error, addPayment };
 };

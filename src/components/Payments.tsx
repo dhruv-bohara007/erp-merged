@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,12 +17,14 @@ import {
   Building
 } from 'lucide-react';
 import { usePayments } from '@/hooks/useFirestore';
+import PaymentModal from './PaymentModal';
 
 const Payments = () => {
   const { payments, loading, error } = usePayments();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [methodFilter, setMethodFilter] = useState('all');
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
   const filteredPayments = payments.filter(payment => {
     const matchesSearch = payment.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -79,7 +80,10 @@ const Payments = () => {
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Payment Management</h1>
-        <Button className="bg-blue-600 hover:bg-blue-700">
+        <Button 
+          className="bg-blue-600 hover:bg-blue-700"
+          onClick={() => setIsPaymentModalOpen(true)}
+        >
           <Plus className="w-4 h-4 mr-2" />
           Record Payment
         </Button>
@@ -242,6 +246,11 @@ const Payments = () => {
           </div>
         </CardContent>
       </Card>
+
+      <PaymentModal 
+        open={isPaymentModalOpen} 
+        onOpenChange={setIsPaymentModalOpen} 
+      />
     </div>
   );
 };
