@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,6 +21,8 @@ import {
 import { useInvoices } from '@/hooks/useFirestore';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import InvoiceView from './InvoiceView';
+import type { Invoice } from '@/hooks/useFirestore';
 
 const InvoiceList = () => {
   const navigate = useNavigate();
@@ -30,6 +31,8 @@ const InvoiceList = () => {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
   const filteredInvoices = invoices.filter(invoice => {
     const matchesSearch = (invoice.invoiceNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -80,6 +83,60 @@ const InvoiceList = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleViewInvoice = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    setIsViewModalOpen(true);
+  };
+
+  const handleDownloadPDF = (invoice: Invoice) => {
+    // Create a basic PDF content
+    const content = `
+INVOICE
+
+Invoice Number: ${invoice.invoiceNumber}
+Client: ${invoice.clientName}
+Email: ${invoice.clientEmail}
+
+Issue Date: ${invoice.issueDate?.toLocaleDateString()}
+Due Date: ${invoice.dueDate?.toLocaleDateString()}
+
+Items:
+${invoice.items?.map(item => 
+  `${item.description} - Qty: ${item.quantity} - Rate: ₹${item.rate} - Amount: ₹${item.amount}`
+).join('\n')}
+
+Subtotal: ₹${invoice.subtotal?.toLocaleString()}
+CGST: ₹${invoice.cgst?.toLocaleString()}
+SGST: ₹${invoice.sgst?.toLocaleString()}
+IGST: ₹${invoice.igst?.toLocaleString()}
+Total GST: ₹${invoice.totalGst?.toLocaleString()}
+
+TOTAL AMOUNT: ₹${invoice.totalAmount?.toLocaleString()}
+
+Notes: ${invoice.notes || 'N/A'}
+Terms: ${invoice.terms || 'N/A'}
+    `;
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Invoice-${invoice.invoiceNumber}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Download Started",
+      description: `Invoice ${invoice.invoiceNumber} is being downloaded`,
+    });
+  };
+
+  const handleEditInvoice = (invoice: Invoice) => {
+    navigate(`/invoices/edit/${invoice.id}`);
   };
 
   // Calculate totals for filtered invoices with null checks
@@ -272,10 +329,20 @@ const InvoiceList = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" title="View Invoice">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            title="View Invoice"
+                            onClick={() => handleViewInvoice(invoice)}
+                          >
                             <Eye className="w-3 h-3" />
                           </Button>
-                          <Button variant="outline" size="sm" title="Download PDF">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            title="Download PDF"
+                            onClick={() => handleDownloadPDF(invoice)}
+                          >
                             <Download className="w-3 h-3" />
                           </Button>
                           <Button variant="outline" size="sm" title="Send Email">
@@ -296,7 +363,7 @@ const InvoiceList = () => {
                             variant="outline" 
                             size="sm" 
                             title="Edit Invoice"
-                            onClick={() => navigate(`/invoices/edit/${invoice.id}`)}
+                            onClick={() => handleEditInvoice(invoice)}
                           >
                             <Edit className="w-3 h-3" />
                           </Button>
@@ -319,6 +386,12 @@ const InvoiceList = () => {
           )}
         </CardContent>
       </Card>
+
+      <InvoiceView 
+        invoice={selectedInvoice}
+        open={isViewModalOpen}
+        onOpenChange={setIsViewModalOpen}
+      />
     </div>
   );
 };
