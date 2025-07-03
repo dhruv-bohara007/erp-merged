@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,9 +33,9 @@ const Dashboard = () => {
   const unpaidInvoices = invoices.filter(inv => inv.status === 'sent' || inv.status === 'draft');
   const overdueInvoices = invoices.filter(inv => inv.status === 'overdue');
 
-  const totalPaidAmount = paidInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
-  const totalUnpaidAmount = unpaidInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
-  const totalOverdueAmount = overdueInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
+  const totalPaidAmount = paidInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+  const totalUnpaidAmount = unpaidInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+  const totalOverdueAmount = overdueInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
 
   // Status data for pie chart
   const statusData = [
@@ -57,10 +56,11 @@ const Dashboard = () => {
       
       const monthlyTotal = paidInvoices
         .filter(inv => {
+          if (!inv.issueDate) return false;
           const invDate = new Date(inv.issueDate);
           return invDate.getMonth() === date.getMonth() && invDate.getFullYear() === date.getFullYear();
         })
-        .reduce((sum, inv) => sum + inv.totalAmount, 0);
+        .reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
       
       last6Months.push({ month: monthYear, revenue: monthlyTotal });
     }
@@ -75,6 +75,8 @@ const Dashboard = () => {
     const clientTotals = new Map();
     
     invoices.forEach(invoice => {
+      if (!invoice.clientId || !invoice.clientName || !invoice.totalAmount) return;
+      
       const current = clientTotals.get(invoice.clientId) || { name: invoice.clientName, total: 0 };
       current.total += invoice.totalAmount;
       clientTotals.set(invoice.clientId, current);
@@ -93,6 +95,8 @@ const Dashboard = () => {
     
     // Recent payments
     payments.slice(0, 2).forEach(payment => {
+      if (!payment.id || !payment.clientName || !payment.amount || !payment.createdAt) return;
+      
       activities.push({
         id: `payment-${payment.id}`,
         type: 'payment',
@@ -104,12 +108,14 @@ const Dashboard = () => {
     
     // Recent invoices
     invoices.slice(0, 2).forEach(invoice => {
+      if (!invoice.id || !invoice.invoiceNumber || !invoice.totalAmount || !invoice.createdAt) return;
+      
       activities.push({
         id: `invoice-${invoice.id}`,
         type: invoice.status === 'overdue' ? 'overdue' : 'invoice',
         message: invoice.status === 'overdue' 
           ? `Invoice ${invoice.invoiceNumber} is overdue`
-          : `Invoice ${invoice.invoiceNumber} sent to ${invoice.clientName}`,
+          : `Invoice ${invoice.invoiceNumber} sent to ${invoice.clientName || 'Client'}`,
         amount: `₹${invoice.totalAmount.toLocaleString()}`,
         time: formatTimeAgo(invoice.createdAt)
       });
@@ -119,6 +125,8 @@ const Dashboard = () => {
   };
 
   const formatTimeAgo = (date: Date) => {
+    if (!date) return 'Unknown';
+    
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
@@ -132,6 +140,8 @@ const Dashboard = () => {
   const recentActivities = getRecentActivities();
 
   const formatIndianCurrency = (amount: number) => {
+    if (!amount) return '₹0';
+    
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
