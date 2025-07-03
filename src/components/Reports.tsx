@@ -8,7 +8,7 @@ import {
   FileText, 
   Download, 
   Calendar, 
-  DollarSign,
+  IndianRupee,
   TrendingUp,
   Users,
   AlertCircle,
@@ -20,35 +20,36 @@ const Reports = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [selectedYear, setSelectedYear] = useState('2024');
 
-  // Sample data for reports
+  // Sample data for reports (in INR)
   const monthlyRevenue = [
-    { month: 'Jan', revenue: 45000, invoices: 25, paid: 22, unpaid: 3 },
-    { month: 'Feb', revenue: 52000, invoices: 30, paid: 28, unpaid: 2 },
-    { month: 'Mar', revenue: 48000, invoices: 28, paid: 25, unpaid: 3 },
-    { month: 'Apr', revenue: 61000, invoices: 35, paid: 32, unpaid: 3 },
-    { month: 'May', revenue: 55000, invoices: 32, paid: 30, unpaid: 2 },
-    { month: 'Jun', revenue: 67000, invoices: 38, paid: 36, unpaid: 2 },
+    { month: 'Jan', revenue: 2250000, invoices: 25, paid: 22, unpaid: 3 },
+    { month: 'Feb', revenue: 2600000, invoices: 30, paid: 28, unpaid: 2 },
+    { month: 'Mar', revenue: 2400000, invoices: 28, paid: 25, unpaid: 3 },
+    { month: 'Apr', revenue: 3050000, invoices: 35, paid: 32, unpaid: 3 },
+    { month: 'May', revenue: 2750000, invoices: 32, paid: 30, unpaid: 2 },
+    { month: 'Jun', revenue: 3350000, invoices: 38, paid: 36, unpaid: 2 },
   ];
 
   const clientReports = [
-    { name: 'ABC Corporation', revenue: 12500, invoices: 8, avgPaymentDays: 15 },
-    { name: 'XYZ Ltd', revenue: 9800, invoices: 6, avgPaymentDays: 22 },
-    { name: 'DEF Inc', revenue: 15200, invoices: 10, avgPaymentDays: 12 },
-    { name: 'GHI Corp', revenue: 7300, invoices: 5, avgPaymentDays: 28 },
-    { name: 'JKL Ltd', revenue: 8900, invoices: 7, avgPaymentDays: 18 },
+    { name: 'ABC Corporation', revenue: 625000, invoices: 8, avgPaymentDays: 15 },
+    { name: 'XYZ Ltd', revenue: 490000, invoices: 6, avgPaymentDays: 22 },
+    { name: 'DEF Inc', revenue: 760000, invoices: 10, avgPaymentDays: 12 },
+    { name: 'GHI Corp', revenue: 365000, invoices: 5, avgPaymentDays: 28 },
+    { name: 'JKL Ltd', revenue: 445000, invoices: 7, avgPaymentDays: 18 },
   ];
 
   const agingReport = [
-    { range: 'Current (0-30 days)', amount: 25000, count: 15, color: '#10B981' },
-    { range: '31-60 days', amount: 12000, count: 8, color: '#F59E0B' },
-    { range: '61-90 days', amount: 8500, count: 5, color: '#EF4444' },
-    { range: '90+ days', amount: 3200, count: 3, color: '#DC2626' },
+    { range: 'Current (0-30 days)', amount: 1250000, count: 15, color: '#10B981' },
+    { range: '31-60 days', amount: 600000, count: 8, color: '#F59E0B' },
+    { range: '61-90 days', amount: 425000, count: 5, color: '#EF4444' },
+    { range: '90+ days', amount: 160000, count: 3, color: '#DC2626' },
   ];
 
-  const taxSummary = [
-    { type: 'GST Collected', amount: 8500, rate: '18%' },
-    { type: 'TDS Deducted', amount: 2100, rate: '10%' },
-    { type: 'Service Tax', amount: 1200, rate: '12%' },
+  const gstSummary = [
+    { type: 'CGST Collected', amount: 425000, rate: '9%' },
+    { type: 'SGST Collected', amount: 425000, rate: '9%' },
+    { type: 'IGST Collected', amount: 180000, rate: '18%' },
+    { type: 'TDS Deducted', amount: 105000, rate: '10%' },
   ];
 
   const totalRevenue = monthlyRevenue.reduce((sum, month) => sum + month.revenue, 0);
@@ -84,11 +85,11 @@ const Reports = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                <p className="text-2xl font-bold">${totalRevenue.toLocaleString()}</p>
+                <p className="text-2xl font-bold">₹{(totalRevenue / 100000).toFixed(1)}L</p>
                 <p className="text-xs text-green-600">+12% from last period</p>
               </div>
               <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
-                <DollarSign className="h-4 w-4 text-blue-600" />
+                <IndianRupee className="h-4 w-4 text-blue-600" />
               </div>
             </div>
           </CardContent>
@@ -114,7 +115,7 @@ const Reports = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Avg Invoice Value</p>
-                <p className="text-2xl font-bold">${averageInvoiceValue.toFixed(0)}</p>
+                <p className="text-2xl font-bold">₹{(averageInvoiceValue / 1000).toFixed(0)}K</p>
                 <p className="text-xs text-yellow-600">+3% from last period</p>
               </div>
               <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
@@ -145,7 +146,7 @@ const Reports = () => {
           <TabsTrigger value="revenue">Revenue Analysis</TabsTrigger>
           <TabsTrigger value="clients">Client Reports</TabsTrigger>
           <TabsTrigger value="aging">Aging Report</TabsTrigger>
-          <TabsTrigger value="tax">Tax Summary</TabsTrigger>
+          <TabsTrigger value="gst">GST Summary</TabsTrigger>
         </TabsList>
 
         {/* Revenue Analysis */}
@@ -163,8 +164,8 @@ const Reports = () => {
                   <BarChart data={monthlyRevenue}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => [`$${value}`, 'Revenue']} />
+                    <YAxis tickFormatter={(value) => `₹${(value / 100000).toFixed(1)}L`} />
+                    <Tooltip formatter={(value) => [`₹${value.toLocaleString()}`, 'Revenue']} />
                     <Bar dataKey="revenue" fill="#3B82F6" />
                   </BarChart>
                 </ResponsiveContainer>
@@ -211,7 +212,7 @@ const Reports = () => {
                       <div className="text-sm text-gray-500">{client.invoices} invoices</div>
                     </div>
                     <div className="text-right">
-                      <div className="font-bold text-lg">${client.revenue.toLocaleString()}</div>
+                      <div className="font-bold text-lg">₹{client.revenue.toLocaleString()}</div>
                       <div className="text-sm text-gray-500">
                         Avg. payment: {client.avgPaymentDays} days
                       </div>
@@ -249,7 +250,7 @@ const Reports = () => {
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value) => [`$${value}`, 'Amount']} />
+                    <Tooltip formatter={(value) => [`₹${value.toLocaleString()}`, 'Amount']} />
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="flex flex-col gap-2 mt-4">
@@ -259,7 +260,7 @@ const Reports = () => {
                         <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
                         <span className="text-sm">{item.range}</span>
                       </div>
-                      <div className="text-sm font-medium">${item.amount.toLocaleString()} ({item.count})</div>
+                      <div className="text-sm font-medium">₹{item.amount.toLocaleString()} ({item.count})</div>
                     </div>
                   ))}
                 </div>
@@ -276,14 +277,14 @@ const Reports = () => {
                     <div key={index} className="p-4 border rounded-lg">
                       <div className="flex justify-between items-center mb-2">
                         <span className="font-medium">{item.range}</span>
-                        <span className="text-lg font-bold">${item.amount.toLocaleString()}</span>
+                        <span className="text-lg font-bold">₹{item.amount.toLocaleString()}</span>
                       </div>
                       <div className="text-sm text-gray-500">{item.count} invoices</div>
                       <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
                         <div 
                           className="h-2 rounded-full" 
                           style={{ 
-                            width: `${(item.amount / 48700) * 100}%`,
+                            width: `${(item.amount / 2435000) * 100}%`,
                             backgroundColor: item.color 
                           }}
                         ></div>
@@ -296,30 +297,30 @@ const Reports = () => {
           </div>
         </TabsContent>
 
-        {/* Tax Summary */}
-        <TabsContent value="tax">
+        {/* GST Summary */}
+        <TabsContent value="gst">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="w-5 h-5 text-green-500" />
-                Tax Summary Report
+                GST Summary Report
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {taxSummary.map((tax, index) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {gstSummary.map((gst, index) => (
                   <div key={index} className="p-6 border rounded-lg">
-                    <div className="text-sm text-gray-600">{tax.type}</div>
-                    <div className="text-2xl font-bold mt-1">${tax.amount.toLocaleString()}</div>
-                    <div className="text-sm text-blue-600 mt-1">Rate: {tax.rate}</div>
+                    <div className="text-sm text-gray-600">{gst.type}</div>
+                    <div className="text-2xl font-bold mt-1">₹{gst.amount.toLocaleString()}</div>
+                    <div className="text-sm text-blue-600 mt-1">Rate: {gst.rate}</div>
                   </div>
                 ))}
               </div>
               <div className="mt-6 p-4 bg-blue-50 rounded-lg">
                 <div className="flex justify-between items-center">
-                  <span className="font-medium">Total Tax Liability</span>
+                  <span className="font-medium">Total GST & TDS</span>
                   <span className="text-xl font-bold">
-                    ${taxSummary.reduce((sum, tax) => sum + tax.amount, 0).toLocaleString()}
+                    ₹{gstSummary.reduce((sum, gst) => sum + gst.amount, 0).toLocaleString()}
                   </span>
                 </div>
               </div>

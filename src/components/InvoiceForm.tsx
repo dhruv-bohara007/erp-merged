@@ -26,7 +26,10 @@ const InvoiceForm = () => {
     notes: '',
     terms: '',
     discount: 0,
-    tax: 18, // GST percentage
+    cgst: 9, // Central GST
+    sgst: 9, // State GST
+    igst: 18, // Integrated GST (for inter-state)
+    isInterState: false,
   });
 
   const [items, setItems] = useState<InvoiceItem[]>([
@@ -70,8 +73,16 @@ const InvoiceForm = () => {
   const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
   const discountAmount = (subtotal * invoiceData.discount) / 100;
   const taxableAmount = subtotal - discountAmount;
-  const taxAmount = (taxableAmount * invoiceData.tax) / 100;
-  const total = taxableAmount + taxAmount;
+  
+  // GST calculation
+  let gstAmount = 0;
+  if (invoiceData.isInterState) {
+    gstAmount = (taxableAmount * invoiceData.igst) / 100;
+  } else {
+    gstAmount = (taxableAmount * (invoiceData.cgst + invoiceData.sgst)) / 100;
+  }
+  
+  const total = taxableAmount + gstAmount;
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
@@ -136,21 +147,55 @@ const InvoiceForm = () => {
           </CardContent>
         </Card>
 
-        {/* Tax & Discount */}
+        {/* GST & Discount */}
         <Card>
           <CardHeader>
-            <CardTitle>Tax & Discount Settings</CardTitle>
+            <CardTitle>GST & Discount Settings</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="tax">Tax Rate (%)</Label>
-              <Input
-                id="tax"
-                type="number"
-                value={invoiceData.tax}
-                onChange={(e) => setInvoiceData({...invoiceData, tax: Number(e.target.value)})}
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="isInterState"
+                checked={invoiceData.isInterState}
+                onChange={(e) => setInvoiceData({...invoiceData, isInterState: e.target.checked})}
               />
+              <Label htmlFor="isInterState">Inter-state transaction (IGST)</Label>
             </div>
+            
+            {invoiceData.isInterState ? (
+              <div>
+                <Label htmlFor="igst">IGST Rate (%)</Label>
+                <Input
+                  id="igst"
+                  type="number"
+                  value={invoiceData.igst}
+                  onChange={(e) => setInvoiceData({...invoiceData, igst: Number(e.target.value)})}
+                />
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="cgst">CGST Rate (%)</Label>
+                  <Input
+                    id="cgst"
+                    type="number"
+                    value={invoiceData.cgst}
+                    onChange={(e) => setInvoiceData({...invoiceData, cgst: Number(e.target.value)})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="sgst">SGST Rate (%)</Label>
+                  <Input
+                    id="sgst"
+                    type="number"
+                    value={invoiceData.sgst}
+                    onChange={(e) => setInvoiceData({...invoiceData, sgst: Number(e.target.value)})}
+                  />
+                </div>
+              </div>
+            )}
+            
             <div>
               <Label htmlFor="discount">Discount (%)</Label>
               <Input
@@ -163,20 +208,33 @@ const InvoiceForm = () => {
             <div className="pt-4 space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Subtotal:</span>
-                <span>${subtotal.toFixed(2)}</span>
+                <span>₹{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span>Discount:</span>
-                <span>-${discountAmount.toFixed(2)}</span>
+                <span>-₹{discountAmount.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span>Tax ({invoiceData.tax}%):</span>
-                <span>${taxAmount.toFixed(2)}</span>
-              </div>
+              {invoiceData.isInterState ? (
+                <div className="flex justify-between text-sm">
+                  <span>IGST ({invoiceData.igst}%):</span>
+                  <span>₹{gstAmount.toFixed(2)}</span>
+                </div>
+              ) : (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span>CGST ({invoiceData.cgst}%):</span>
+                    <span>₹{((taxableAmount * invoiceData.cgst) / 100).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>SGST ({invoiceData.sgst}%):</span>
+                    <span>₹{((taxableAmount * invoiceData.sgst) / 100).toFixed(2)}</span>
+                  </div>
+                </>
+              )}
               <Separator />
               <div className="flex justify-between font-bold">
                 <span>Total:</span>
-                <span>${total.toFixed(2)}</span>
+                <span>₹{total.toFixed(2)}</span>
               </div>
             </div>
           </CardContent>
@@ -217,7 +275,7 @@ const InvoiceForm = () => {
                   />
                 </div>
                 <div className="col-span-2">
-                  <Label htmlFor={`rate-${item.id}`}>Rate</Label>
+                  <Label htmlFor={`rate-${item.id}`}>Rate (₹)</Label>
                   <Input
                     id={`rate-${item.id}`}
                     type="number"
@@ -228,7 +286,7 @@ const InvoiceForm = () => {
                 <div className="col-span-2">
                   <Label>Amount</Label>
                   <div className="p-2 bg-gray-100 rounded border">
-                    ${item.amount.toFixed(2)}
+                    ₹{item.amount.toFixed(2)}
                   </div>
                 </div>
                 <div className="col-span-1 flex justify-center">

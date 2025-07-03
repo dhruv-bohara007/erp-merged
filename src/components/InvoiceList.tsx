@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,7 +14,7 @@ import {
   Trash2, 
   Eye,
   Calendar,
-  DollarSign,
+  IndianRupee,
   Plus
 } from 'lucide-react';
 
@@ -38,7 +37,7 @@ const InvoiceList = () => {
       invoiceNumber: 'INV-001',
       clientName: 'ABC Corporation',
       clientEmail: 'contact@abc.com',
-      amount: 2500,
+      amount: 125000,
       status: 'paid',
       issueDate: '2024-01-15',
       dueDate: '2024-02-15',
@@ -49,7 +48,7 @@ const InvoiceList = () => {
       invoiceNumber: 'INV-002',
       clientName: 'XYZ Ltd',
       clientEmail: 'info@xyz.com',
-      amount: 1200,
+      amount: 60000,
       status: 'unpaid',
       issueDate: '2024-01-20',
       dueDate: '2024-02-20'
@@ -59,7 +58,7 @@ const InvoiceList = () => {
       invoiceNumber: 'INV-003',
       clientName: 'DEF Inc',
       clientEmail: 'hello@def.com',
-      amount: 3200,
+      amount: 160000,
       status: 'overdue',
       issueDate: '2024-01-10',
       dueDate: '2024-02-10'
@@ -69,7 +68,7 @@ const InvoiceList = () => {
       invoiceNumber: 'INV-004',
       clientName: 'GHI Corp',
       clientEmail: 'support@ghi.com',
-      amount: 1800,
+      amount: 90000,
       status: 'draft',
       issueDate: '2024-01-25',
       dueDate: '2024-02-25'
@@ -131,10 +130,10 @@ const InvoiceList = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Amount</p>
-                <p className="text-2xl font-bold">${totalAmount.toLocaleString()}</p>
+                <p className="text-2xl font-bold">₹{totalAmount.toLocaleString()}</p>
               </div>
               <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
-                <DollarSign className="h-4 w-4 text-blue-600" />
+                <IndianRupee className="h-4 w-4 text-blue-600" />
               </div>
             </div>
           </CardContent>
@@ -145,10 +144,10 @@ const InvoiceList = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Paid</p>
-                <p className="text-2xl font-bold text-green-600">${paidAmount.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-green-600">₹{paidAmount.toLocaleString()}</p>
               </div>
               <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
-                <DollarSign className="h-4 w-4 text-green-600" />
+                <IndianRupee className="h-4 w-4 text-green-600" />
               </div>
             </div>
           </CardContent>
@@ -159,10 +158,10 @@ const InvoiceList = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Unpaid</p>
-                <p className="text-2xl font-bold text-yellow-600">${unpaidAmount.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-yellow-600">₹{unpaidAmount.toLocaleString()}</p>
               </div>
               <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                <DollarSign className="h-4 w-4 text-yellow-600" />
+                <IndianRupee className="h-4 w-4 text-yellow-600" />
               </div>
             </div>
           </CardContent>
@@ -173,10 +172,10 @@ const InvoiceList = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Overdue</p>
-                <p className="text-2xl font-bold text-red-600">${overdueAmount.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-red-600">₹{overdueAmount.toLocaleString()}</p>
               </div>
               <div className="h-8 w-8 bg-red-100 rounded-full flex items-center justify-center">
-                <DollarSign className="h-4 w-4 text-red-600" />
+                <IndianRupee className="h-4 w-4 text-red-600" />
               </div>
             </div>
           </CardContent>
@@ -244,7 +243,7 @@ const InvoiceList = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium">${invoice.amount.toLocaleString()}</div>
+                      <div className="font-medium">₹{invoice.amount.toLocaleString()}</div>
                     </TableCell>
                     <TableCell>
                       <Badge className={getStatusColor(invoice.status)}>

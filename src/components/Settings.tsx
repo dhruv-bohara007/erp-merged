@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { 
   Building, 
-  DollarSign, 
+  IndianRupee, 
   FileText, 
   Bell, 
   Palette,
@@ -23,20 +22,23 @@ const Settings = () => {
   const [businessInfo, setBusinessInfo] = useState({
     companyName: 'Your Business Name',
     email: 'your@email.com',
-    phone: '+1 (555) 123-4567',
-    address: '123 Business St, City, State 12345',
+    phone: '+91 98765 43210',
+    address: '123 Business Street, Mumbai, Maharashtra 400001',
     website: 'www.yourbusiness.com',
-    taxId: 'TX123456789',
-    bankDetails: 'Account: 1234567890, Bank: Your Bank Name'
+    gstin: '27AABCU9603R1ZM', // GST Identification Number
+    pan: 'AABCU9603R',
+    bankDetails: 'Account: 1234567890, IFSC: HDFC0000123, Bank: HDFC Bank'
   });
 
   const [invoiceSettings, setInvoiceSettings] = useState({
     invoicePrefix: 'INV',
     invoiceNumber: 1,
-    defaultTax: 18,
-    defaultCurrency: 'USD',
+    defaultCGST: 9,
+    defaultSGST: 9,
+    defaultIGST: 18,
+    defaultCurrency: 'INR',
     paymentTerms: 'Net 30',
-    footerText: 'Thank you for your business!'
+    footerText: 'Thank you for your business! Please pay within the due date.'
   });
 
   const [notifications, setNotifications] = useState({
@@ -111,11 +113,19 @@ const Settings = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="taxId">Tax ID</Label>
+                  <Label htmlFor="gstin">GSTIN</Label>
                   <Input
-                    id="taxId"
-                    value={businessInfo.taxId}
-                    onChange={(e) => setBusinessInfo({...businessInfo, taxId: e.target.value})}
+                    id="gstin"
+                    value={businessInfo.gstin}
+                    onChange={(e) => setBusinessInfo({...businessInfo, gstin: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pan">PAN</Label>
+                  <Input
+                    id="pan"
+                    value={businessInfo.pan}
+                    onChange={(e) => setBusinessInfo({...businessInfo, pan: e.target.value})}
                   />
                 </div>
               </div>
@@ -182,28 +192,31 @@ const Settings = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="defaultTax">Default Tax Rate (%)</Label>
+                  <Label htmlFor="defaultCGST">Default CGST Rate (%)</Label>
                   <Input
-                    id="defaultTax"
+                    id="defaultCGST"
                     type="number"
-                    value={invoiceSettings.defaultTax}
-                    onChange={(e) => setInvoiceSettings({...invoiceSettings, defaultTax: Number(e.target.value)})}
+                    value={invoiceSettings.defaultCGST}
+                    onChange={(e) => setInvoiceSettings({...invoiceSettings, defaultCGST: Number(e.target.value)})}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="defaultCurrency">Default Currency</Label>
-                  <Select value={invoiceSettings.defaultCurrency} onValueChange={(value) => setInvoiceSettings({...invoiceSettings, defaultCurrency: value})}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="USD">USD - US Dollar</SelectItem>
-                      <SelectItem value="EUR">EUR - Euro</SelectItem>
-                      <SelectItem value="GBP">GBP - British Pound</SelectItem>
-                      <SelectItem value="INR">INR - Indian Rupee</SelectItem>
-                      <SelectItem value="CAD">CAD - Canadian Dollar</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="defaultSGST">Default SGST Rate (%)</Label>
+                  <Input
+                    id="defaultSGST"
+                    type="number"
+                    value={invoiceSettings.defaultSGST}
+                    onChange={(e) => setInvoiceSettings({...invoiceSettings, defaultSGST: Number(e.target.value)})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="defaultIGST">Default IGST Rate (%)</Label>
+                  <Input
+                    id="defaultIGST"
+                    type="number"
+                    value={invoiceSettings.defaultIGST}
+                    onChange={(e) => setInvoiceSettings({...invoiceSettings, defaultIGST: Number(e.target.value)})}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="paymentTerms">Default Payment Terms</Label>
@@ -357,7 +370,7 @@ const Settings = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5" />
+                <IndianRupee className="w-5 h-5" />
                 Payment Integrations
               </CardTitle>
             </CardHeader>
@@ -366,35 +379,35 @@ const Settings = () => {
                 <div className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <DollarSign className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <div className="font-medium">Stripe</div>
-                      <div className="text-sm text-gray-500">Accept online payments</div>
-                    </div>
-                  </div>
-                  <Button variant="outline">Connect</Button>
-                </div>
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <DollarSign className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <div className="font-medium">PayPal</div>
-                      <div className="text-sm text-gray-500">PayPal payment gateway</div>
-                    </div>
-                  </div>
-                  <Button variant="outline">Connect</Button>
-                </div>
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <DollarSign className="w-5 h-5 text-blue-600" />
+                      <IndianRupee className="w-5 h-5 text-blue-600" />
                     </div>
                     <div>
                       <div className="font-medium">Razorpay</div>
+                      <div className="text-sm text-gray-500">Accept online payments in India</div>
+                    </div>
+                  </div>
+                  <Button variant="outline">Connect</Button>
+                </div>
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <IndianRupee className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <div className="font-medium">PayU</div>
                       <div className="text-sm text-gray-500">Indian payment gateway</div>
+                    </div>
+                  </div>
+                  <Button variant="outline">Connect</Button>
+                </div>
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <IndianRupee className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <div className="font-medium">Paytm</div>
+                      <div className="text-sm text-gray-500">Paytm payment gateway</div>
                     </div>
                   </div>
                   <Button variant="outline">Connect</Button>

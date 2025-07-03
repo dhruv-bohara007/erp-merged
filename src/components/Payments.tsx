@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +10,7 @@ import {
   Filter, 
   Download, 
   Calendar, 
-  DollarSign,
+  IndianRupee,
   Plus,
   CreditCard,
   Banknote,
@@ -24,7 +23,7 @@ interface Payment {
   invoiceNumber: string;
   clientName: string;
   amount: number;
-  paymentMethod: 'bank_transfer' | 'upi' | 'cash' | 'credit_card' | 'cheque';
+  paymentMethod: 'neft' | 'rtgs' | 'upi' | 'cash' | 'credit_card' | 'debit_card' | 'cheque' | 'imps';
   paymentDate: string;
   status: 'completed' | 'pending' | 'failed';
   referenceNumber?: string;
@@ -36,17 +35,17 @@ const Payments = () => {
       id: '1',
       invoiceNumber: 'INV-001',
       clientName: 'ABC Corporation',
-      amount: 2500,
-      paymentMethod: 'bank_transfer',
+      amount: 125000,
+      paymentMethod: 'neft',
       paymentDate: '2024-02-10',
       status: 'completed',
-      referenceNumber: 'TXN123456789'
+      referenceNumber: 'NEFT123456789'
     },
     {
       id: '2',
       invoiceNumber: 'INV-003',
       clientName: 'DEF Inc',
-      amount: 1800,
+      amount: 89500,
       paymentMethod: 'upi',
       paymentDate: '2024-02-08',
       status: 'completed',
@@ -56,7 +55,7 @@ const Payments = () => {
       id: '3',
       invoiceNumber: 'INV-005',
       clientName: 'GHI Corp',
-      amount: 3200,
+      amount: 156000,
       paymentMethod: 'cheque',
       paymentDate: '2024-02-12',
       status: 'pending',
@@ -66,7 +65,7 @@ const Payments = () => {
       id: '4',
       invoiceNumber: 'INV-007',
       clientName: 'JKL Ltd',
-      amount: 950,
+      amount: 47500,
       paymentMethod: 'cash',
       paymentDate: '2024-02-11',
       status: 'completed'
@@ -96,12 +95,15 @@ const Payments = () => {
 
   const getPaymentMethodIcon = (method: string) => {
     switch (method) {
-      case 'bank_transfer': return <Building className="w-4 h-4" />;
+      case 'neft':
+      case 'rtgs':
+      case 'imps': return <Building className="w-4 h-4" />;
       case 'upi': return <Smartphone className="w-4 h-4" />;
-      case 'credit_card': return <CreditCard className="w-4 h-4" />;
+      case 'credit_card':
+      case 'debit_card': return <CreditCard className="w-4 h-4" />;
       case 'cash': return <Banknote className="w-4 h-4" />;
-      case 'cheque': return <DollarSign className="w-4 h-4" />;
-      default: return <DollarSign className="w-4 h-4" />;
+      case 'cheque': return <IndianRupee className="w-4 h-4" />;
+      default: return <IndianRupee className="w-4 h-4" />;
     }
   };
 
@@ -125,10 +127,10 @@ const Payments = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Received</p>
-                <p className="text-2xl font-bold text-green-600">${totalReceived.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-green-600">₹{totalReceived.toLocaleString()}</p>
               </div>
               <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
-                <DollarSign className="h-4 w-4 text-green-600" />
+                <IndianRupee className="h-4 w-4 text-green-600" />
               </div>
             </div>
           </CardContent>
@@ -139,7 +141,7 @@ const Payments = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Pending</p>
-                <p className="text-2xl font-bold text-yellow-600">${pendingAmount.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-yellow-600">₹{pendingAmount.toLocaleString()}</p>
               </div>
               <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
                 <Calendar className="h-4 w-4 text-yellow-600" />
@@ -153,7 +155,7 @@ const Payments = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">This Month</p>
-                <p className="text-2xl font-bold">${(totalReceived * 0.4).toFixed(0)}</p>
+                <p className="text-2xl font-bold">₹{(totalReceived * 0.4).toFixed(0)}</p>
               </div>
               <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
                 <Calendar className="h-4 w-4 text-blue-600" />
@@ -195,9 +197,12 @@ const Payments = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Methods</SelectItem>
-                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                  <SelectItem value="neft">NEFT</SelectItem>
+                  <SelectItem value="rtgs">RTGS</SelectItem>
+                  <SelectItem value="imps">IMPS</SelectItem>
                   <SelectItem value="upi">UPI</SelectItem>
                   <SelectItem value="credit_card">Credit Card</SelectItem>
+                  <SelectItem value="debit_card">Debit Card</SelectItem>
                   <SelectItem value="cash">Cash</SelectItem>
                   <SelectItem value="cheque">Cheque</SelectItem>
                 </SelectContent>
@@ -233,12 +238,12 @@ const Payments = () => {
                       <div className="font-medium">{payment.clientName}</div>
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium">${payment.amount.toLocaleString()}</div>
+                      <div className="font-medium">₹{payment.amount.toLocaleString()}</div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         {getPaymentMethodIcon(payment.paymentMethod)}
-                        <span className="capitalize">{payment.paymentMethod.replace('_', ' ')}</span>
+                        <span className="capitalize">{payment.paymentMethod.toUpperCase()}</span>
                       </div>
                     </TableCell>
                     <TableCell>
