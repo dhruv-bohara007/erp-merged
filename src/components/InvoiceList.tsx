@@ -1,189 +1,385 @@
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Filter, Edit, Eye } from 'lucide-react';
-import SampleDataToggle from '@/components/SampleDataToggle';
-import { useSampleData } from '@/contexts/SampleDataContext';
+import { 
+  Search, 
+  Filter, 
+  Download, 
+  Mail, 
+  Trash2, 
+  Eye,
+  Calendar,
+  IndianRupee,
+  Plus,
+  FileText
+} from 'lucide-react';
+import { useInvoices } from '@/hooks/useFirestore';
+import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
+import InvoiceView from './InvoiceView';
+import type { Invoice } from '@/hooks/useFirestore';
 
 const InvoiceList = () => {
   const navigate = useNavigate();
-  const { showSampleData } = useSampleData();
+  const { toast } = useToast();
+  const { invoices, loading, deleteInvoice, updateInvoice } = useInvoices();
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-
-  // Sample data for when toggle is enabled
-  const sampleInvoices = [
-    {
-      id: 'INV-001',
-      client: 'Acme Corp',
-      amount: 2500,
-      status: 'paid',
-      dueDate: '2024-01-15',
-      issueDate: '2024-01-01'
-    },
-    {
-      id: 'INV-002',
-      client: 'TechStart Inc',
-      amount: 1800,
-      status: 'pending',
-      dueDate: '2024-01-20',
-      issueDate: '2024-01-05'
-    },
-    {
-      id: 'INV-003',
-      client: 'Global Solutions',
-      amount: 3200,
-      status: 'overdue',
-      dueDate: '2024-01-10',
-      issueDate: '2023-12-20'
-    },
-    {
-      id: 'INV-004',
-      client: 'Innovation Labs',
-      amount: 4500,
-      status: 'paid',
-      dueDate: '2024-01-25',
-      issueDate: '2024-01-10'
-    },
-    {
-      id: 'INV-005',
-      client: 'Digital Dynamics',
-      amount: 2100,
-      status: 'pending',
-      dueDate: '2024-01-30',
-      issueDate: '2024-01-15'
-    }
-  ];
-
-  // Real data would come from your hooks here
-  const invoices = showSampleData ? sampleInvoices : [];
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'paid':
-        return 'bg-green-100 text-green-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'overdue':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
   const filteredInvoices = invoices.filter(invoice => {
-    const matchesSearch = invoice.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         invoice.id.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (invoice.invoiceNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (invoice.clientName || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'paid': return 'bg-green-100 text-green-800';
+      case 'sent': return 'bg-blue-100 text-blue-800';
+      case 'draft': return 'bg-gray-100 text-gray-800';
+      case 'overdue': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const handleMarkAsPaid = async (id: string) => {
+    try {
+      await updateInvoice(id, { status: 'paid' });
+      toast({
+        title: "Success",
+        description: "Invoice marked as paid",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update invoice",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteInvoice = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this invoice?')) return;
+    
+    try {
+      await deleteInvoice(id);
+      toast({
+        title: "Success",
+        description: "Invoice deleted successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete invoice",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleViewInvoice = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    setIsViewModalOpen(true);
+  };
+
+  const handleDownloadPDF = (invoice: Invoice) => {
+    // Create a basic PDF content
+    const content = `
+INVOICE
+
+Invoice Number: ${invoice.invoiceNumber}
+Client: ${invoice.clientName}
+Email: ${invoice.clientEmail}
+
+Issue Date: ${invoice.issueDate?.toLocaleDateString()}
+Due Date: ${invoice.dueDate?.toLocaleDateString()}
+
+Items:
+${invoice.items?.map(item => 
+  `${item.description} - Qty: ${item.quantity} - Rate: ₹${item.rate} - Amount: ₹${item.amount}`
+).join('\n')}
+
+Subtotal: ₹${invoice.subtotal?.toLocaleString()}
+CGST: ₹${invoice.cgst?.toLocaleString()}
+SGST: ₹${invoice.sgst?.toLocaleString()}
+IGST: ₹${invoice.igst?.toLocaleString()}
+Total GST: ₹${invoice.totalGst?.toLocaleString()}
+
+TOTAL AMOUNT: ₹${invoice.totalAmount?.toLocaleString()}
+
+Notes: ${invoice.notes || 'N/A'}
+Terms: ${invoice.terms || 'N/A'}
+    `;
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Invoice-${invoice.invoiceNumber}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Download Started",
+      description: `Invoice ${invoice.invoiceNumber} is being downloaded`,
+    });
+  };
+
+  // Calculate totals for filtered invoices with null checks
+  const totalAmount = filteredInvoices.reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
+  const paidAmount = filteredInvoices.filter(inv => inv.status === 'paid').reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
+  const unpaidAmount = filteredInvoices.filter(inv => inv.status === 'sent' || inv.status === 'draft').reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
+  const overdueAmount = filteredInvoices.filter(inv => inv.status === 'overdue').reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto p-6 flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading invoices...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Invoices</h1>
-        <p className="text-gray-600">Manage your invoices and track payments</p>
+    <div className="max-w-7xl mx-auto p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Invoice Management</h1>
+        <Button 
+          className="bg-blue-600 hover:bg-blue-700"
+          onClick={() => navigate('/invoices/new')}
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Create Invoice
+        </Button>
       </div>
 
-      <SampleDataToggle />
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Amount</p>
+                <p className="text-2xl font-bold">₹{totalAmount.toLocaleString()}</p>
+              </div>
+              <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
+                <IndianRupee className="h-4 w-4 text-blue-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Paid</p>
+                <p className="text-2xl font-bold text-green-600">₹{paidAmount.toLocaleString()}</p>
+              </div>
+              <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
+                <IndianRupee className="h-4 w-4 text-green-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Unpaid</p>
+                <p className="text-2xl font-bold text-yellow-600">₹{unpaidAmount.toLocaleString()}</p>
+              </div>
+              <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                <IndianRupee className="h-4 w-4 text-yellow-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Overdue</p>
+                <p className="text-2xl font-bold text-red-600">₹{overdueAmount.toLocaleString()}</p>
+              </div>
+              <div className="h-8 w-8 bg-red-100 rounded-full flex items-center justify-center">
+                <IndianRupee className="h-4 w-4 text-red-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters and Search */}
       <Card>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <CardTitle>Invoice Management</CardTitle>
-              <CardDescription>Create, edit, and track your invoices</CardDescription>
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <CardTitle>All Invoices ({filteredInvoices.length})</CardTitle>
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Search invoices..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 w-full sm:w-64"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-32">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="sent">Sent</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="overdue">Overdue</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Button onClick={() => navigate('/invoices/new')}>
-              <Plus className="mr-2 h-4 w-4" />
-              New Invoice
-            </Button>
           </div>
         </CardHeader>
         <CardContent>
-          {/* Filters */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search invoices..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+          {filteredInvoices.length === 0 ? (
+            <div className="text-center py-12">
+              <FileText className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-4 text-sm font-medium text-gray-900">No invoices found</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {invoices.length === 0 
+                  ? "Get started by creating your first invoice."
+                  : "Try adjusting your search or filter criteria."
+                }
+              </p>
+              {invoices.length === 0 && (
+                <div className="mt-6">
+                  <Button onClick={() => navigate('/invoices/new')}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Invoice
+                  </Button>
+                </div>
+              )}
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <Filter className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="paid">Paid</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="overdue">Overdue</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Invoice Table */}
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Invoice #</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Issue Date</TableHead>
-                  <TableHead>Due Date</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredInvoices.length === 0 ? (
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                      {showSampleData ? 'No invoices match your search criteria' : 'No invoices found. Create your first invoice to get started.'}
-                    </TableCell>
+                    <TableHead>Invoice #</TableHead>
+                    <TableHead>Client</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Issue Date</TableHead>
+                    <TableHead>Due Date</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
-                ) : (
-                  filteredInvoices.map((invoice) => (
+                </TableHeader>
+                <TableBody>
+                  {filteredInvoices.map((invoice) => (
                     <TableRow key={invoice.id}>
-                      <TableCell className="font-medium">{invoice.id}</TableCell>
-                      <TableCell>{invoice.client}</TableCell>
-                      <TableCell>${invoice.amount.toLocaleString()}</TableCell>
                       <TableCell>
-                        <Badge className={getStatusColor(invoice.status)}>
-                          {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                        <div className="font-medium">{invoice.invoiceNumber || 'N/A'}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{invoice.clientName || 'N/A'}</div>
+                          <div className="text-sm text-gray-500">{invoice.clientEmail || 'N/A'}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">₹{(invoice.totalAmount || 0).toLocaleString()}</div>
+                        <div className="text-sm text-gray-500">GST: ₹{(invoice.totalGst || 0).toLocaleString()}</div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(invoice.status || 'draft')}>
+                          {(invoice.status || 'draft').charAt(0).toUpperCase() + (invoice.status || 'draft').slice(1)}
                         </Badge>
                       </TableCell>
-                      <TableCell>{invoice.issueDate}</TableCell>
-                      <TableCell>{invoice.dueDate}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center text-sm">
+                          <Calendar className="w-3 h-3 mr-1 text-gray-400" />
+                          {invoice.issueDate ? invoice.issueDate.toLocaleDateString() : 'N/A'}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className={`flex items-center text-sm ${
+                          invoice.status === 'overdue' ? 'text-red-600' : ''
+                        }`}>
+                          <Calendar className="w-3 h-3 mr-1 text-gray-400" />
+                          {invoice.dueDate ? invoice.dueDate.toLocaleDateString() : 'N/A'}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm">
-                            <Eye className="h-4 w-4" />
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            title="View Invoice"
+                            onClick={() => handleViewInvoice(invoice)}
+                          >
+                            <Eye className="w-3 h-3" />
                           </Button>
-                          <Button variant="outline" size="sm" onClick={() => navigate(`/invoices/edit/${invoice.id}`)}>
-                            <Edit className="h-4 w-4" />
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            title="Download PDF"
+                            onClick={() => handleDownloadPDF(invoice)}
+                          >
+                            <Download className="w-3 h-3" />
+                          </Button>
+                          <Button variant="outline" size="sm" title="Send Email">
+                            <Mail className="w-3 h-3" />
+                          </Button>
+                          {(invoice.status === 'sent' || invoice.status === 'overdue') && (
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleMarkAsPaid(invoice.id)}
+                              className="text-green-600 hover:text-green-700"
+                              title="Mark as Paid"
+                            >
+                              ✓
+                            </Button>
+                          )}
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleDeleteInvoice(invoice.id)}
+                            className="text-red-600 hover:text-red-700"
+                            title="Delete Invoice"
+                          >
+                            <Trash2 className="w-3 h-3" />
                           </Button>
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      <InvoiceView 
+        invoice={selectedInvoice}
+        open={isViewModalOpen}
+        onOpenChange={setIsViewModalOpen}
+      />
     </div>
   );
 };

@@ -1,158 +1,413 @@
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
-import { DollarSign, FileText, Users, TrendingUp } from 'lucide-react';
-import SampleDataToggle from '@/components/SampleDataToggle';
-import { useSampleData } from '@/contexts/SampleDataContext';
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { 
+  FileText, 
+  Users, 
+  IndianRupee, 
+  Calendar, 
+  TrendingUp, 
+  AlertCircle,
+  Plus,
+  Receipt,
+  Settings
+} from 'lucide-react';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useInvoices, useClients, usePayments } from '@/hooks/useFirestore';
+import AddClientModal from '@/components/AddClientModal';
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
-  const { showSampleData } = useSampleData();
+  const [selectedPeriod, setSelectedPeriod] = useState('month');
+  const [showAddClientModal, setShowAddClientModal] = useState(false);
+  const navigate = useNavigate();
 
-  // Sample data for when toggle is enabled
-  const sampleRevenueData = [
-    { month: 'Jan', revenue: 12000 },
-    { month: 'Feb', revenue: 15000 },
-    { month: 'Mar', revenue: 18000 },
-    { month: 'Apr', revenue: 22000 },
-    { month: 'May', revenue: 19000 },
-    { month: 'Jun', revenue: 25000 },
+  const { invoices, loading: invoicesLoading } = useInvoices();
+  const { clients, loading: clientsLoading } = useClients();
+  const { payments, loading: paymentsLoading } = usePayments();
+
+  // Calculate dashboard metrics
+  const totalInvoices = invoices.length;
+  const paidInvoices = invoices.filter(inv => inv.status === 'paid');
+  const unpaidInvoices = invoices.filter(inv => inv.status === 'sent' || inv.status === 'draft');
+  const overdueInvoices = invoices.filter(inv => inv.status === 'overdue');
+
+  const totalPaidAmount = paidInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+  const totalUnpaidAmount = unpaidInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+  const totalOverdueAmount = overdueInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+
+  // Status data for pie chart
+  const statusData = [
+    { name: 'Paid', value: paidInvoices.length, color: '#10B981' },
+    { name: 'Unpaid', value: unpaidInvoices.length, color: '#F59E0B' },
+    { name: 'Overdue', value: overdueInvoices.length, color: '#EF4444' },
   ];
 
-  const sampleInvoiceStatusData = [
-    { name: 'Paid', value: 45, color: '#22c55e' },
-    { name: 'Pending', value: 25, color: '#f59e0b' },
-    { name: 'Overdue', value: 15, color: '#ef4444' },
-  ];
-
-  const sampleStats = {
-    totalRevenue: 125000,
-    totalInvoices: 85,
-    totalClients: 24,
-    growthRate: 15.3
+  // Monthly revenue data (last 6 months)
+  const getMonthlyRevenue = () => {
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const last6Months = [];
+    const now = new Date();
+    
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthYear = `${monthNames[date.getMonth()]}`;
+      
+      const monthlyTotal = paidInvoices
+        .filter(inv => {
+          if (!inv.issueDate) return false;
+          const invDate = new Date(inv.issueDate);
+          return invDate.getMonth() === date.getMonth() && invDate.getFullYear() === date.getFullYear();
+        })
+        .reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+      
+      last6Months.push({ month: monthYear, revenue: monthlyTotal });
+    }
+    
+    return last6Months;
   };
 
-  // Real data would come from your hooks here
-  const stats = showSampleData ? sampleStats : {
-    totalRevenue: 0,
-    totalInvoices: 0,
-    totalClients: 0,
-    growthRate: 0
+  const revenueData = getMonthlyRevenue();
+
+  // Top clients by total invoice value
+  const getTopClients = () => {
+    const clientTotals = new Map();
+    
+    invoices.forEach(invoice => {
+      if (!invoice.clientId || !invoice.clientName || !invoice.totalAmount) return;
+      
+      const current = clientTotals.get(invoice.clientId) || { name: invoice.clientName, total: 0 };
+      current.total += invoice.totalAmount;
+      clientTotals.set(invoice.clientId, current);
+    });
+    
+    return Array.from(clientTotals.values())
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5);
   };
 
-  const revenueData = showSampleData ? sampleRevenueData : [];
-  const invoiceStatusData = showSampleData ? sampleInvoiceStatusData : [];
+  const topClients = getTopClients();
+
+  // Recent activities
+  const getRecentActivities = () => {
+    const activities = [];
+    
+    // Recent payments
+    payments.slice(0, 2).forEach(payment => {
+      if (!payment.id || !payment.clientName || !payment.amount || !payment.createdAt) return;
+      
+      activities.push({
+        id: `payment-${payment.id}`,
+        type: 'payment',
+        message: `Payment received from ${payment.clientName}`,
+        amount: `₹${payment.amount.toLocaleString()}`,
+        time: formatTimeAgo(payment.createdAt)
+      });
+    });
+    
+    // Recent invoices
+    invoices.slice(0, 2).forEach(invoice => {
+      if (!invoice.id || !invoice.invoiceNumber || !invoice.totalAmount || !invoice.createdAt) return;
+      
+      activities.push({
+        id: `invoice-${invoice.id}`,
+        type: invoice.status === 'overdue' ? 'overdue' : 'invoice',
+        message: invoice.status === 'overdue' 
+          ? `Invoice ${invoice.invoiceNumber} is overdue`
+          : `Invoice ${invoice.invoiceNumber} sent to ${invoice.clientName || 'Client'}`,
+        amount: `₹${invoice.totalAmount.toLocaleString()}`,
+        time: formatTimeAgo(invoice.createdAt)
+      });
+    });
+    
+    return activities.slice(0, 4);
+  };
+
+  const formatTimeAgo = (date: Date) => {
+    if (!date) return 'Unknown';
+    
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+    
+    if (diffDays > 0) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    if (diffHours > 0) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    return 'Just now';
+  };
+
+  const recentActivities = getRecentActivities();
+
+  const formatIndianCurrency = (amount: number) => {
+    if (!amount) return '₹0';
+    
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+  if (invoicesLoading || clientsLoading || paymentsLoading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600">Welcome to your invoice management dashboard</p>
-      </div>
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Invoice Dashboard</h1>
+            <p className="text-gray-600 mt-2">Welcome back! Here's your business overview.</p>
+          </div>
+          <div className="flex gap-3">
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={() => navigate('/invoices/new')}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              New Invoice
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={() => setShowAddClientModal(true)}
+            >
+              <Users className="w-4 h-4 mr-2" />
+              Add Client
+            </Button>
+          </div>
+        </div>
 
-      <SampleDataToggle />
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card className="border-l-4 border-l-blue-500">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">Total Invoices</CardTitle>
+              <FileText className="h-4 w-4 text-blue-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalInvoices}</div>
+              <p className="text-xs text-gray-500">{clients.length} active clients</p>
+            </CardContent>
+          </Card>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${stats.totalRevenue.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              +{stats.growthRate}% from last month
-            </p>
-          </CardContent>
-        </Card>
+          <Card className="border-l-4 border-l-green-500">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">Paid Amount</CardTitle>
+              <IndianRupee className="h-4 w-4 text-green-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatIndianCurrency(totalPaidAmount)}</div>
+              <p className="text-xs text-gray-500">{paidInvoices.length} invoices paid</p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Invoices</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalInvoices}</div>
-            <p className="text-xs text-muted-foreground">
-              Active invoices
-            </p>
-          </CardContent>
-        </Card>
+          <Card className="border-l-4 border-l-orange-500">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">Pending Payments</CardTitle>
+              <Calendar className="h-4 w-4 text-orange-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatIndianCurrency(totalUnpaidAmount)}</div>
+              <p className="text-xs text-gray-500">{unpaidInvoices.length} invoices pending</p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalClients}</div>
-            <p className="text-xs text-muted-foreground">
-              Active clients
-            </p>
-          </CardContent>
-        </Card>
+          <Card className="border-l-4 border-l-red-500">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">Overdue</CardTitle>
+              <AlertCircle className="h-4 w-4 text-red-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatIndianCurrency(totalOverdueAmount)}</div>
+              <p className="text-xs text-gray-500">{overdueInvoices.length} invoices overdue</p>
+            </CardContent>
+          </Card>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Growth Rate</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">+{stats.growthRate}%</div>
-            <p className="text-xs text-muted-foreground">
-              Monthly growth
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Revenue Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-blue-500" />
+                Monthly Revenue (Last 6 Months)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={revenueData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis tickFormatter={(value) => `₹${(value/100000).toFixed(0)}L`} />
+                  <Tooltip formatter={(value) => [formatIndianCurrency(Number(value)), 'Revenue']} />
+                  <Bar dataKey="revenue" fill="#3B82F6" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Status Pie Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Receipt className="w-5 h-5 text-green-500" />
+                Invoice Status Distribution
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={statusData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={120}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {statusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => [value, 'Count']} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex justify-center gap-4 mt-4">
+                {statusData.map((item, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
+                    <span className="text-sm text-gray-600">{item.name} ({item.value})</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Top Clients & Recent Activities */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Top Clients */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Top Clients by Revenue</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {topClients.map((client, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <span className="text-blue-600 font-semibold">{index + 1}</span>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{client.name}</p>
+                        <p className="text-sm text-gray-500">Total Revenue</p>
+                      </div>
+                    </div>
+                    <Badge variant="default">
+                      {formatIndianCurrency(client.total)}
+                    </Badge>
+                  </div>
+                ))}
+                {topClients.length === 0 && (
+                  <p className="text-center text-gray-500 py-4">No client data available</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Recent Activities */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Activities</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {recentActivities.map((activity) => (
+                  <div key={activity.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-2 h-2 rounded-full ${
+                        activity.type === 'payment' ? 'bg-green-500' :
+                        activity.type === 'invoice' ? 'bg-blue-500' : 'bg-red-500'
+                      }`}></div>
+                      <div>
+                        <p className="font-medium text-gray-900">{activity.message}</p>
+                        <p className="text-sm text-gray-500">{activity.time}</p>
+                      </div>
+                    </div>
+                    <Badge variant={activity.type === 'payment' ? 'default' : activity.type === 'invoice' ? 'secondary' : 'destructive'}>
+                      {activity.amount}
+                    </Badge>
+                  </div>
+                ))}
+                {recentActivities.length === 0 && (
+                  <p className="text-center text-gray-500 py-4">No recent activities</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Quick Actions */}
         <Card>
           <CardHeader>
-            <CardTitle>Revenue Trend</CardTitle>
-            <CardDescription>Monthly revenue over time</CardDescription>
+            <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={revenueData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip formatter={(value) => [`$${value}`, 'Revenue']} />
-                <Line type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Button 
+                variant="outline" 
+                className="h-20 flex-col"
+                onClick={() => navigate('/invoices/new')}
+              >
+                <Plus className="w-6 h-6 mb-2" />
+                Create Invoice
+              </Button>
+              <Button 
+                variant="outline" 
+                className="h-20 flex-col"
+                onClick={() => navigate('/clients')}
+              >
+                <Users className="w-6 h-6 mb-2" />
+                Manage Clients
+              </Button>
+              <Button 
+                variant="outline" 
+                className="h-20 flex-col"
+                onClick={() => navigate('/payments')}
+              >
+                <IndianRupee className="w-6 h-6 mb-2" />
+                Record Payment
+              </Button>
+              <Button 
+                variant="outline" 
+                className="h-20 flex-col"
+                onClick={() => navigate('/settings')}
+              >
+                <Settings className="w-6 h-6 mb-2" />
+                Settings
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Invoice Status</CardTitle>
-            <CardDescription>Distribution of invoice statuses</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={invoiceStatusData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {invoiceStatusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        <AddClientModal 
+          open={showAddClientModal} 
+          onOpenChange={setShowAddClientModal} 
+        />
       </div>
     </div>
   );
