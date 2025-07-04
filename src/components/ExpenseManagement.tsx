@@ -52,10 +52,21 @@ const ExpenseManagement = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!formData.amount || !formData.category) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    const amountValue = parseFloat(formData.amount);
+    if (isNaN(amountValue) || amountValue <= 0) {
+      alert('Please enter a valid amount');
+      return;
+    }
+    
     try {
       await addExpense({
         title: formData.title,
-        amount: parseFloat(formData.amount),
+        amount: amountValue,
         category: formData.category,
         clientId: formData.clientId || null,
         clientName: formData.clientId ? clients.find(c => c.id === formData.clientId)?.name || '' : '',
@@ -79,6 +90,7 @@ const ExpenseManagement = () => {
       setIsAddModalOpen(false);
     } catch (error) {
       console.error('Error adding expense:', error);
+      alert('Failed to add expense. Please try again.');
     }
   };
 
@@ -142,10 +154,16 @@ const ExpenseManagement = () => {
                   <Label htmlFor="amount">Amount (₹)</Label>
                   <Input
                     id="amount"
-                    type="number"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={formData.amount}
-                    onChange={(e) => setFormData({...formData, amount: e.target.value})}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                        setFormData({...formData, amount: value});
+                      }
+                    }}
+                    placeholder="0.00"
                     required
                   />
                 </div>
@@ -154,7 +172,7 @@ const ExpenseManagement = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="category">Category</Label>
-                  <Select value={formData.category} onValueChange={(value) => setFormData({...formData, category: value})}>
+                  <Select value={formData.category} onValueChange={(value) => setFormData({...formData, category: value})} required>
                     <SelectTrigger>
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
@@ -187,7 +205,7 @@ const ExpenseManagement = () => {
                       <SelectValue placeholder="Select client" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No Client</SelectItem>
+                      <SelectItem value="none">No Client</SelectItem>
                       {clients.map((client) => (
                         <SelectItem key={client.id} value={client.id}>
                           {client.name}

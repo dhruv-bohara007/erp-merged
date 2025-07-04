@@ -57,17 +57,37 @@ const InventoryManagement = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!formData.name || !formData.category || !formData.currentStock || !formData.unitPrice) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    const currentStockValue = parseInt(formData.currentStock);
+    const minStockValue = parseInt(formData.minStock);
+    const maxStockValue = parseInt(formData.maxStock);
+    const unitPriceValue = parseFloat(formData.unitPrice);
+    const unitCostValue = parseFloat(formData.unitCost);
+
+    if (isNaN(currentStockValue) || currentStockValue < 0) {
+      alert('Please enter a valid current stock');
+      return;
+    }
+    if (isNaN(unitPriceValue) || unitPriceValue < 0) {
+      alert('Please enter a valid unit price');
+      return;
+    }
+    
     try {
       await addInventoryItem({
         name: formData.name,
         description: formData.description,
         category: formData.category,
         sku: formData.sku,
-        currentStock: parseInt(formData.currentStock),
-        minStock: parseInt(formData.minStock),
-        maxStock: parseInt(formData.maxStock),
-        unitPrice: parseFloat(formData.unitPrice),
-        unitCost: parseFloat(formData.unitCost),
+        currentStock: currentStockValue,
+        minStock: minStockValue || 0,
+        maxStock: maxStockValue || 1000,
+        unitPrice: unitPriceValue,
+        unitCost: unitCostValue || 0,
         unit: formData.unit,
         supplier: formData.supplier,
         location: formData.location,
@@ -91,6 +111,7 @@ const InventoryManagement = () => {
       setIsAddModalOpen(false);
     } catch (error) {
       console.error('Error adding inventory item:', error);
+      alert('Failed to add inventory item. Please try again.');
     }
   };
 
@@ -200,7 +221,7 @@ const InventoryManagement = () => {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="category">Category</Label>
-                  <Select value={formData.category} onValueChange={(value) => setFormData({...formData, category: value})}>
+                  <Select value={formData.category} onValueChange={(value) => setFormData({...formData, category: value})} required>
                     <SelectTrigger>
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
@@ -244,9 +265,16 @@ const InventoryManagement = () => {
                   <Label htmlFor="currentStock">Current Stock</Label>
                   <Input
                     id="currentStock"
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     value={formData.currentStock}
-                    onChange={(e) => setFormData({...formData, currentStock: e.target.value})}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || /^\d+$/.test(value)) {
+                        setFormData({...formData, currentStock: value});
+                      }
+                    }}
+                    placeholder="0"
                     required
                   />
                 </div>
@@ -254,20 +282,32 @@ const InventoryManagement = () => {
                   <Label htmlFor="minStock">Minimum Stock</Label>
                   <Input
                     id="minStock"
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     value={formData.minStock}
-                    onChange={(e) => setFormData({...formData, minStock: e.target.value})}
-                    required
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || /^\d+$/.test(value)) {
+                        setFormData({...formData, minStock: value});
+                      }
+                    }}
+                    placeholder="0"
                   />
                 </div>
                 <div>
                   <Label htmlFor="maxStock">Maximum Stock</Label>
                   <Input
                     id="maxStock"
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     value={formData.maxStock}
-                    onChange={(e) => setFormData({...formData, maxStock: e.target.value})}
-                    required
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || /^\d+$/.test(value)) {
+                        setFormData({...formData, maxStock: value});
+                      }
+                    }}
+                    placeholder="1000"
                   />
                 </div>
               </div>
@@ -277,21 +317,32 @@ const InventoryManagement = () => {
                   <Label htmlFor="unitCost">Unit Cost (₹)</Label>
                   <Input
                     id="unitCost"
-                    type="number"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={formData.unitCost}
-                    onChange={(e) => setFormData({...formData, unitCost: e.target.value})}
-                    required
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                        setFormData({...formData, unitCost: value});
+                      }
+                    }}
+                    placeholder="0.00"
                   />
                 </div>
                 <div>
                   <Label htmlFor="unitPrice">Unit Price (₹)</Label>
                   <Input
                     id="unitPrice"
-                    type="number"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={formData.unitPrice}
-                    onChange={(e) => setFormData({...formData, unitPrice: e.target.value})}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                        setFormData({...formData, unitPrice: value});
+                      }
+                    }}
+                    placeholder="0.00"
                     required
                   />
                 </div>
