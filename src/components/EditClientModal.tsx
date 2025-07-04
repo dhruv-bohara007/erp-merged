@@ -28,7 +28,7 @@ const EditClientModal = ({ open, onOpenChange, client }: EditClientModalProps) =
     state: '',
     pincode: '',
     gstin: '',
-    status: 'active' as const
+    status: 'active' as 'active' | 'inactive'
   });
 
   useEffect(() => {
