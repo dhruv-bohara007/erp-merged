@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,9 +16,7 @@ import {
 } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useInvoices, useClients, usePayments } from '@/hooks/useFirestore';
-import { useCurrency } from '@/contexts/CurrencyContext';
 import AddClientModal from '@/components/AddClientModal';
-import CurrencySelector from '@/components/CurrencySelector';
 import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
@@ -28,7 +27,6 @@ const Dashboard = () => {
   const { invoices, loading: invoicesLoading } = useInvoices();
   const { clients, loading: clientsLoading } = useClients();
   const { payments, loading: paymentsLoading } = usePayments();
-  const { formatCurrency, loading: currencyLoading } = useCurrency();
 
   // Calculate dashboard metrics
   const totalInvoices = invoices.length;
@@ -104,7 +102,7 @@ const Dashboard = () => {
         id: `payment-${payment.id}`,
         type: 'payment',
         message: `Payment received from ${payment.clientName}`,
-        amount: payment.amount,
+        amount: `₹${payment.amount.toLocaleString()}`,
         time: formatTimeAgo(payment.createdAt)
       });
     });
@@ -119,7 +117,7 @@ const Dashboard = () => {
         message: invoice.status === 'overdue' 
           ? `Invoice ${invoice.invoiceNumber} is overdue`
           : `Invoice ${invoice.invoiceNumber} sent to ${invoice.clientName || 'Client'}`,
-        amount: invoice.totalAmount,
+        amount: `₹${invoice.totalAmount.toLocaleString()}`,
         time: formatTimeAgo(invoice.createdAt)
       });
     });
@@ -142,7 +140,17 @@ const Dashboard = () => {
 
   const recentActivities = getRecentActivities();
 
-  if (invoicesLoading || clientsLoading || paymentsLoading || currencyLoading) {
+  const formatIndianCurrency = (amount: number) => {
+    if (!amount) return '₹0';
+    
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+  if (invoicesLoading || clientsLoading || paymentsLoading) {
     return (
       <div className="p-6 flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -162,8 +170,7 @@ const Dashboard = () => {
             <h1 className="text-3xl font-bold text-gray-900">Invoice Dashboard</h1>
             <p className="text-gray-600 mt-2">Welcome back! Here's your business overview.</p>
           </div>
-          <div className="flex gap-3 items-center">
-            <CurrencySelector />
+          <div className="flex gap-3">
             <Button 
               className="bg-blue-600 hover:bg-blue-700"
               onClick={() => navigate('/invoices/new')}
@@ -200,7 +207,7 @@ const Dashboard = () => {
               <IndianRupee className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(totalPaidAmount)}</div>
+              <div className="text-2xl font-bold">{formatIndianCurrency(totalPaidAmount)}</div>
               <p className="text-xs text-gray-500">{paidInvoices.length} invoices paid</p>
             </CardContent>
           </Card>
@@ -211,7 +218,7 @@ const Dashboard = () => {
               <Calendar className="h-4 w-4 text-orange-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(totalUnpaidAmount)}</div>
+              <div className="text-2xl font-bold">{formatIndianCurrency(totalUnpaidAmount)}</div>
               <p className="text-xs text-gray-500">{unpaidInvoices.length} invoices pending</p>
             </CardContent>
           </Card>
@@ -222,7 +229,7 @@ const Dashboard = () => {
               <AlertCircle className="h-4 w-4 text-red-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(totalOverdueAmount)}</div>
+              <div className="text-2xl font-bold">{formatIndianCurrency(totalOverdueAmount)}</div>
               <p className="text-xs text-gray-500">{overdueInvoices.length} invoices overdue</p>
             </CardContent>
           </Card>
@@ -243,8 +250,8 @@ const Dashboard = () => {
                 <BarChart data={revenueData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
-                  <YAxis tickFormatter={(value) => formatCurrency(value).replace(/[₹$€£¥]/g, '').replace(/[,\s]/g, '')} />
-                  <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Revenue']} />
+                  <YAxis tickFormatter={(value) => `₹${(value/100000).toFixed(0)}L`} />
+                  <Tooltip formatter={(value) => [formatIndianCurrency(Number(value)), 'Revenue']} />
                   <Bar dataKey="revenue" fill="#3B82F6" />
                 </BarChart>
               </ResponsiveContainer>
@@ -311,7 +318,7 @@ const Dashboard = () => {
                       </div>
                     </div>
                     <Badge variant="default">
-                      {formatCurrency(client.total)}
+                      {formatIndianCurrency(client.total)}
                     </Badge>
                   </div>
                 ))}
@@ -342,7 +349,7 @@ const Dashboard = () => {
                       </div>
                     </div>
                     <Badge variant={activity.type === 'payment' ? 'default' : activity.type === 'invoice' ? 'secondary' : 'destructive'}>
-                      {formatCurrency(activity.amount)}
+                      {activity.amount}
                     </Badge>
                   </div>
                 ))}

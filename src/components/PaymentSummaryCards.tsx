@@ -2,15 +2,12 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { IndianRupee, Calendar } from 'lucide-react';
 import { Payment } from '@/hooks/useFirestore';
-import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface PaymentSummaryCardsProps {
   payments: Payment[];
 }
 
 const PaymentSummaryCards = ({ payments }: PaymentSummaryCardsProps) => {
-  const { formatCurrency } = useCurrency();
-  
   const totalReceived = payments.filter(p => p.status === 'completed').reduce((sum, payment) => sum + payment.amount, 0);
   const pendingAmount = payments.filter(p => p.status === 'pending').reduce((sum, payment) => sum + payment.amount, 0);
   
@@ -30,7 +27,7 @@ const PaymentSummaryCards = ({ payments }: PaymentSummaryCardsProps) => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Total Received</p>
-              <p className="text-2xl font-bold text-green-600">{formatCurrency(totalReceived)}</p>
+              <p className="text-2xl font-bold text-green-600">₹{totalReceived.toLocaleString()}</p>
             </div>
             <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
               <IndianRupee className="h-4 w-4 text-green-600" />
@@ -44,7 +41,7 @@ const PaymentSummaryCards = ({ payments }: PaymentSummaryCardsProps) => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Pending</p>
-              <p className="text-2xl font-bold text-yellow-600">{formatCurrency(pendingAmount)}</p>
+              <p className="text-2xl font-bold text-yellow-600">₹{pendingAmount.toLocaleString()}</p>
             </div>
             <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
               <Calendar className="h-4 w-4 text-yellow-600" />
@@ -58,7 +55,7 @@ const PaymentSummaryCards = ({ payments }: PaymentSummaryCardsProps) => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">This Month</p>
-              <p className="text-2xl font-bold">{formatCurrency(thisMonthRevenue)}</p>
+              <p className="text-2xl font-bold">₹{thisMonthRevenue.toLocaleString()}</p>
             </div>
             <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
               <Calendar className="h-4 w-4 text-blue-600" />
