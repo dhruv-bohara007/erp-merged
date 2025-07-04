@@ -1,244 +1,169 @@
 
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Plus, 
-  IndianRupee, 
-  Calendar, 
-  FileText,
-  Trash2,
-  Edit,
-  TrendingDown
-} from 'lucide-react';
-import { useExpenses, useClients } from '@/hooks/useFirestore';
-import { format } from 'date-fns';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Plus, Search, Filter, Edit, Trash2, TrendingDown, Calendar, DollarSign } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import SampleDataToggle from '@/components/SampleDataToggle';
+import { useSampleData } from '@/contexts/SampleDataContext';
 
 const ExpenseManagement = () => {
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const { expenses, loading, addExpense, deleteExpense } = useExpenses();
-  const { clients } = useClients();
-  
-  const [formData, setFormData] = useState({
-    title: '',
-    amount: '',
-    category: '',
-    clientId: '',
-    projectName: '',
-    description: '',
-    expenseDate: format(new Date(), 'yyyy-MM-dd'),
-    receipt: ''
-  });
+  const { showSampleData } = useSampleData();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
 
-  const expenseCategories = [
-    'Office Supplies',
-    'Travel & Transportation',
-    'Marketing & Advertising',
-    'Software & Subscriptions',
-    'Equipment',
-    'Utilities',
-    'Professional Services',
-    'Rent',
-    'Other'
+  // Sample data for when toggle is enabled
+  const sampleExpenses = [
+    {
+      id: 'EXP-001',
+      description: 'Office Rent',
+      amount: 2500,
+      category: 'Office',
+      date: '2024-01-01',
+      status: 'approved',
+      receipt: true
+    },
+    {
+      id: 'EXP-002',
+      description: 'Software Licenses',
+      amount: 800,
+      category: 'Software',
+      date: '2024-01-05',
+      status: 'pending',
+      receipt: true
+    },
+    {
+      id: 'EXP-003',
+      description: 'Marketing Campaign',
+      amount: 1200,
+      category: 'Marketing',
+      date: '2024-01-10',
+      status: 'approved',
+      receipt: false
+    },
+    {
+      id: 'EXP-004',
+      description: 'Business Travel',
+      amount: 650,
+      category: 'Travel',
+      date: '2024-01-15',
+      status: 'approved',
+      receipt: true
+    },
+    {
+      id: 'EXP-005',
+      description: 'Office Supplies',
+      amount: 300,
+      category: 'Office',
+      date: '2024-01-20',
+      status: 'pending',
+      receipt: false
+    }
   ];
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      await addExpense({
-        title: formData.title,
-        amount: parseFloat(formData.amount),
-        category: formData.category,
-        clientId: formData.clientId || null,
-        clientName: formData.clientId ? clients.find(c => c.id === formData.clientId)?.name || '' : '',
-        projectName: formData.projectName || null,
-        description: formData.description,
-        expenseDate: new Date(formData.expenseDate),
-        receipt: formData.receipt || null,
-        status: 'recorded'
-      });
-      
-      setFormData({
-        title: '',
-        amount: '',
-        category: '',
-        clientId: '',
-        projectName: '',
-        description: '',
-        expenseDate: format(new Date(), 'yyyy-MM-dd'),
-        receipt: ''
-      });
-      setIsAddModalOpen(false);
-    } catch (error) {
-      console.error('Error adding expense:', error);
+  const sampleExpenseStats = [
+    { month: 'Jan', amount: 5450 },
+    { month: 'Feb', amount: 4200 },
+    { month: 'Mar', amount: 6800 },
+    { month: 'Apr', amount: 3900 },
+    { month: 'May', amount: 5200 },
+    { month: 'Jun', amount: 4600 }
+  ];
+
+  const sampleCategoryData = [
+    { name: 'Office', value: 2800, color: '#3b82f6' },
+    { name: 'Software', value: 800, color: '#10b981' },
+    { name: 'Marketing', value: 1200, color: '#f59e0b' },
+    { name: 'Travel', value: 650, color: '#ef4444' }
+  ];
+
+  const sampleSummary = {
+    totalExpenses: 30150,
+    monthlyAverage: 5025,
+    pendingExpenses: 1100,
+    approvedExpenses: 4350
+  };
+
+  // Real data would come from your hooks here
+  const expenses = showSampleData ? sampleExpenses : [];
+  const expenseStats = showSampleData ? sampleExpenseStats : [];
+  const categoryData = showSampleData ? sampleCategoryData : [];
+  const summary = showSampleData ? sampleSummary : {
+    totalExpenses: 0,
+    monthlyAverage: 0,
+    pendingExpenses: 0,
+    approvedExpenses: 0
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return 'bg-green-100 text-green-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'rejected':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this expense?')) {
-      try {
-        await deleteExpense(id);
-      } catch (error) {
-        console.error('Error deleting expense:', error);
-      }
-    }
-  };
-
-  const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0
-    }).format(amount);
-  };
-
-  if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="flex justify-center items-center h-64">
-          <div className="text-lg">Loading expenses...</div>
-        </div>
-      </div>
-    );
-  }
+  const filteredExpenses = expenses.filter(expense => {
+    const matchesSearch = expense.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = categoryFilter === 'all' || expense.category === categoryFilter;
+    return matchesSearch && matchesCategory;
+  });
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Expense Management</h1>
-        <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Expense
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Add New Expense</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="title">Expense Title</Label>
-                  <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) => setFormData({...formData, title: e.target.value})}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="amount">Amount (₹)</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({...formData, amount: e.target.value})}
-                    required
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="category">Category</Label>
-                  <Select value={formData.category} onValueChange={(value) => setFormData({...formData, category: value})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {expenseCategories.map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="expenseDate">Expense Date</Label>
-                  <Input
-                    id="expenseDate"
-                    type="date"
-                    value={formData.expenseDate}
-                    onChange={(e) => setFormData({...formData, expenseDate: e.target.value})}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="client">Associated Client (Optional)</Label>
-                  <Select value={formData.clientId} onValueChange={(value) => setFormData({...formData, clientId: value})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select client" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">No Client</SelectItem>
-                      {clients.map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="projectName">Project Name (Optional)</Label>
-                  <Input
-                    id="projectName"
-                    value={formData.projectName}
-                    onChange={(e) => setFormData({...formData, projectName: e.target.value})}
-                    placeholder="Project name"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  placeholder="Expense description..."
-                />
-              </div>
-
-              <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Add Expense</Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900">Expense Management</h1>
+        <p className="text-gray-600">Track and manage business expenses</p>
       </div>
 
+      <SampleDataToggle />
+
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-500" />
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalExpenses)}</div>
+            <div className="text-2xl font-bold">${summary.totalExpenses.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              {expenses.length} expense{expenses.length !== 1 ? 's' : ''} recorded
+              All time expenses
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Monthly Average</CardTitle>
+            <TrendingDown className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${summary.monthlyAverage.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              Average monthly spend
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${summary.pendingExpenses.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              Awaiting approval
             </p>
           </CardContent>
         </Card>
@@ -246,119 +171,162 @@ const ExpenseManagement = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">This Month</CardTitle>
-            <Calendar className="h-4 w-4 text-blue-500" />
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(
-                expenses
-                  .filter(expense => {
-                    const expenseDate = new Date(expense.expenseDate);
-                    const currentDate = new Date();
-                    return expenseDate.getMonth() === currentDate.getMonth() && 
-                           expenseDate.getFullYear() === currentDate.getFullYear();
-                  })
-                  .reduce((sum, expense) => sum + expense.amount, 0)
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">Current month expenses</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Average Expense</CardTitle>
-            <IndianRupee className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(expenses.length > 0 ? totalExpenses / expenses.length : 0)}
-            </div>
-            <p className="text-xs text-muted-foreground">Per expense record</p>
+            <div className="text-2xl font-bold">${summary.approvedExpenses.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              Current month approved
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Expenses Table */}
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Monthly Expenses</CardTitle>
+            <CardDescription>Expense trends over time</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={expenseStats}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip formatter={(value) => [`$${value}`, 'Amount']} />
+                <Bar dataKey="amount" fill="#ef4444" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Expense Categories</CardTitle>
+            <CardDescription>Breakdown by category</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={categoryData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {categoryData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => [`$${value}`, 'Amount']} />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Expense Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Expenses</CardTitle>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <CardTitle>Expenses</CardTitle>
+              <CardDescription>Manage and track your business expenses</CardDescription>
+            </div>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Expense
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
-          {expenses.length > 0 ? (
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search expenses..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <Filter className="mr-2 h-4 w-4" />
+                <SelectValue placeholder="Filter by category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="Office">Office</SelectItem>
+                <SelectItem value="Software">Software</SelectItem>
+                <SelectItem value="Marketing">Marketing</SelectItem>
+                <SelectItem value="Travel">Travel</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Category</TableHead>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Description</TableHead>
                   <TableHead>Amount</TableHead>
-                  <TableHead>Client/Project</TableHead>
+                  <TableHead>Category</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Receipt</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {expenses.map((expense) => (
-                  <TableRow key={expense.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{expense.title}</div>
-                        {expense.description && (
-                          <div className="text-sm text-gray-500 truncate max-w-xs">
-                            {expense.description}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{expense.category}</Badge>
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {formatCurrency(expense.amount)}
-                    </TableCell>
-                    <TableCell>
-                      {expense.clientName && (
-                        <div className="text-sm">
-                          <div>{expense.clientName}</div>
-                          {expense.projectName && (
-                            <div className="text-gray-500">{expense.projectName}</div>
-                          )}
-                        </div>
-                      )}
-                      {!expense.clientName && expense.projectName && (
-                        <div className="text-sm">{expense.projectName}</div>
-                      )}
-                      {!expense.clientName && !expense.projectName && (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(expense.expenseDate), 'MMM dd, yyyy')}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{expense.status}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(expense.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                {filteredExpenses.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                      {showSampleData ? 'No expenses match your search criteria' : 'No expenses found. Add your first expense to get started.'}
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  filteredExpenses.map((expense) => (
+                    <TableRow key={expense.id}>
+                      <TableCell className="font-medium">{expense.id}</TableCell>
+                      <TableCell>{expense.description}</TableCell>
+                      <TableCell>${expense.amount.toLocaleString()}</TableCell>
+                      <TableCell>{expense.category}</TableCell>
+                      <TableCell>{expense.date}</TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(expense.status)}>
+                          {expense.status.charAt(0).toUpperCase() + expense.status.slice(1)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={expense.receipt ? 'default' : 'secondary'}>
+                          {expense.receipt ? 'Yes' : 'No'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="outline" size="sm">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              No expenses recorded yet. Click "Add Expense" to get started.
-            </div>
-          )}
+          </div>
         </CardContent>
       </Card>
     </div>
