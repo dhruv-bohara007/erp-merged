@@ -356,11 +356,16 @@ const InvoiceForm = () => {
                   <Label htmlFor={`rate-${index}`}>Rate (₹) *</Label>
                   <Input
                     id={`rate-${index}`}
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={item.rate}
-                    onChange={(e) => updateItem(index, 'rate', Number(e.target.value))}
+                    type="text"
+                    placeholder="0.00"
+                    value={item.rate === 0 ? '' : item.rate.toString()}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Allow empty string or valid numbers
+                      if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
+                        updateItem(index, 'rate', value === '' ? 0 : Number(value));
+                      }
+                    }}
                   />
                 </div>
                 <div className="col-span-2">
