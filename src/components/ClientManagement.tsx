@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,6 +20,8 @@ import {
 } from 'lucide-react';
 import { useClients } from '@/hooks/useFirestore';
 import { useToast } from '@/hooks/use-toast';
+import EditClientModal from './EditClientModal';
+import type { Client } from '@/hooks/useFirestore';
 
 const ClientManagement = () => {
   const { clients, loading, error, addClient, updateClient, deleteClient } = useClients();
@@ -39,6 +40,8 @@ const ClientManagement = () => {
     status: 'active' as const
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -96,6 +99,11 @@ const ClientManagement = () => {
       currency: 'INR',
       maximumFractionDigits: 0
     }).format(amount);
+  };
+
+  const handleEditClient = (client: Client) => {
+    setEditingClient(client);
+    setIsEditModalOpen(true);
   };
 
   if (loading) {
@@ -347,7 +355,11 @@ const ClientManagement = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleEditClient(client)}
+                      >
                         <Edit className="w-3 h-3" />
                       </Button>
                       <Button 
@@ -366,6 +378,104 @@ const ClientManagement = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Add Client Modal */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add New Client</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Company Name</Label>
+              <Input
+                id="name"
+                value={newClient.name}
+                onChange={(e) => setNewClient({...newClient, name: e.target.value})}
+                placeholder="Enter company name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={newClient.email}
+                onChange={(e) => setNewClient({...newClient, email: e.target.value})}
+                placeholder="Enter email address"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone</Label>
+              <Input
+                id="phone"
+                value={newClient.phone}
+                onChange={(e) => setNewClient({...newClient, phone: e.target.value})}
+                placeholder="+91 XXXXX XXXXX"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="gstin">GSTIN</Label>
+              <Input
+                id="gstin"
+                value={newClient.gstin}
+                onChange={(e) => setNewClient({...newClient, gstin: e.target.value})}
+                placeholder="Enter GSTIN"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="city">City</Label>
+              <Input
+                id="city"
+                value={newClient.city}
+                onChange={(e) => setNewClient({...newClient, city: e.target.value})}
+                placeholder="Enter city"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="state">State</Label>
+              <Input
+                id="state"
+                value={newClient.state}
+                onChange={(e) => setNewClient({...newClient, state: e.target.value})}
+                placeholder="Enter state"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pincode">PIN Code</Label>
+              <Input
+                id="pincode"
+                value={newClient.pincode}
+                onChange={(e) => setNewClient({...newClient, pincode: e.target.value})}
+                placeholder="Enter PIN code"
+              />
+            </div>
+            <div className="col-span-2 space-y-2">
+              <Label htmlFor="address">Address</Label>
+              <Textarea
+                id="address"
+                value={newClient.address}
+                onChange={(e) => setNewClient({...newClient, address: e.target.value})}
+                placeholder="Enter complete address"
+                rows={3}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddClient}>Add Client</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Client Modal */}
+      <EditClientModal 
+        open={isEditModalOpen}
+        onOpenChange={setIsEditModalOpen}
+        client={editingClient}
+      />
     </div>
   );
 };

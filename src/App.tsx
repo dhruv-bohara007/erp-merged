@@ -96,6 +96,17 @@ const AuthenticatedApp = () => {
             </div>
           </ProtectedRoute>
         } />
+
+        <Route path="/invoices/edit/:id" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            <div>
+              <AdminNavigation />
+              <div className="lg:pl-64">
+                <InvoiceForm />
+              </div>
+            </div>
+          </ProtectedRoute>
+        } />
         
         <Route path="/clients" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
