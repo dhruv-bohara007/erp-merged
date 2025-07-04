@@ -5,16 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useAuth, UserRole } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Building, Mail, Lock, User } from 'lucide-react';
+import { Building, Mail, Lock } from 'lucide-react';
 
 const RegisterForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('client');
   const [loading, setLoading] = useState(false);
   const { register, currentUser } = useAuth();
   const navigate = useNavigate();
@@ -44,16 +42,10 @@ const RegisterForm = () => {
     setLoading(true);
 
     try {
-      await register(email, password, role);
+      // Always register as client - admin roles must be assigned manually
+      await register(email, password, 'client');
       
-      // Redirect based on role
-      const roleRedirects = {
-        client: '/client-dashboard',
-        company_admin: '/admin-dashboard',
-        super_admin: '/super-dashboard'
-      };
-      
-      navigate(roleRedirects[currentUser?.role || role]);
+      navigate('/client-dashboard');
       
       toast({
         title: 'Registration Successful',
@@ -78,7 +70,7 @@ const RegisterForm = () => {
             <Building className="h-12 w-12 text-blue-600" />
           </div>
           <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
-          <CardDescription>Sign up to get started</CardDescription>
+          <CardDescription>Sign up as a client to get started</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -95,23 +87,6 @@ const RegisterForm = () => {
                   className="pl-10"
                   required
                 />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="role">Role</Label>
-              <div className="relative">
-                <User className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
-                <Select value={role} onValueChange={(value: UserRole) => setRole(value)}>
-                  <SelectTrigger className="pl-10">
-                    <SelectValue placeholder="Select your role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="client">Client</SelectItem>
-                    <SelectItem value="company_admin">Company Admin</SelectItem>
-                    <SelectItem value="super_admin">Super Admin</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </div>
             
@@ -147,12 +122,18 @@ const RegisterForm = () => {
               </div>
             </div>
 
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+              <p className="text-sm text-blue-600">
+                <strong>Note:</strong> You are registering as a client. Admin roles are assigned manually by system administrators.
+              </p>
+            </div>
+
             <Button 
               type="submit" 
               className="w-full" 
               disabled={loading}
             >
-              {loading ? 'Creating account...' : 'Create Account'}
+              {loading ? 'Creating account...' : 'Create Client Account'}
             </Button>
           </form>
 

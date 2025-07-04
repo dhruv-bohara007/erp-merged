@@ -17,7 +17,7 @@ import ClientManagement from "./components/ClientManagement";
 import Payments from "./components/Payments";
 import Reports from "./components/Reports";
 import Settings from "./components/Settings";
-import Navigation from "./components/Navigation";
+import AdminNavigation from "./components/AdminNavigation";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -63,11 +63,11 @@ const AuthenticatedApp = () => {
           </ProtectedRoute>
         } />
 
-        {/* Company Admin routes - existing dashboard with navigation */}
+        {/* Company Admin routes - using single AdminNavigation */}
         <Route path="/admin-dashboard" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
             <div>
-              <Navigation />
+              <AdminNavigation />
               <div className="lg:pl-64">
                 <Index />
               </div>
@@ -78,7 +78,7 @@ const AuthenticatedApp = () => {
         <Route path="/invoices" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
             <div>
-              <Navigation />
+              <AdminNavigation />
               <div className="lg:pl-64">
                 <InvoiceList />
               </div>
@@ -89,7 +89,7 @@ const AuthenticatedApp = () => {
         <Route path="/invoices/new" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
             <div>
-              <Navigation />
+              <AdminNavigation />
               <div className="lg:pl-64">
                 <InvoiceForm />
               </div>
@@ -100,7 +100,7 @@ const AuthenticatedApp = () => {
         <Route path="/clients" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
             <div>
-              <Navigation />
+              <AdminNavigation />
               <div className="lg:pl-64">
                 <ClientManagement />
               </div>
@@ -111,7 +111,7 @@ const AuthenticatedApp = () => {
         <Route path="/payments" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
             <div>
-              <Navigation />
+              <AdminNavigation />
               <div className="lg:pl-64">
                 <Payments />
               </div>
@@ -122,7 +122,7 @@ const AuthenticatedApp = () => {
         <Route path="/reports" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
             <div>
-              <Navigation />
+              <AdminNavigation />
               <div className="lg:pl-64">
                 <Reports />
               </div>
@@ -133,7 +133,7 @@ const AuthenticatedApp = () => {
         <Route path="/settings" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
             <div>
-              <Navigation />
+              <AdminNavigation />
               <div className="lg:pl-64">
                 <Settings />
               </div>
