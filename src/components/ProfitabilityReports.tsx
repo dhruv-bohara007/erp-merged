@@ -13,8 +13,6 @@ import {
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart as RechartsPieChart, Cell, Pie } from 'recharts';
 import { useInvoices, useExpenses, useClients } from '@/hooks/useFirestore';
-import { useSampleData } from '@/contexts/SampleDataContext';
-import SampleDataToggle from './SampleDataToggle';
 
 const ProfitabilityReports = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('month');
@@ -23,35 +21,6 @@ const ProfitabilityReports = () => {
   const { invoices } = useInvoices();
   const { expenses } = useExpenses();
   const { clients } = useClients();
-  const { showSampleData } = useSampleData();
-
-  // Sample data for testing
-  const sampleInvoices = [
-    { id: '1', clientId: 'client1', totalAmount: 150000, status: 'paid', issueDate: '2024-01-15', createdAt: '2024-01-15' },
-    { id: '2', clientId: 'client2', totalAmount: 250000, status: 'paid', issueDate: '2024-02-10', createdAt: '2024-02-10' },
-    { id: '3', clientId: 'client1', totalAmount: 180000, status: 'paid', issueDate: '2024-03-05', createdAt: '2024-03-05' },
-    { id: '4', clientId: 'client3', totalAmount: 320000, status: 'paid', issueDate: '2024-04-20', createdAt: '2024-04-20' },
-    { id: '5', clientId: 'client2', totalAmount: 275000, status: 'paid', issueDate: '2024-05-12', createdAt: '2024-05-12' },
-  ];
-
-  const sampleExpenses = [
-    { id: '1', amount: 25000, category: 'Office Supplies', expenseDate: '2024-01-20', clientId: 'client1' },
-    { id: '2', amount: 45000, category: 'Software', expenseDate: '2024-02-15', clientId: 'client2' },
-    { id: '3', amount: 15000, category: 'Travel', expenseDate: '2024-03-10', clientId: 'client1' },
-    { id: '4', amount: 35000, category: 'Marketing', expenseDate: '2024-04-25', clientId: 'client3' },
-    { id: '5', amount: 28000, category: 'Utilities', expenseDate: '2024-05-18', clientId: 'client2' },
-  ];
-
-  const sampleClients = [
-    { id: 'client1', name: 'Tech Solutions Ltd' },
-    { id: 'client2', name: 'Digital Marketing Co' },
-    { id: 'client3', name: 'E-commerce Startup' },
-  ];
-
-  // Use sample data when toggle is enabled, otherwise use real data
-  const currentInvoices = showSampleData ? sampleInvoices : invoices;
-  const currentExpenses = showSampleData ? sampleExpenses : expenses;
-  const currentClients = showSampleData ? sampleClients : clients;
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -68,7 +37,7 @@ const ProfitabilityReports = () => {
     
     return months.map((month, index) => {
       // Revenue from paid invoices
-      const monthRevenue = currentInvoices
+      const monthRevenue = invoices
         .filter(invoice => {
           if (invoice.status !== 'paid') return false;
           const invoiceDate = invoice.issueDate || invoice.createdAt;
@@ -79,7 +48,7 @@ const ProfitabilityReports = () => {
         .reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
 
       // Expenses for the month
-      const monthExpenses = currentExpenses
+      const monthExpenses = expenses
         .filter(expense => {
           const expenseDate = new Date(expense.expenseDate);
           return expenseDate.getMonth() === index && expenseDate.getFullYear() === currentYear;
@@ -103,9 +72,9 @@ const ProfitabilityReports = () => {
   const clientProfitability = (() => {
     const clientMap = new Map();
     
-    currentClients.forEach(client => {
-      const clientInvoices = currentInvoices.filter(inv => inv.clientId === client.id && inv.status === 'paid');
-      const clientExpenses = currentExpenses.filter(exp => exp.clientId === client.id);
+    clients.forEach(client => {
+      const clientInvoices = invoices.filter(inv => inv.clientId === client.id && inv.status === 'paid');
+      const clientExpenses = expenses.filter(exp => exp.clientId === client.id);
       
       const revenue = clientInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
       const expenseAmount = clientExpenses.reduce((sum, exp) => sum + exp.amount, 0);
@@ -131,7 +100,7 @@ const ProfitabilityReports = () => {
   const expenseBreakdown = (() => {
     const categoryMap = new Map();
     
-    currentExpenses.forEach(expense => {
+    expenses.forEach(expense => {
       const current = categoryMap.get(expense.category) || 0;
       categoryMap.set(expense.category, current + expense.amount);
     });
@@ -146,11 +115,11 @@ const ProfitabilityReports = () => {
   })();
 
   // Calculate totals
-  const totalRevenue = currentInvoices
+  const totalRevenue = invoices
     .filter(inv => inv.status === 'paid')
     .reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
   
-  const totalExpenses = currentExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+  const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
   const totalProfit = totalRevenue - totalExpenses;
   const overallMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
 
@@ -160,8 +129,6 @@ const ProfitabilityReports = () => {
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
-      <SampleDataToggle />
-      
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Profitability Reports</h1>
         <div className="flex gap-3">

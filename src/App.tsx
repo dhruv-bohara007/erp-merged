@@ -1,11 +1,9 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { SampleDataProvider } from "@/contexts/SampleDataContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import LoginForm from "@/components/LoginForm";
 import RegisterForm from "@/components/RegisterForm";
@@ -67,147 +65,125 @@ const AuthenticatedApp = () => {
           </ProtectedRoute>
         } />
 
-        {/* Company Admin routes - wrapped with SampleDataProvider */}
+        {/* Company Admin routes - using single AdminNavigation */}
         <Route path="/admin-dashboard" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
-            <SampleDataProvider>
-              <div>
-                <AdminNavigation />
-                <div className="lg:pl-64">
-                  <Index />
-                </div>
+            <div>
+              <AdminNavigation />
+              <div className="lg:pl-64">
+                <Index />
               </div>
-            </SampleDataProvider>
+            </div>
           </ProtectedRoute>
         } />
         
         <Route path="/invoices" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
-            <SampleDataProvider>
-              <div>
-                <AdminNavigation />
-                <div className="lg:pl-64">
-                  <InvoiceList />
-                </div>
+            <div>
+              <AdminNavigation />
+              <div className="lg:pl-64">
+                <InvoiceList />
               </div>
-            </SampleDataProvider>
+            </div>
           </ProtectedRoute>
         } />
         
         <Route path="/invoices/new" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
-            <SampleDataProvider>
-              <div>
-                <AdminNavigation />
-                <div className="lg:pl-64">
-                  <InvoiceForm />
-                </div>
+            <div>
+              <AdminNavigation />
+              <div className="lg:pl-64">
+                <InvoiceForm />
               </div>
-            </SampleDataProvider>
+            </div>
           </ProtectedRoute>
         } />
 
         <Route path="/invoices/edit/:id" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
-            <SampleDataProvider>
-              <div>
-                <AdminNavigation />
-                <div className="lg:pl-64">
-                  <InvoiceForm />
-                </div>
+            <div>
+              <AdminNavigation />
+              <div className="lg:pl-64">
+                <InvoiceForm />
               </div>
-            </SampleDataProvider>
+            </div>
           </ProtectedRoute>
         } />
         
         <Route path="/clients" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
-            <SampleDataProvider>
-              <div>
-                <AdminNavigation />
-                <div className="lg:pl-64">
-                  <ClientManagement />
-                </div>
+            <div>
+              <AdminNavigation />
+              <div className="lg:pl-64">
+                <ClientManagement />
               </div>
-            </SampleDataProvider>
+            </div>
           </ProtectedRoute>
         } />
         
         <Route path="/payments" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
-            <SampleDataProvider>
-              <div>
-                <AdminNavigation />
-                <div className="lg:pl-64">
-                  <Payments />
-                </div>
+            <div>
+              <AdminNavigation />
+              <div className="lg:pl-64">
+                <Payments />
               </div>
-            </SampleDataProvider>
+            </div>
           </ProtectedRoute>
         } />
         
         <Route path="/reports" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
-            <SampleDataProvider>
-              <div>
-                <AdminNavigation />
-                <div className="lg:pl-64">
-                  <Reports />
-                </div>
+            <div>
+              <AdminNavigation />
+              <div className="lg:pl-64">
+                <Reports />
               </div>
-            </SampleDataProvider>
+            </div>
           </ProtectedRoute>
         } />
         
         <Route path="/settings" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
-            <SampleDataProvider>
-              <div>
-                <AdminNavigation />
-                <div className="lg:pl-64">
-                  <Settings />
-                </div>
+            <div>
+              <AdminNavigation />
+              <div className="lg:pl-64">
+                <Settings />
               </div>
-            </SampleDataProvider>
+            </div>
           </ProtectedRoute>
         } />
 
         <Route path="/expenses" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
-            <SampleDataProvider>
-              <div>
-                <AdminNavigation />
-                <div className="lg:pl-64">
-                  <ExpenseManagement />
-                </div>
+            <div>
+              <AdminNavigation />
+              <div className="lg:pl-64">
+                <ExpenseManagement />
               </div>
-            </SampleDataProvider>
+            </div>
           </ProtectedRoute>
         } />
 
         <Route path="/inventory" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
-            <SampleDataProvider>
-              <div>
-                <AdminNavigation />
-                <div className="lg:pl-64">
-                  <InventoryManagement />
-                </div>
+            <div>
+              <AdminNavigation />
+              <div className="lg:pl-64">
+                <InventoryManagement />
               </div>
-            </SampleDataProvider>
+            </div>
           </ProtectedRoute>
         } />
 
         <Route path="/profitability" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
-            <SampleDataProvider>
-              <div>
-                <AdminNavigation />
-                <div className="lg:pl-64">
-                  <ProfitabilityReports />
-                </div>
+            <div>
+              <AdminNavigation />
+              <div className="lg:pl-64">
+                <ProfitabilityReports />
               </div>
-            </SampleDataProvider>
+            </div>
           </ProtectedRoute>
         } />
 
