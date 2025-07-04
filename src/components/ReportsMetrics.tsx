@@ -2,10 +2,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { IndianRupee, FileText, Users, TrendingUp } from 'lucide-react';
 import { useInvoices, useClients } from '@/hooks/useFirestore';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 const ReportsMetrics = () => {
   const { invoices } = useInvoices();
   const { clients } = useClients();
+  const { formatCurrency } = useCurrency();
 
   // Calculate dynamic metrics
   const totalRevenue = invoices
@@ -20,14 +22,6 @@ const ReportsMetrics = () => {
 
   const activeClients = clients.filter(client => client.status === 'active').length;
 
-  const formatIndianCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0
-    }).format(amount);
-  };
-
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       <Card className="border-l-4 border-l-green-500">
@@ -36,7 +30,7 @@ const ReportsMetrics = () => {
           <IndianRupee className="h-4 w-4 text-green-500" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{formatIndianCurrency(totalRevenue)}</div>
+          <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
           <p className="text-xs text-gray-500">From paid invoices</p>
         </CardContent>
       </Card>
@@ -58,7 +52,7 @@ const ReportsMetrics = () => {
           <TrendingUp className="h-4 w-4 text-purple-500" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{formatIndianCurrency(averageInvoiceValue)}</div>
+          <div className="text-2xl font-bold">{formatCurrency(averageInvoiceValue)}</div>
           <p className="text-xs text-gray-500">Per invoice average</p>
         </CardContent>
       </Card>
