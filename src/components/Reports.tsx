@@ -15,137 +15,46 @@ import {
   BarChart3
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { useInvoices, useClients, usePayments } from '@/hooks/useFirestore';
 
 const Reports = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [selectedYear, setSelectedYear] = useState('2024');
-  
-  const { invoices, loading: invoicesLoading } = useInvoices();
-  const { clients, loading: clientsLoading } = useClients();
-  const { payments, loading: paymentsLoading } = usePayments();
 
-  // Calculate real data from Firestore
-  const totalRevenue = invoices.reduce((sum, invoice) => sum + invoice.totalAmount, 0);
-  const totalInvoices = invoices.length;
-  const averageInvoiceValue = totalInvoices > 0 ? totalRevenue / totalInvoices : 0;
-  const activeClients = clients.filter(c => c.status === 'active').length;
-
-  // Generate monthly revenue data from actual invoices
+  // Sample data for reports (in INR)
   const monthlyRevenue = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-  ].map((month, index) => {
-    const monthInvoices = invoices.filter(invoice => {
-      const invoiceMonth = invoice.issueDate.getMonth();
-      return invoiceMonth === index;
-    });
-    
-    return {
-      month,
-      revenue: monthInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0),
-      invoices: monthInvoices.length,
-      paid: monthInvoices.filter(inv => inv.status === 'paid').length,
-      unpaid: monthInvoices.filter(inv => inv.status !== 'paid').length
-    };
-  });
-
-  // Generate client reports from actual data
-  const clientReports = clients.slice(0, 5).map(client => {
-    const clientInvoices = invoices.filter(inv => inv.clientId === client.id);
-    const clientPayments = payments.filter(p => p.clientId === client.id && p.status === 'completed');
-    
-    // Calculate average payment days
-    const avgPaymentDays = clientPayments.length > 0 
-      ? Math.round(clientPayments.reduce((sum, payment) => {
-          const invoice = invoices.find(inv => inv.id === payment.invoiceId);
-          if (invoice) {
-            const daysDiff = Math.abs(payment.paymentDate.getTime() - invoice.issueDate.getTime()) / (1000 * 60 * 60 * 24);
-            return sum + daysDiff;
-          }
-          return sum;
-        }, 0) / clientPayments.length)
-      : 0;
-
-    return {
-      name: client.name,
-      revenue: clientInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0),
-      invoices: clientInvoices.length,
-      avgPaymentDays
-    };
-  });
-
-  // Generate aging report from actual unpaid invoices
-  const unpaidInvoices = invoices.filter(inv => inv.status !== 'paid');
-  const agingReport = [
-    { range: 'Current (0-30 days)', color: '#10B981' },
-    { range: '31-60 days', color: '#F59E0B' },
-    { range: '61-90 days', color: '#EF4444' },
-    { range: '90+ days', color: '#DC2626' }
-  ].map(range => {
-    const today = new Date();
-    let filteredInvoices = [];
-    
-    if (range.range === 'Current (0-30 days)') {
-      filteredInvoices = unpaidInvoices.filter(inv => {
-        const daysDiff = (today.getTime() - inv.dueDate.getTime()) / (1000 * 60 * 60 * 24);
-        return daysDiff >= 0 && daysDiff <= 30;
-      });
-    } else if (range.range === '31-60 days') {
-      filteredInvoices = unpaidInvoices.filter(inv => {
-        const daysDiff = (today.getTime() - inv.dueDate.getTime()) / (1000 * 60 * 60 * 24);
-        return daysDiff > 30 && daysDiff <= 60;
-      });
-    } else if (range.range === '61-90 days') {
-      filteredInvoices = unpaidInvoices.filter(inv => {
-        const daysDiff = (today.getTime() - inv.dueDate.getTime()) / (1000 * 60 * 60 * 24);
-        return daysDiff > 60 && daysDiff <= 90;
-      });
-    } else {
-      filteredInvoices = unpaidInvoices.filter(inv => {
-        const daysDiff = (today.getTime() - inv.dueDate.getTime()) / (1000 * 60 * 60 * 24);
-        return daysDiff > 90;
-      });
-    }
-
-    return {
-      ...range,
-      amount: filteredInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0),
-      count: filteredInvoices.length
-    };
-  });
-
-  // Calculate GST summary from actual invoices
-  const gstSummary = [
-    { 
-      type: 'CGST Collected', 
-      amount: invoices.reduce((sum, inv) => sum + inv.cgst, 0), 
-      rate: '9%' 
-    },
-    { 
-      type: 'SGST Collected', 
-      amount: invoices.reduce((sum, inv) => sum + inv.sgst, 0), 
-      rate: '9%' 
-    },
-    { 
-      type: 'IGST Collected', 
-      amount: invoices.reduce((sum, inv) => sum + inv.igst, 0), 
-      rate: '18%' 
-    },
-    { 
-      type: 'Total GST', 
-      amount: invoices.reduce((sum, inv) => sum + inv.totalGst, 0), 
-      rate: 'Variable' 
-    }
+    { month: 'Jan', revenue: 2250000, invoices: 25, paid: 22, unpaid: 3 },
+    { month: 'Feb', revenue: 2600000, invoices: 30, paid: 28, unpaid: 2 },
+    { month: 'Mar', revenue: 2400000, invoices: 28, paid: 25, unpaid: 3 },
+    { month: 'Apr', revenue: 3050000, invoices: 35, paid: 32, unpaid: 3 },
+    { month: 'May', revenue: 2750000, invoices: 32, paid: 30, unpaid: 2 },
+    { month: 'Jun', revenue: 3350000, invoices: 38, paid: 36, unpaid: 2 },
   ];
 
-  if (invoicesLoading || clientsLoading || paymentsLoading) {
-    return (
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="text-center">Loading reports...</div>
-      </div>
-    );
-  }
+  const clientReports = [
+    { name: 'ABC Corporation', revenue: 625000, invoices: 8, avgPaymentDays: 15 },
+    { name: 'XYZ Ltd', revenue: 490000, invoices: 6, avgPaymentDays: 22 },
+    { name: 'DEF Inc', revenue: 760000, invoices: 10, avgPaymentDays: 12 },
+    { name: 'GHI Corp', revenue: 365000, invoices: 5, avgPaymentDays: 28 },
+    { name: 'JKL Ltd', revenue: 445000, invoices: 7, avgPaymentDays: 18 },
+  ];
+
+  const agingReport = [
+    { range: 'Current (0-30 days)', amount: 1250000, count: 15, color: '#10B981' },
+    { range: '31-60 days', amount: 600000, count: 8, color: '#F59E0B' },
+    { range: '61-90 days', amount: 425000, count: 5, color: '#EF4444' },
+    { range: '90+ days', amount: 160000, count: 3, color: '#DC2626' },
+  ];
+
+  const gstSummary = [
+    { type: 'CGST Collected', amount: 425000, rate: '9%' },
+    { type: 'SGST Collected', amount: 425000, rate: '9%' },
+    { type: 'IGST Collected', amount: 180000, rate: '18%' },
+    { type: 'TDS Deducted', amount: 105000, rate: '10%' },
+  ];
+
+  const totalRevenue = monthlyRevenue.reduce((sum, month) => sum + month.revenue, 0);
+  const totalInvoices = monthlyRevenue.reduce((sum, month) => sum + month.invoices, 0);
+  const averageInvoiceValue = totalRevenue / totalInvoices;
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
@@ -176,8 +85,8 @@ const Reports = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                <p className="text-2xl font-bold">₹{totalRevenue.toLocaleString()}</p>
-                <p className="text-xs text-green-600">From {totalInvoices} invoices</p>
+                <p className="text-2xl font-bold">₹{(totalRevenue / 100000).toFixed(1)}L</p>
+                <p className="text-xs text-green-600">+12% from last period</p>
               </div>
               <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
                 <IndianRupee className="h-4 w-4 text-blue-600" />
@@ -192,7 +101,7 @@ const Reports = () => {
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Invoices</p>
                 <p className="text-2xl font-bold">{totalInvoices}</p>
-                <p className="text-xs text-green-600">Active records</p>
+                <p className="text-xs text-green-600">+8% from last period</p>
               </div>
               <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
                 <FileText className="h-4 w-4 text-green-600" />
@@ -206,8 +115,8 @@ const Reports = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Avg Invoice Value</p>
-                <p className="text-2xl font-bold">₹{averageInvoiceValue.toLocaleString()}</p>
-                <p className="text-xs text-yellow-600">Per invoice</p>
+                <p className="text-2xl font-bold">₹{(averageInvoiceValue / 1000).toFixed(0)}K</p>
+                <p className="text-xs text-yellow-600">+3% from last period</p>
               </div>
               <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
                 <TrendingUp className="h-4 w-4 text-yellow-600" />
@@ -221,8 +130,8 @@ const Reports = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Active Clients</p>
-                <p className="text-2xl font-bold">{activeClients}</p>
-                <p className="text-xs text-blue-600">Total clients: {clients.length}</p>
+                <p className="text-2xl font-bold">{clientReports.length}</p>
+                <p className="text-xs text-blue-600">+2 new this month</p>
               </div>
               <div className="h-8 w-8 bg-purple-100 rounded-full flex items-center justify-center">
                 <Users className="h-4 w-4 text-purple-600" />
@@ -255,7 +164,7 @@ const Reports = () => {
                   <BarChart data={monthlyRevenue}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
-                    <YAxis tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`} />
+                    <YAxis tickFormatter={(value) => `₹${(value / 100000).toFixed(1)}L`} />
                     <Tooltip formatter={(value) => [`₹${value.toLocaleString()}`, 'Revenue']} />
                     <Bar dataKey="revenue" fill="#3B82F6" />
                   </BarChart>
@@ -375,7 +284,7 @@ const Reports = () => {
                         <div 
                           className="h-2 rounded-full" 
                           style={{ 
-                            width: `${Math.max((item.amount / Math.max(...agingReport.map(r => r.amount))) * 100, 5)}%`,
+                            width: `${(item.amount / 2435000) * 100}%`,
                             backgroundColor: item.color 
                           }}
                         ></div>
@@ -409,9 +318,9 @@ const Reports = () => {
               </div>
               <div className="mt-6 p-4 bg-blue-50 rounded-lg">
                 <div className="flex justify-between items-center">
-                  <span className="font-medium">Total GST Collected</span>
+                  <span className="font-medium">Total GST & TDS</span>
                   <span className="text-xl font-bold">
-                    ₹{gstSummary.slice(0, 3).reduce((sum, gst) => sum + gst.amount, 0).toLocaleString()}
+                    ₹{gstSummary.reduce((sum, gst) => sum + gst.amount, 0).toLocaleString()}
                   </span>
                 </div>
               </div>
