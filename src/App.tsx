@@ -17,7 +17,6 @@ import SuperDashboard from "./pages/SuperDashboard";
 import ClientDashboard from "./pages/ClientDashboard";
 import InvoiceList from "@/components/InvoiceList";
 import InvoiceForm from "@/components/InvoiceForm";
-import InvoiceView from "@/components/InvoiceView";
 import ClientManagement from "@/components/ClientManagement";
 import Payments from "@/components/Payments";
 import Reports from "@/components/Reports";
@@ -82,13 +81,6 @@ const App = () => (
                   <ProtectedRoute>
                     <Navigation />
                     <InvoiceForm />
-                  </ProtectedRoute>
-                } />
-                
-                <Route path="/invoices/:id" element={
-                  <ProtectedRoute>
-                    <Navigation />
-                    <InvoiceView />
                   </ProtectedRoute>
                 } />
                 
