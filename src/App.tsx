@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -19,6 +18,9 @@ import Reports from "./components/Reports";
 import Settings from "./components/Settings";
 import AdminNavigation from "./components/AdminNavigation";
 import NotFound from "./pages/NotFound";
+import ExpenseManagement from "./components/ExpenseManagement";
+import InventoryManagement from "./components/InventoryManagement";
+import ProfitabilityReports from "./components/ProfitabilityReports";
 
 const queryClient = new QueryClient();
 
@@ -147,6 +149,39 @@ const AuthenticatedApp = () => {
               <AdminNavigation />
               <div className="lg:pl-64">
                 <Settings />
+              </div>
+            </div>
+          </ProtectedRoute>
+        } />
+
+        <Route path="/expenses" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            <div>
+              <AdminNavigation />
+              <div className="lg:pl-64">
+                <ExpenseManagement />
+              </div>
+            </div>
+          </ProtectedRoute>
+        } />
+
+        <Route path="/inventory" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            <div>
+              <AdminNavigation />
+              <div className="lg:pl-64">
+                <InventoryManagement />
+              </div>
+            </div>
+          </ProtectedRoute>
+        } />
+
+        <Route path="/profitability" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            <div>
+              <AdminNavigation />
+              <div className="lg:pl-64">
+                <ProfitabilityReports />
               </div>
             </div>
           </ProtectedRoute>

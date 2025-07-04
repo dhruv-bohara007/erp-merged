@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { 
   collection, 
@@ -72,6 +71,41 @@ export interface Payment {
   status: 'completed' | 'pending' | 'failed';
   notes?: string;
   createdAt: Date;
+}
+
+export interface Expense {
+  id: string;
+  title: string;
+  amount: number;
+  category: string;
+  clientId?: string;
+  clientName?: string;
+  projectName?: string;
+  description: string;
+  expenseDate: Date;
+  receipt?: string;
+  status: 'recorded' | 'approved' | 'reimbursed';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  sku: string;
+  currentStock: number;
+  minStock: number;
+  maxStock: number;
+  unitPrice: number;
+  unitCost: number;
+  unit: string;
+  supplier: string;
+  location: string;
+  status: 'active' | 'inactive' | 'discontinued';
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 // Custom hooks for each collection
@@ -249,4 +283,134 @@ export const usePayments = () => {
   };
 
   return { payments, loading, error, addPayment };
+};
+
+export const useExpenses = () => {
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const q = query(collection(db, 'expenses'), orderBy('createdAt', 'desc'));
+    
+    const unsubscribe = onSnapshot(q, 
+      (snapshot) => {
+        const expenseData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          expenseDate: doc.data().expenseDate?.toDate(),
+          createdAt: doc.data().createdAt?.toDate(),
+          updatedAt: doc.data().updatedAt?.toDate(),
+        })) as Expense[];
+        setExpenses(expenseData);
+        setLoading(false);
+      },
+      (err) => {
+        setError(err.message);
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  const addExpense = async (expense: Omit<Expense, 'id' | 'createdAt' | 'updatedAt'>) => {
+    try {
+      const docRef = await addDoc(collection(db, 'expenses'), {
+        ...expense,
+        expenseDate: Timestamp.fromDate(expense.expenseDate),
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+      return docRef.id;
+    } catch (err) {
+      throw new Error(err instanceof Error ? err.message : 'Failed to add expense');
+    }
+  };
+
+  const updateExpense = async (id: string, updates: Partial<Expense>) => {
+    try {
+      const docRef = doc(db, 'expenses', id);
+      await updateDoc(docRef, {
+        ...updates,
+        updatedAt: Timestamp.now(),
+      });
+    } catch (err) {
+      throw new Error(err instanceof Error ? err.message : 'Failed to update expense');
+    }
+  };
+
+  const deleteExpense = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'expenses', id));
+    } catch (err) {
+      throw new Error(err instanceof Error ? err.message : 'Failed to delete expense');
+    }
+  };
+
+  return { expenses, loading, error, addExpense, updateExpense, deleteExpense };
+};
+
+export const useInventory = () => {
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const q = query(collection(db, 'inventory'), orderBy('name', 'asc'));
+    
+    const unsubscribe = onSnapshot(q, 
+      (snapshot) => {
+        const inventoryData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate(),
+          updatedAt: doc.data().updatedAt?.toDate(),
+        })) as InventoryItem[];
+        setInventory(inventoryData);
+        setLoading(false);
+      },
+      (err) => {
+        setError(err.message);
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  const addInventoryItem = async (item: Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>) => {
+    try {
+      const docRef = await addDoc(collection(db, 'inventory'), {
+        ...item,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+      return docRef.id;
+    } catch (err) {
+      throw new Error(err instanceof Error ? err.message : 'Failed to add inventory item');
+    }
+  };
+
+  const updateInventoryItem = async (id: string, updates: Partial<InventoryItem>) => {
+    try {
+      const docRef = doc(db, 'inventory', id);
+      await updateDoc(docRef, {
+        ...updates,
+        updatedAt: Timestamp.now(),
+      });
+    } catch (err) {
+      throw new Error(err instanceof Error ? err.message : 'Failed to update inventory item');
+    }
+  };
+
+  const deleteInventoryItem = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'inventory', id));
+    } catch (err) {
+      throw new Error(err instanceof Error ? err.message : 'Failed to delete inventory item');
+    }
+  };
+
+  return { inventory, loading, error, addInventoryItem, updateInventoryItem, deleteInventoryItem };
 };
