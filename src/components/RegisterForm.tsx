@@ -5,14 +5,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuth } from '@/contexts/AuthContext';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAuth, UserRole } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Building, Mail, Lock } from 'lucide-react';
+import { Building, Mail, Lock, UserCheck } from 'lucide-react';
 
 const RegisterForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [selectedRole, setSelectedRole] = useState<UserRole>('client');
   const [loading, setLoading] = useState(false);
   const { register, currentUser } = useAuth();
   const navigate = useNavigate();
@@ -42,14 +44,20 @@ const RegisterForm = () => {
     setLoading(true);
 
     try {
-      // Always register as client - admin roles must be assigned manually
-      await register(email, password, 'client');
+      await register(email, password, selectedRole);
       
-      navigate('/client-dashboard');
+      // Redirect based on selected role
+      const roleRedirects = {
+        client: '/client-dashboard',
+        company_admin: '/admin-dashboard',
+        super_admin: '/super-dashboard'
+      };
+      
+      navigate(roleRedirects[selectedRole]);
       
       toast({
         title: 'Registration Successful',
-        description: 'Welcome to InvoiceApp!',
+        description: `Welcome to InvoiceApp! You are registered as ${selectedRole.replace('_', ' ')}`,
       });
     } catch (error) {
       toast({
@@ -70,7 +78,7 @@ const RegisterForm = () => {
             <Building className="h-12 w-12 text-blue-600" />
           </div>
           <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
-          <CardDescription>Sign up as a client to get started</CardDescription>
+          <CardDescription>Sign up and select your role</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -122,9 +130,31 @@ const RegisterForm = () => {
               </div>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-              <p className="text-sm text-blue-600">
-                <strong>Note:</strong> You are registering as a client. Admin roles are assigned manually by system administrators.
+            <div className="space-y-2">
+              <Label htmlFor="role">Select Role</Label>
+              <div className="relative">
+                <UserCheck className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
+                <Select value={selectedRole} onValueChange={(value: UserRole) => setSelectedRole(value)}>
+                  <SelectTrigger className="pl-10">
+                    <SelectValue placeholder="Choose your role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="client">Client</SelectItem>
+                    <SelectItem value="company_admin">Company Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-md p-3">
+              <p className="text-sm text-amber-700">
+                <strong>Role Information:</strong>
+                <br />
+                • <strong>Client:</strong> View and manage your invoices
+                <br />
+                • <strong>Company Admin:</strong> Full invoice and client management
+                <br />
+                • <strong>Super Admin:</strong> Must be assigned manually via Firebase console
               </p>
             </div>
 
@@ -133,7 +163,7 @@ const RegisterForm = () => {
               className="w-full" 
               disabled={loading}
             >
-              {loading ? 'Creating account...' : 'Create Client Account'}
+              {loading ? 'Creating account...' : `Create ${selectedRole.replace('_', ' ')} Account`}
             </Button>
           </form>
 

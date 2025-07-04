@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,13 +19,14 @@ import {
   IndianRupee,
   FileText
 } from 'lucide-react';
-import { useClients } from '@/hooks/useFirestore';
+import { useClients, useInvoices } from '@/hooks/useFirestore';
 import { useToast } from '@/hooks/use-toast';
 import EditClientModal from './EditClientModal';
 import type { Client } from '@/hooks/useFirestore';
 
 const ClientManagement = () => {
   const { clients, loading, error, addClient, updateClient, deleteClient } = useClients();
+  const { invoices } = useInvoices();
   const { toast } = useToast();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -105,6 +107,21 @@ const ClientManagement = () => {
     setEditingClient(client);
     setIsEditModalOpen(true);
   };
+
+  // Calculate dynamic metrics from Firestore data
+  const calculateClientMetrics = () => {
+    const totalRevenue = invoices
+      .filter(invoice => invoice.status === 'paid')
+      .reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
+
+    const outstandingAmount = invoices
+      .filter(invoice => invoice.status === 'sent' || invoice.status === 'draft' || invoice.status === 'overdue')
+      .reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
+
+    return { totalRevenue, outstandingAmount };
+  };
+
+  const { totalRevenue, outstandingAmount } = calculateClientMetrics();
 
   if (loading) {
     return (
@@ -223,7 +240,7 @@ const ClientManagement = () => {
         </Dialog>
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary Cards with Dynamic Data */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-6">
@@ -258,7 +275,7 @@ const ClientManagement = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                <p className="text-2xl font-bold">₹0</p>
+                <p className="text-2xl font-bold">{formatIndianCurrency(totalRevenue)}</p>
               </div>
               <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
                 <IndianRupee className="h-4 w-4 text-green-600" />
@@ -272,7 +289,7 @@ const ClientManagement = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Outstanding</p>
-                <p className="text-2xl font-bold">₹0</p>
+                <p className="text-2xl font-bold">{formatIndianCurrency(outstandingAmount)}</p>
               </div>
               <div className="h-8 w-8 bg-orange-100 rounded-full flex items-center justify-center">
                 <IndianRupee className="h-4 w-4 text-orange-600" />
@@ -378,97 +395,6 @@ const ClientManagement = () => {
           </Table>
         </CardContent>
       </Card>
-
-      {/* Add Client Modal */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Add New Client</DialogTitle>
-          </DialogHeader>
-          <div className="grid grid-cols-2 gap-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Company Name</Label>
-              <Input
-                id="name"
-                value={newClient.name}
-                onChange={(e) => setNewClient({...newClient, name: e.target.value})}
-                placeholder="Enter company name"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={newClient.email}
-                onChange={(e) => setNewClient({...newClient, email: e.target.value})}
-                placeholder="Enter email address"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                value={newClient.phone}
-                onChange={(e) => setNewClient({...newClient, phone: e.target.value})}
-                placeholder="+91 XXXXX XXXXX"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="gstin">GSTIN</Label>
-              <Input
-                id="gstin"
-                value={newClient.gstin}
-                onChange={(e) => setNewClient({...newClient, gstin: e.target.value})}
-                placeholder="Enter GSTIN"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="city">City</Label>
-              <Input
-                id="city"
-                value={newClient.city}
-                onChange={(e) => setNewClient({...newClient, city: e.target.value})}
-                placeholder="Enter city"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="state">State</Label>
-              <Input
-                id="state"
-                value={newClient.state}
-                onChange={(e) => setNewClient({...newClient, state: e.target.value})}
-                placeholder="Enter state"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="pincode">PIN Code</Label>
-              <Input
-                id="pincode"
-                value={newClient.pincode}
-                onChange={(e) => setNewClient({...newClient, pincode: e.target.value})}
-                placeholder="Enter PIN code"
-              />
-            </div>
-            <div className="col-span-2 space-y-2">
-              <Label htmlFor="address">Address</Label>
-              <Textarea
-                id="address"
-                value={newClient.address}
-                onChange={(e) => setNewClient({...newClient, address: e.target.value})}
-                placeholder="Enter complete address"
-                rows={3}
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddClient}>Add Client</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Edit Client Modal */}
       <EditClientModal 

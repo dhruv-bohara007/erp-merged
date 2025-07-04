@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +11,6 @@ import {
   Filter, 
   Download, 
   Mail, 
-  Edit, 
   Trash2, 
   Eye,
   Calendar,
@@ -133,10 +133,6 @@ Terms: ${invoice.terms || 'N/A'}
       title: "Download Started",
       description: `Invoice ${invoice.invoiceNumber} is being downloaded`,
     });
-  };
-
-  const handleEditInvoice = (invoice: Invoice) => {
-    navigate(`/invoices/edit/${invoice.id}`);
   };
 
   // Calculate totals for filtered invoices with null checks
@@ -359,14 +355,6 @@ Terms: ${invoice.terms || 'N/A'}
                               ✓
                             </Button>
                           )}
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            title="Edit Invoice"
-                            onClick={() => handleEditInvoice(invoice)}
-                          >
-                            <Edit className="w-3 h-3" />
-                          </Button>
                           <Button 
                             variant="outline" 
                             size="sm"

@@ -10,6 +10,15 @@ interface PaymentSummaryCardsProps {
 const PaymentSummaryCards = ({ payments }: PaymentSummaryCardsProps) => {
   const totalReceived = payments.filter(p => p.status === 'completed').reduce((sum, payment) => sum + payment.amount, 0);
   const pendingAmount = payments.filter(p => p.status === 'pending').reduce((sum, payment) => sum + payment.amount, 0);
+  
+  // Calculate this month's revenue (current month payments)
+  const thisMonthRevenue = payments.filter(payment => {
+    if (!payment.createdAt || payment.status !== 'completed') return false;
+    const paymentDate = new Date(payment.createdAt);
+    const currentDate = new Date();
+    return paymentDate.getMonth() === currentDate.getMonth() && 
+           paymentDate.getFullYear() === currentDate.getFullYear();
+  }).reduce((sum, payment) => sum + payment.amount, 0);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -46,7 +55,7 @@ const PaymentSummaryCards = ({ payments }: PaymentSummaryCardsProps) => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">This Month</p>
-              <p className="text-2xl font-bold">₹{payments.length > 0 ? (totalReceived * 0.4).toFixed(0) : '0'}</p>
+              <p className="text-2xl font-bold">₹{thisMonthRevenue.toLocaleString()}</p>
             </div>
             <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
               <Calendar className="h-4 w-4 text-blue-600" />
