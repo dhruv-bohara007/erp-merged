@@ -1,5 +1,4 @@
 
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -167,8 +166,8 @@ const InvoiceList = () => {
               <CardContent>
                 <div className="text-sm text-gray-500">
                   <p>Client: {invoice.clientName}</p>
-                  <p>Issue Date: {format(invoice.issueDate, 'MMM d, yyyy')}</p>
-                  <p>Due Date: {format(invoice.dueDate, 'MMM d, yyyy')}</p>
+                  <p>Issue Date: {format(new Date(invoice.issueDate), 'MMM d, yyyy')}</p>
+                  <p>Due Date: {format(new Date(invoice.dueDate), 'MMM d, yyyy')}</p>
                   <p className="font-medium">Amount: {formatCurrency(invoice.totalAmount)}</p>
                 </div>
                 <div className="flex justify-end gap-2 mt-4">
@@ -203,28 +202,6 @@ const InvoiceList = () => {
       )}
     </div>
   );
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'paid':
-        return 'bg-green-100 text-green-800';
-      case 'sent':
-        return 'bg-blue-100 text-blue-800';
-      case 'overdue':
-        return 'bg-red-100 text-red-800';
-      case 'draft':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
 };
 
 export default InvoiceList;
