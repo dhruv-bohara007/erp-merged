@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -23,7 +22,7 @@ const CompanySignupForm = () => {
   });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const { currentUser } = useAuth();
+  const { currentUser, refreshUser } = useAuth();
   const navigate = useNavigate();
 
   const countries = [
@@ -169,6 +168,9 @@ const CompanySignupForm = () => {
         hasCompletedSetup: true,
         updatedAt: new Date().toISOString()
       });
+      
+      // Refresh user data to get the updated hasCompletedSetup status
+      await refreshUser();
       
       toast({
         title: 'Company Setup Complete!',

@@ -24,6 +24,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, role?: UserRole) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -40,18 +41,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const login = async (email: string, password: string) => {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+  const fetchUserData = async (user: User) => {
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
     const userData = userDoc.data();
     
-    const authUser: AuthUser = {
-      ...userCredential.user,
+    return {
+      ...user,
       role: userData?.role || 'client',
       companyId: userData?.companyId,
       hasCompletedSetup: userData?.hasCompletedSetup || false
     };
-    
+  };
+
+  const login = async (email: string, password: string) => {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const authUser = await fetchUserData(userCredential.user);
     setCurrentUser(authUser);
   };
 
@@ -75,6 +79,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCurrentUser(authUser);
   };
 
+  const refreshUser = async () => {
+    if (auth.currentUser) {
+      const authUser = await fetchUserData(auth.currentUser);
+      setCurrentUser(authUser);
+    }
+  };
+
   const logout = async () => {
     await signOut(auth);
     setCurrentUser(null);
@@ -83,17 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // Fetch user role from Firestore
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        const userData = userDoc.data();
-        
-        const authUser: AuthUser = {
-          ...user,
-          role: userData?.role || 'client',
-          companyId: userData?.companyId,
-          hasCompletedSetup: userData?.hasCompletedSetup || false
-        };
-        
+        const authUser = await fetchUserData(user);
         setCurrentUser(authUser);
       } else {
         setCurrentUser(null);
@@ -109,7 +110,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loading,
     login,
     register,
-    logout
+    logout,
+    refreshUser
   };
 
   return (
