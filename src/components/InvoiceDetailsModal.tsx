@@ -41,8 +41,8 @@ const InvoiceDetailsModal = ({ open, onOpenChange, invoice }: InvoiceDetailsModa
     }
   };
 
-  // Get company country from company data, fallback to India
-  const companyCountry = companyData?.country || 'IN';
+  // Get company country from company data, fallback to US
+  const companyCountry = companyData?.country || 'US';
   // Get client country from client details, fallback to company country
   const clientCountry = clientDetails?.country || companyCountry;
   
@@ -105,7 +105,7 @@ const InvoiceDetailsModal = ({ open, onOpenChange, invoice }: InvoiceDetailsModa
                       {clientDetails.country && (
                         <div className="flex items-center gap-1 mt-1">
                           <Globe className="h-3 w-3" />
-                          {clientDetails.country}
+                          <span className="font-medium">{clientDetails.country}</span>
                         </div>
                       )}
                     </div>
