@@ -62,13 +62,24 @@ const Settings = () => {
     
     if (field.includes('.')) {
       const [parent, child] = field.split('.');
-      setFormData({
-        ...formData,
-        [parent]: {
-          ...formData[parent as keyof CompanyData],
-          [child]: value
-        }
-      });
+      
+      if (parent === 'taxInfo') {
+        setFormData({
+          ...formData,
+          taxInfo: {
+            ...formData.taxInfo,
+            [child]: value
+          }
+        });
+      } else if (parent === 'bankInfo') {
+        setFormData({
+          ...formData,
+          bankInfo: {
+            ...formData.bankInfo,
+            [child]: value
+          }
+        });
+      }
     } else {
       setFormData({
         ...formData,
