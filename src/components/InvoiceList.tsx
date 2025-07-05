@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,6 +20,7 @@ import {
 import { useInvoices } from '@/hooks/useFirestore';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import InvoiceView from './InvoiceView';
 import type { Invoice } from '@/hooks/useFirestore';
 
@@ -28,6 +28,7 @@ const InvoiceList = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { invoices, loading, deleteInvoice, updateInvoice } = useInvoices();
+  const { formatAmount, selectedCurrency } = useCurrency();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -104,16 +105,16 @@ Due Date: ${invoice.dueDate?.toLocaleDateString()}
 
 Items:
 ${invoice.items?.map(item => 
-  `${item.description} - Qty: ${item.quantity} - Rate: ₹${item.rate} - Amount: ₹${item.amount}`
+  `${item.description} - Qty: ${item.quantity} - Rate: ${formatAmount(item.rate)} - Amount: ${formatAmount(item.amount)}`
 ).join('\n')}
 
-Subtotal: ₹${invoice.subtotal?.toLocaleString()}
-CGST: ₹${invoice.cgst?.toLocaleString()}
-SGST: ₹${invoice.sgst?.toLocaleString()}
-IGST: ₹${invoice.igst?.toLocaleString()}
-Total GST: ₹${invoice.totalGst?.toLocaleString()}
+Subtotal: ${formatAmount(invoice.subtotal || 0)}
+CGST: ${formatAmount(invoice.cgst || 0)}
+SGST: ${formatAmount(invoice.sgst || 0)}
+IGST: ${formatAmount(invoice.igst || 0)}
+Total GST: ${formatAmount(invoice.totalGst || 0)}
 
-TOTAL AMOUNT: ₹${invoice.totalAmount?.toLocaleString()}
+TOTAL AMOUNT: ${formatAmount(invoice.totalAmount || 0)}
 
 Notes: ${invoice.notes || 'N/A'}
 Terms: ${invoice.terms || 'N/A'}
@@ -135,7 +136,7 @@ Terms: ${invoice.terms || 'N/A'}
     });
   };
 
-  // Calculate totals for filtered invoices with null checks
+  // Calculate totals for filtered invoices with currency conversion
   const totalAmount = filteredInvoices.reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
   const paidAmount = filteredInvoices.filter(inv => inv.status === 'paid').reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
   const unpaidAmount = filteredInvoices.filter(inv => inv.status === 'sent' || inv.status === 'draft').reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
@@ -155,7 +156,12 @@ Terms: ${invoice.terms || 'N/A'}
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Invoice Management</h1>
+        <div>
+          <h1 className="text-3xl font-bold">Invoice Management</h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Displaying amounts in {selectedCurrency.name} ({selectedCurrency.code})
+          </p>
+        </div>
         <Button 
           className="bg-blue-600 hover:bg-blue-700"
           onClick={() => navigate('/invoices/new')}
@@ -172,7 +178,7 @@ Terms: ${invoice.terms || 'N/A'}
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Amount</p>
-                <p className="text-2xl font-bold">₹{totalAmount.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{formatAmount(totalAmount)}</p>
               </div>
               <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
                 <IndianRupee className="h-4 w-4 text-blue-600" />
@@ -186,7 +192,7 @@ Terms: ${invoice.terms || 'N/A'}
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Paid</p>
-                <p className="text-2xl font-bold text-green-600">₹{paidAmount.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-green-600">{formatAmount(paidAmount)}</p>
               </div>
               <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
                 <IndianRupee className="h-4 w-4 text-green-600" />
@@ -200,7 +206,7 @@ Terms: ${invoice.terms || 'N/A'}
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Unpaid</p>
-                <p className="text-2xl font-bold text-yellow-600">₹{unpaidAmount.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-yellow-600">{formatAmount(unpaidAmount)}</p>
               </div>
               <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
                 <IndianRupee className="h-4 w-4 text-yellow-600" />
@@ -214,7 +220,7 @@ Terms: ${invoice.terms || 'N/A'}
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Overdue</p>
-                <p className="text-2xl font-bold text-red-600">₹{overdueAmount.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-red-600">{formatAmount(overdueAmount)}</p>
               </div>
               <div className="h-8 w-8 bg-red-100 rounded-full flex items-center justify-center">
                 <IndianRupee className="h-4 w-4 text-red-600" />
@@ -301,8 +307,8 @@ Terms: ${invoice.terms || 'N/A'}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium">₹{(invoice.totalAmount || 0).toLocaleString()}</div>
-                        <div className="text-sm text-gray-500">GST: ₹{(invoice.totalGst || 0).toLocaleString()}</div>
+                        <div className="font-medium">{formatAmount(invoice.totalAmount || 0)}</div>
+                        <div className="text-sm text-gray-500">GST: {formatAmount(invoice.totalGst || 0)}</div>
                       </TableCell>
                       <TableCell>
                         <Badge className={getStatusColor(invoice.status || 'draft')}>

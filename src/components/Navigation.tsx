@@ -13,6 +13,7 @@ import {
   X,
   Building
 } from 'lucide-react';
+import CurrencySelector from './CurrencySelector';
 
 const Navigation = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -63,6 +64,9 @@ const Navigation = () => {
                 </NavLink>
               ))}
             </nav>
+            
+            {/* Currency Selector at bottom of sidebar */}
+            <CurrencySelector />
           </div>
         </div>
       </div>
@@ -112,6 +116,11 @@ const Navigation = () => {
                   {item.label}
                 </NavLink>
               ))}
+              
+              {/* Currency Selector in mobile menu */}
+              <div className="px-4 pt-4">
+                <CurrencySelector />
+              </div>
             </div>
           </div>
         )}

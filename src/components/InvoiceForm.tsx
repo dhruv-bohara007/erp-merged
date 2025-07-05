@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +11,7 @@ import { useInvoices, useClients, InvoiceItem } from '@/hooks/useFirestore';
 import { useCompanyData } from '@/hooks/useCompanyData';
 import { useTaxCalculations } from '@/hooks/useTaxCalculations';
 import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 
@@ -23,6 +23,7 @@ const InvoiceForm = () => {
   const { companyData } = useCompanyData();
   const { calculateTaxes, getTaxDisplayName } = useTaxCalculations();
   const { convertCurrency, formatCurrency, getCurrencyInfo, loading: currencyLoading } = useCurrencyConverter();
+  const { formatAmount, selectedCurrency } = useCurrency();
   
   const [loading, setLoading] = useState(false);
   const [invoiceData, setInvoiceData] = useState({
@@ -166,7 +167,12 @@ const InvoiceForm = () => {
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Create New Invoice</h1>
+        <div>
+          <h1 className="text-3xl font-bold">Create New Invoice</h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Creating in {companyCurrency.name} • Viewing in {selectedCurrency.name}
+          </p>
+        </div>
         <div className="flex gap-3">
           <Button 
             variant="outline" 
@@ -260,7 +266,7 @@ const InvoiceForm = () => {
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Subtotal:</span>
-                <span>{formatCurrency(subtotal, companyCountry)}</span>
+                <span>{formatAmount(subtotal)}</span>
               </div>
               
               {selectedClient && taxCalculation.taxes.length > 0 && (
@@ -268,20 +274,20 @@ const InvoiceForm = () => {
                   {taxCalculation.taxes.map((tax, index) => (
                     <div key={index} className="flex justify-between text-sm">
                       <span>{tax.name} ({tax.rate}%):</span>
-                      <span>{formatCurrency(tax.amount, companyCountry)}</span>
+                      <span>{formatAmount(tax.amount)}</span>
                     </div>
                   ))}
                   <div className="flex justify-between text-sm font-medium">
                     <span>Total {getTaxDisplayName(companyCountry, clientCountry)}:</span>
-                    <span>{formatCurrency(taxCalculation.totalTaxAmount, companyCountry)}</span>
+                    <span>{formatAmount(taxCalculation.totalTaxAmount)}</span>
                   </div>
                 </>
               )}
               
               <Separator />
               <div className="flex justify-between font-bold text-lg">
-                <span>Total Amount ({companyCurrency.code}):</span>
-                <span>{formatCurrency(totalAmount, companyCountry)}</span>
+                <span>Total Amount ({selectedCurrency.code}):</span>
+                <span>{formatAmount(totalAmount)}</span>
               </div>
 
               {/* Currency Conversion Display */}
@@ -379,7 +385,7 @@ const InvoiceForm = () => {
                 <div className="col-span-2">
                   <Label>Amount</Label>
                   <div className="p-2 bg-gray-100 rounded border text-right">
-                    {formatCurrency(item.amount, companyCountry)}
+                    {formatAmount(item.amount)}
                   </div>
                 </div>
                 <div className="col-span-1 flex justify-center">
