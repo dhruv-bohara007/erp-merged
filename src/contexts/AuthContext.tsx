@@ -14,6 +14,8 @@ export type UserRole = 'client' | 'company_admin' | 'super_admin';
 
 export interface AuthUser extends User {
   role?: UserRole;
+  companyId?: string;
+  hasCompletedSetup?: boolean;
 }
 
 interface AuthContextType {
@@ -45,7 +47,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     const authUser: AuthUser = {
       ...userCredential.user,
-      role: userData?.role || 'client'
+      role: userData?.role || 'client',
+      companyId: userData?.companyId,
+      hasCompletedSetup: userData?.hasCompletedSetup || false
     };
     
     setCurrentUser(authUser);
@@ -58,12 +62,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await setDoc(doc(db, 'users', userCredential.user.uid), {
       email: userCredential.user.email,
       role: role,
+      hasCompletedSetup: false,
       createdAt: new Date().toISOString(),
     });
 
     const authUser: AuthUser = {
       ...userCredential.user,
-      role: role
+      role: role,
+      hasCompletedSetup: false
     };
     
     setCurrentUser(authUser);
@@ -83,7 +89,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         const authUser: AuthUser = {
           ...user,
-          role: userData?.role || 'client'
+          role: userData?.role || 'client',
+          companyId: userData?.companyId,
+          hasCompletedSetup: userData?.hasCompletedSetup || false
         };
         
         setCurrentUser(authUser);

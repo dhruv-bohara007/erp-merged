@@ -1,11 +1,14 @@
-
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { doc, setDoc, updateDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { Building2, MapPin, Banknote } from 'lucide-react';
 
 const CompanySignupForm = () => {
@@ -23,6 +26,8 @@ const CompanySignupForm = () => {
   });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
 
   const countries = [
     { value: 'IN', label: 'India' },
@@ -55,6 +60,15 @@ const CompanySignupForm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!currentUser) {
+      toast({
+        title: 'Authentication Error',
+        description: 'You must be logged in to complete company setup',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     // Validate required fields
     const requiredFields = [
       'companyName', 'phone', 'email', 'streetAddress', 
@@ -75,18 +89,35 @@ const CompanySignupForm = () => {
     setLoading(true);
 
     try {
-      // Here you would typically save the company data to your backend/Firebase
-      console.log('Company data:', formData);
+      // Create company document with user ID as the document ID
+      const companyData = {
+        ...formData,
+        adminUserId: currentUser.uid,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'active'
+      };
+
+      // Save company data to Firestore
+      await setDoc(doc(db, 'companies', currentUser.uid), companyData);
+      
+      // Update user document to include company association
+      await updateDoc(doc(db, 'users', currentUser.uid), {
+        companyId: currentUser.uid,
+        hasCompletedSetup: true,
+        updatedAt: new Date().toISOString()
+      });
       
       toast({
         title: 'Company Setup Complete!',
         description: 'Your company information has been saved successfully.',
       });
       
-      // Redirect to dashboard or next step
-      // navigate('/admin-dashboard');
+      // Redirect to admin dashboard
+      navigate('/admin-dashboard');
       
     } catch (error) {
+      console.error('Company setup error:', error);
       toast({
         title: 'Setup Failed',
         description: 'Failed to save company information. Please try again.',

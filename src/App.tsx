@@ -21,6 +21,7 @@ import NotFound from "./pages/NotFound";
 import ExpenseManagement from "./components/ExpenseManagement";
 import InventoryManagement from "./components/InventoryManagement";
 import ProfitabilityReports from "./components/ProfitabilityReports";
+import CompanySignupForm from "./components/CompanySignupForm";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,11 @@ const AuthenticatedApp = () => {
   // If user is authenticated but on login/register page, redirect to their dashboard
   const getDefaultRedirect = () => {
     if (!currentUser) return '/login';
+    
+    // If company admin hasn't completed setup, redirect to company signup
+    if (currentUser.role === 'company_admin' && !currentUser.hasCompletedSetup) {
+      return '/company-setup';
+    }
     
     const roleRedirects = {
       client: '/client-dashboard',
@@ -51,6 +57,13 @@ const AuthenticatedApp = () => {
           currentUser ? <Navigate to={getDefaultRedirect()} replace /> : <RegisterForm />
         } />
 
+        {/* Company Setup Route */}
+        <Route path="/company-setup" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            <CompanySignupForm />
+          </ProtectedRoute>
+        } />
+
         {/* Client Dashboard */}
         <Route path="/client-dashboard" element={
           <ProtectedRoute allowedRoles={['client']}>
@@ -65,125 +78,169 @@ const AuthenticatedApp = () => {
           </ProtectedRoute>
         } />
 
-        {/* Company Admin routes - using single AdminNavigation */}
+        {/* Company Admin routes - redirect to setup if not completed */}
         <Route path="/admin-dashboard" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
-            <div>
-              <AdminNavigation />
-              <div className="lg:pl-64">
-                <Index />
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <Index />
+                </div>
               </div>
-            </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
           </ProtectedRoute>
         } />
         
         <Route path="/invoices" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
-            <div>
-              <AdminNavigation />
-              <div className="lg:pl-64">
-                <InvoiceList />
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <InvoiceList />
+                </div>
               </div>
-            </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
           </ProtectedRoute>
         } />
         
         <Route path="/invoices/new" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
-            <div>
-              <AdminNavigation />
-              <div className="lg:pl-64">
-                <InvoiceForm />
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <InvoiceForm />
+                </div>
               </div>
-            </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
           </ProtectedRoute>
         } />
 
         <Route path="/invoices/edit/:id" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
-            <div>
-              <AdminNavigation />
-              <div className="lg:pl-64">
-                <InvoiceForm />
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <InvoiceForm />
+                </div>
               </div>
-            </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
           </ProtectedRoute>
         } />
         
         <Route path="/clients" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
-            <div>
-              <AdminNavigation />
-              <div className="lg:pl-64">
-                <ClientManagement />
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <ClientManagement />
+                </div>
               </div>
-            </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
           </ProtectedRoute>
         } />
         
         <Route path="/payments" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
-            <div>
-              <AdminNavigation />
-              <div className="lg:pl-64">
-                <Payments />
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <Payments />
+                </div>
               </div>
-            </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
           </ProtectedRoute>
         } />
         
         <Route path="/reports" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
-            <div>
-              <AdminNavigation />
-              <div className="lg:pl-64">
-                <Reports />
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <Reports />
+                </div>
               </div>
-            </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
           </ProtectedRoute>
         } />
         
         <Route path="/settings" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
-            <div>
-              <AdminNavigation />
-              <div className="lg:pl-64">
-                <Settings />
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <Settings />
+                </div>
               </div>
-            </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
           </ProtectedRoute>
         } />
 
         <Route path="/expenses" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
-            <div>
-              <AdminNavigation />
-              <div className="lg:pl-64">
-                <ExpenseManagement />
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <ExpenseManagement />
+                </div>
               </div>
-            </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
           </ProtectedRoute>
         } />
 
         <Route path="/inventory" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
-            <div>
-              <AdminNavigation />
-              <div className="lg:pl-64">
-                <InventoryManagement />
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <InventoryManagement />
+                </div>
               </div>
-            </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
           </ProtectedRoute>
         } />
 
         <Route path="/profitability" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
-            <div>
-              <AdminNavigation />
-              <div className="lg:pl-64">
-                <ProfitabilityReports />
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <ProfitabilityReports />
+                </div>
               </div>
-            </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
           </ProtectedRoute>
         } />
 
