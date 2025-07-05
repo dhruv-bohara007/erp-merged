@@ -7,8 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, Loader2 } from 'lucide-react';
 import { useInvoices, useClients, InvoiceItem } from '@/hooks/useFirestore';
+import { useCompanyData } from '@/hooks/useCompanyData';
+import { useTaxCalculations } from '@/hooks/useTaxCalculations';
+import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 
@@ -17,6 +20,9 @@ const InvoiceForm = () => {
   const { toast } = useToast();
   const { addInvoice } = useInvoices();
   const { clients } = useClients();
+  const { companyData } = useCompanyData();
+  const { calculateTaxes, getTaxDisplayName } = useTaxCalculations();
+  const { convertCurrency, formatCurrency, getCurrencyInfo, loading: currencyLoading } = useCurrencyConverter();
   
   const [loading, setLoading] = useState(false);
   const [invoiceData, setInvoiceData] = useState({
@@ -73,33 +79,19 @@ const InvoiceForm = () => {
     }));
   };
 
-  // Calculate totals
+  // Calculate totals with dynamic taxes
   const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
   
-  // GST calculation based on client's state
-  const calculateGST = () => {
-    if (!selectedClient || subtotal === 0) {
-      return { cgst: 0, sgst: 0, igst: 0, totalGst: 0 };
-    }
-
-    // Assuming business is registered in Maharashtra for this example
-    const businessState = 'Maharashtra';
-    const isInterState = selectedClient.state !== businessState;
-    
-    if (isInterState) {
-      // Inter-state: IGST only
-      const igst = subtotal * 0.18; // 18% IGST
-      return { cgst: 0, sgst: 0, igst, totalGst: igst };
-    } else {
-      // Intra-state: CGST + SGST
-      const cgst = subtotal * 0.09; // 9% CGST
-      const sgst = subtotal * 0.09; // 9% SGST
-      return { cgst, sgst, igst: 0, totalGst: cgst + sgst };
-    }
-  };
-
-  const gstCalculation = calculateGST();
-  const totalAmount = subtotal + gstCalculation.totalGst;
+  const companyCountry = companyData?.country || 'US';
+  const clientCountry = selectedClient?.country || 'US';
+  
+  const taxCalculation = calculateTaxes(subtotal, companyCountry, clientCountry);
+  const totalAmount = taxCalculation.totalAmount;
+  
+  // Currency conversion
+  const companyCurrency = getCurrencyInfo(companyCountry);
+  const clientCurrency = getCurrencyInfo(clientCountry);
+  const convertedAmount = convertCurrency(totalAmount, companyCountry, clientCountry);
 
   const handleSubmit = async (status: 'draft' | 'sent') => {
     if (!invoiceData.clientId) {
@@ -140,10 +132,10 @@ const InvoiceForm = () => {
         clientState: selectedClient?.state || '',
         items,
         subtotal,
-        cgst: gstCalculation.cgst,
-        sgst: gstCalculation.sgst,
-        igst: gstCalculation.igst,
-        totalGst: gstCalculation.totalGst,
+        cgst: taxCalculation.taxes.find(t => t.name === 'CGST')?.amount || 0,
+        sgst: taxCalculation.taxes.find(t => t.name === 'SGST')?.amount || 0,
+        igst: taxCalculation.taxes.find(t => t.name === 'IGST')?.amount || 0,
+        totalGst: taxCalculation.totalTaxAmount,
         totalAmount,
         status,
         issueDate: new Date(invoiceData.issueDate),
@@ -238,7 +230,7 @@ const InvoiceForm = () => {
                 <SelectContent>
                   {clients.map((client) => (
                     <SelectItem key={client.id} value={client.id}>
-                      {client.name} - {client.state}
+                      {client.name} - {client.country}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -250,15 +242,16 @@ const InvoiceForm = () => {
                 <p className="text-sm text-blue-700">{selectedClient.email}</p>
                 <p className="text-sm text-blue-700">{selectedClient.address}, {selectedClient.city}</p>
                 <p className="text-sm text-blue-700">{selectedClient.state} - {selectedClient.pincode}</p>
+                <p className="text-sm text-blue-700">{selectedClient.country}</p>
                 {selectedClient.gstin && (
-                  <p className="text-sm text-blue-700">GSTIN: {selectedClient.gstin}</p>
+                  <p className="text-sm text-blue-700">Tax ID: {selectedClient.gstin}</p>
                 )}
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* GST Summary */}
+        {/* Invoice Summary with Dynamic Taxes and Currency */}
         <Card>
           <CardHeader>
             <CardTitle>Invoice Summary</CardTitle>
@@ -267,49 +260,65 @@ const InvoiceForm = () => {
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Subtotal:</span>
-                <span>₹{subtotal.toFixed(2)}</span>
+                <span>{formatCurrency(subtotal, companyCountry)}</span>
               </div>
               
-              {selectedClient && (
+              {selectedClient && taxCalculation.taxes.length > 0 && (
                 <>
-                  {gstCalculation.igst > 0 ? (
-                    <div className="flex justify-between text-sm">
-                      <span>IGST (18%) - Inter-state:</span>
-                      <span>₹{gstCalculation.igst.toFixed(2)}</span>
+                  {taxCalculation.taxes.map((tax, index) => (
+                    <div key={index} className="flex justify-between text-sm">
+                      <span>{tax.name} ({tax.rate}%):</span>
+                      <span>{formatCurrency(tax.amount, companyCountry)}</span>
                     </div>
-                  ) : (
-                    <>
-                      <div className="flex justify-between text-sm">
-                        <span>CGST (9%) - Intra-state:</span>
-                        <span>₹{gstCalculation.cgst.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>SGST (9%) - Intra-state:</span>
-                        <span>₹{gstCalculation.sgst.toFixed(2)}</span>
-                      </div>
-                    </>
-                  )}
+                  ))}
                   <div className="flex justify-between text-sm font-medium">
-                    <span>Total GST:</span>
-                    <span>₹{gstCalculation.totalGst.toFixed(2)}</span>
+                    <span>Total {getTaxDisplayName(companyCountry, clientCountry)}:</span>
+                    <span>{formatCurrency(taxCalculation.totalTaxAmount, companyCountry)}</span>
                   </div>
                 </>
               )}
               
               <Separator />
               <div className="flex justify-between font-bold text-lg">
-                <span>Total Amount:</span>
-                <span>₹{totalAmount.toFixed(2)}</span>
+                <span>Total Amount ({companyCurrency.code}):</span>
+                <span>{formatCurrency(totalAmount, companyCountry)}</span>
               </div>
+
+              {/* Currency Conversion Display */}
+              {selectedClient && companyCountry !== clientCountry && (
+                <div className="mt-4 p-3 bg-green-50 rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-sm font-medium text-green-900">
+                        Amount in {clientCurrency.name}:
+                      </p>
+                      <p className="text-xs text-green-700">
+                        For client reference
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      {currencyLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <p className="text-lg font-bold text-green-900">
+                          {formatCurrency(convertedAmount, clientCountry)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
             
             {selectedClient && (
-              <div className="mt-4 p-3 bg-green-50 rounded-lg">
-                <p className="text-sm font-medium text-green-900">GST Calculation</p>
-                <p className="text-xs text-green-700">
-                  {gstCalculation.igst > 0 
-                    ? `Inter-state transaction with ${selectedClient.state}. IGST applicable.`
-                    : `Intra-state transaction. CGST + SGST applicable.`
+              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm font-medium text-blue-900">Tax Information</p>
+                <p className="text-xs text-blue-700">
+                  {companyCountry === 'IN' && clientCountry === 'IN' 
+                    ? 'Intra-state transaction: CGST + SGST applicable'
+                    : companyCountry === 'IN' && clientCountry !== 'IN'
+                    ? 'Inter-state/International transaction: IGST applicable'
+                    : `${getTaxDisplayName(companyCountry, clientCountry)} based on company location (${companyCountry})`
                   }
                 </p>
               </div>
@@ -353,7 +362,7 @@ const InvoiceForm = () => {
                   />
                 </div>
                 <div className="col-span-2">
-                  <Label htmlFor={`rate-${index}`}>Rate (₹) *</Label>
+                  <Label htmlFor={`rate-${index}`}>Rate ({companyCurrency.symbol}) *</Label>
                   <Input
                     id={`rate-${index}`}
                     type="text"
@@ -361,7 +370,6 @@ const InvoiceForm = () => {
                     value={item.rate === 0 ? '' : item.rate.toString()}
                     onChange={(e) => {
                       const value = e.target.value;
-                      // Allow empty string or valid numbers
                       if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
                         updateItem(index, 'rate', value === '' ? 0 : Number(value));
                       }
@@ -371,7 +379,7 @@ const InvoiceForm = () => {
                 <div className="col-span-2">
                   <Label>Amount</Label>
                   <div className="p-2 bg-gray-100 rounded border text-right">
-                    ₹{item.amount.toFixed(2)}
+                    {formatCurrency(item.amount, companyCountry)}
                   </div>
                 </div>
                 <div className="col-span-1 flex justify-center">
