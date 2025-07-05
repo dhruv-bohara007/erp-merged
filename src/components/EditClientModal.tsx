@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { useClients } from '@/hooks/useFirestore';
 import { useToast } from '@/hooks/use-toast';
 import { countries } from '@/data/countries';
@@ -95,6 +96,13 @@ const EditClientModal = ({ open, onOpenChange, client }: EditClientModalProps) =
         ...prev.taxInfo,
         id: taxId
       }
+    }));
+  };
+
+  const handleStatusChange = (checked: boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      status: checked ? 'active' : 'inactive'
     }));
   };
 
@@ -236,6 +244,21 @@ const EditClientModal = ({ open, onOpenChange, client }: EditClientModalProps) =
               placeholder="Enter complete address"
               rows={3}
             />
+          </div>
+          <div className="col-span-2 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Label htmlFor="status">Client Status</Label>
+                <p className="text-sm text-gray-500">
+                  {formData.status === 'active' ? 'Client is active and can receive invoices' : 'Client is inactive and will not appear in active lists'}
+                </p>
+              </div>
+              <Switch
+                id="status"
+                checked={formData.status === 'active'}
+                onCheckedChange={handleStatusChange}
+              />
+            </div>
           </div>
         </div>
         <div className="flex justify-end gap-3">

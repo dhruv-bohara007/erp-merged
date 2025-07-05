@@ -108,7 +108,7 @@ const InvoiceDetailsModal = ({ open, onOpenChange, invoice }: InvoiceDetailsModa
                     </div>
                   </div>
 
-                  {clientDetails.taxInfo && (
+                  {clientDetails.taxInfo && clientDetails.taxInfo.id && (
                     <div className="text-sm">
                       <span className="font-medium">{clientDetails.taxInfo.type}:</span> {clientDetails.taxInfo.id}
                     </div>
@@ -176,18 +176,33 @@ const InvoiceDetailsModal = ({ open, onOpenChange, invoice }: InvoiceDetailsModa
               
               <Separator />
               
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="flex justify-between font-semibold text-lg">
-                  <span>Total Amount:</span>
+                  <span>Total Amount ({companyCurrency.code}):</span>
                   <span className="text-green-600">
                     {formatCurrency(invoice.totalAmount, companyCountry)}
                   </span>
                 </div>
                 
                 {companyCountry !== clientCountry && !loading && (
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <span>Equivalent ({clientCurrency.name}):</span>
-                    <span>{formatCurrency(convertedAmount, clientCountry)}</span>
+                  <div className="p-3 bg-blue-50 rounded-lg border">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-blue-800">
+                        Client Amount ({clientCurrency.code}):
+                      </span>
+                      <span className="font-semibold text-blue-800">
+                        {formatCurrency(convertedAmount, clientCountry)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Converted amount for client reference
+                    </p>
+                  </div>
+                )}
+                
+                {loading && companyCountry !== clientCountry && (
+                  <div className="text-sm text-gray-500">
+                    Converting to {clientCurrency.name}...
                   </div>
                 )}
               </div>
