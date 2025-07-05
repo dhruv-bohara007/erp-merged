@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,7 @@ import {
   Users, 
   DollarSign, 
   BarChart3, 
-  Settings,
+  Building2,
   Menu,
   X,
   Building,
@@ -34,7 +35,7 @@ const AdminNavigation = () => {
     { to: '/inventory', icon: Package, label: 'Inventory' },
     { to: '/reports', icon: BarChart3, label: 'Reports' },
     { to: '/profitability', icon: TrendingUp, label: 'Profitability' },
-    { to: '/settings', icon: Settings, label: 'Settings' },
+    { to: '/settings', icon: Building2, label: 'Company Profile' },
   ];
 
   const isActive = (path: string) => {

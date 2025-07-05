@@ -24,14 +24,14 @@ const LoginForm = () => {
     try {
       await login(email, password);
       
-      // Redirect based on role
+      // Redirect based on role - removed client dashboard
       const roleRedirects = {
-        client: '/client-dashboard',
         company_admin: '/admin-dashboard',
         super_admin: '/super-dashboard'
       };
       
-      navigate(roleRedirects[currentUser?.role || 'client']);
+      const userRole = currentUser?.role || 'company_admin';
+      navigate(roleRedirects[userRole]);
       
       toast({
         title: 'Login Successful',

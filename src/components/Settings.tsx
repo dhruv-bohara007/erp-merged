@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -55,8 +54,8 @@ const Settings = () => {
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-          <p className="text-gray-600 mt-2">Manage your account and application preferences</p>
+          <h1 className="text-3xl font-bold text-gray-900">Company Profile</h1>
+          <p className="text-gray-600 mt-2">Manage your company profile and application preferences</p>
         </div>
 
         <Tabs defaultValue="business" className="space-y-6">
@@ -158,6 +157,17 @@ const Settings = () => {
                       Upload Logo
                     </Button>
                   </div>
+                </div>
+                
+                {/* Save Button */}
+                <div className="pt-4 border-t">
+                  <Button className="flex items-center gap-2">
+                    <Save className="w-4 h-4" />
+                    Save Changes
+                  </Button>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Note: To fully integrate with your company database, please connect to Supabase for backend functionality.
+                  </p>
                 </div>
               </CardContent>
             </Card>
