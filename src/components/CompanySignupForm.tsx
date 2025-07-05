@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { doc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Building2, MapPin, Banknote } from 'lucide-react';
+import { Building2, MapPin } from 'lucide-react';
 
 const CompanySignupForm = () => {
   const [formData, setFormData] = useState({
@@ -18,11 +19,7 @@ const CompanySignupForm = () => {
     email: '',
     streetAddress: '',
     city: '',
-    country: '',
-    currency: '',
-    defaultCGST: '',
-    defaultSGST: '',
-    defaultIGST: ''
+    country: ''
   });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -30,24 +27,88 @@ const CompanySignupForm = () => {
   const navigate = useNavigate();
 
   const countries = [
-    { value: 'IN', label: 'India' },
-    { value: 'US', label: 'United States' },
-    { value: 'GB', label: 'United Kingdom' },
-    { value: 'CA', label: 'Canada' },
+    { value: 'AF', label: 'Afghanistan' },
+    { value: 'AL', label: 'Albania' },
+    { value: 'DZ', label: 'Algeria' },
+    { value: 'AR', label: 'Argentina' },
+    { value: 'AM', label: 'Armenia' },
     { value: 'AU', label: 'Australia' },
+    { value: 'AT', label: 'Austria' },
+    { value: 'AZ', label: 'Azerbaijan' },
+    { value: 'BD', label: 'Bangladesh' },
+    { value: 'BE', label: 'Belgium' },
+    { value: 'BR', label: 'Brazil' },
+    { value: 'BG', label: 'Bulgaria' },
+    { value: 'CA', label: 'Canada' },
+    { value: 'CL', label: 'Chile' },
+    { value: 'CN', label: 'China' },
+    { value: 'CO', label: 'Colombia' },
+    { value: 'CR', label: 'Costa Rica' },
+    { value: 'HR', label: 'Croatia' },
+    { value: 'CZ', label: 'Czech Republic' },
+    { value: 'DK', label: 'Denmark' },
+    { value: 'EG', label: 'Egypt' },
+    { value: 'EE', label: 'Estonia' },
+    { value: 'FI', label: 'Finland' },
+    { value: 'FR', label: 'France' },
+    { value: 'DE', label: 'Germany' },
+    { value: 'GH', label: 'Ghana' },
+    { value: 'GR', label: 'Greece' },
+    { value: 'HK', label: 'Hong Kong' },
+    { value: 'HU', label: 'Hungary' },
+    { value: 'IS', label: 'Iceland' },
+    { value: 'IN', label: 'India' },
+    { value: 'ID', label: 'Indonesia' },
+    { value: 'IR', label: 'Iran' },
+    { value: 'IQ', label: 'Iraq' },
+    { value: 'IE', label: 'Ireland' },
+    { value: 'IL', label: 'Israel' },
+    { value: 'IT', label: 'Italy' },
+    { value: 'JP', label: 'Japan' },
+    { value: 'JO', label: 'Jordan' },
+    { value: 'KZ', label: 'Kazakhstan' },
+    { value: 'KE', label: 'Kenya' },
+    { value: 'KW', label: 'Kuwait' },
+    { value: 'LV', label: 'Latvia' },
+    { value: 'LB', label: 'Lebanon' },
+    { value: 'LT', label: 'Lithuania' },
+    { value: 'LU', label: 'Luxembourg' },
+    { value: 'MY', label: 'Malaysia' },
+    { value: 'MX', label: 'Mexico' },
+    { value: 'MA', label: 'Morocco' },
+    { value: 'NL', label: 'Netherlands' },
+    { value: 'NZ', label: 'New Zealand' },
+    { value: 'NG', label: 'Nigeria' },
+    { value: 'NO', label: 'Norway' },
+    { value: 'PK', label: 'Pakistan' },
+    { value: 'PE', label: 'Peru' },
+    { value: 'PH', label: 'Philippines' },
+    { value: 'PL', label: 'Poland' },
+    { value: 'PT', label: 'Portugal' },
+    { value: 'QA', label: 'Qatar' },
+    { value: 'RO', label: 'Romania' },
+    { value: 'RU', label: 'Russia' },
+    { value: 'SA', label: 'Saudi Arabia' },
     { value: 'SG', label: 'Singapore' },
-    { value: 'AE', label: 'United Arab Emirates' }
-  ];
-
-  const currencies = [
-    { value: 'INR', label: 'INR (₹)' },
-    { value: 'USD', label: 'USD ($)' },
-    { value: 'EUR', label: 'EUR (€)' },
-    { value: 'GBP', label: 'GBP (£)' },
-    { value: 'CAD', label: 'CAD (C$)' },
-    { value: 'AUD', label: 'AUD (A$)' },
-    { value: 'SGD', label: 'SGD (S$)' },
-    { value: 'AED', label: 'AED (د.إ)' }
+    { value: 'SK', label: 'Slovakia' },
+    { value: 'SI', label: 'Slovenia' },
+    { value: 'ZA', label: 'South Africa' },
+    { value: 'KR', label: 'South Korea' },
+    { value: 'ES', label: 'Spain' },
+    { value: 'LK', label: 'Sri Lanka' },
+    { value: 'SE', label: 'Sweden' },
+    { value: 'CH', label: 'Switzerland' },
+    { value: 'TW', label: 'Taiwan' },
+    { value: 'TH', label: 'Thailand' },
+    { value: 'TR', label: 'Turkey' },
+    { value: 'UA', label: 'Ukraine' },
+    { value: 'AE', label: 'United Arab Emirates' },
+    { value: 'GB', label: 'United Kingdom' },
+    { value: 'US', label: 'United States' },
+    { value: 'UY', label: 'Uruguay' },
+    { value: 'VE', label: 'Venezuela' },
+    { value: 'VN', label: 'Vietnam' },
+    { value: 'ZW', label: 'Zimbabwe' }
   ];
 
   const handleInputChange = (field: string, value: string) => {
@@ -70,10 +131,7 @@ const CompanySignupForm = () => {
     }
     
     // Validate required fields
-    const requiredFields = [
-      'companyName', 'phone', 'email', 'streetAddress', 
-      'city', 'country', 'currency', 'defaultCGST', 'defaultSGST', 'defaultIGST'
-    ];
+    const requiredFields = ['companyName', 'phone', 'email', 'streetAddress', 'city', 'country'];
     
     const missingFields = requiredFields.filter(field => !formData[field as keyof typeof formData]);
     
@@ -97,6 +155,10 @@ const CompanySignupForm = () => {
         updatedAt: new Date().toISOString(),
         status: 'active'
       };
+
+      console.log('Creating company with data:', companyData);
+      console.log('User ID:', currentUser.uid);
+      console.log('User role:', currentUser.role);
 
       // Save company data to Firestore
       await setDoc(doc(db, 'companies', currentUser.uid), companyData);
@@ -137,7 +199,7 @@ const CompanySignupForm = () => {
           </div>
           <CardTitle className="text-2xl font-bold">Complete Your Company Setup</CardTitle>
           <CardDescription>
-            Enter your business details to start generating invoices
+            Enter your business details to start generating invoices. Currency and tax settings can be configured later in Settings.
           </CardDescription>
         </CardHeader>
         
@@ -247,7 +309,7 @@ const CompanySignupForm = () => {
                     <SelectTrigger className="mt-1">
                       <SelectValue placeholder="Select country" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-h-60">
                       {countries.map((country) => (
                         <SelectItem key={country.value} value={country.value}>
                           {country.label}
@@ -259,89 +321,10 @@ const CompanySignupForm = () => {
               </div>
             </div>
 
-            {/* Currency & Tax Settings */}
-            <div className="space-y-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Banknote className="h-5 w-5 text-gray-600" />
-                <h3 className="text-lg font-semibold">Currency & Tax Settings</h3>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <Label htmlFor="currency">
-                    Default Currency <span className="text-red-500">*</span>
-                  </Label>
-                  <Select 
-                    value={formData.currency} 
-                    onValueChange={(value) => handleInputChange('currency', value)}
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Select currency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {currencies.map((currency) => (
-                        <SelectItem key={currency.value} value={currency.value}>
-                          {currency.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="defaultCGST">
-                    Default CGST (%) <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="defaultCGST"
-                    type="number"
-                    placeholder="9"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={formData.defaultCGST}
-                    onChange={(e) => handleInputChange('defaultCGST', e.target.value)}
-                    className="mt-1"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="defaultSGST">
-                    Default SGST (%) <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="defaultSGST"
-                    type="number"
-                    placeholder="9"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={formData.defaultSGST}
-                    onChange={(e) => handleInputChange('defaultSGST', e.target.value)}
-                    className="mt-1"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="defaultIGST">
-                    Default IGST (%) <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="defaultIGST"
-                    type="number"
-                    placeholder="18"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={formData.defaultIGST}
-                    onChange={(e) => handleInputChange('defaultIGST', e.target.value)}
-                    className="mt-1"
-                    required
-                  />
-                </div>
-              </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+              <p className="text-sm text-blue-700">
+                <strong>Note:</strong> Currency settings and tax rates (CGST, SGST, IGST) can be configured later in the Settings page after completing this initial setup.
+              </p>
             </div>
 
             <div className="pt-6">
