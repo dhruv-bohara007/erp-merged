@@ -1,4 +1,5 @@
 
+
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { Company, Client, Invoice, Payment, GSTReturn, TDSRecord } from '../types/firestore';
@@ -37,13 +38,16 @@ export const initializeCollections = async () => {
         email: 'contact@abccorp.com',
         phone: '+91 99887 76543',
         address: '456 Corporate Avenue, Delhi - 110001',
-        gstin: '07AABCA1234N1Z9',
-        pan: 'AABCA1234N',
+        city: 'Delhi',
         state: 'Delhi',
+        pincode: '110001',
+        country: 'IN',
+        gstin: '07AABCA1234N1Z9',
+        taxInfo: {
+          id: '07AABCA1234N1Z9',
+          type: 'GSTIN'
+        },
         status: 'active',
-        totalInvoices: 5,
-        totalAmount: 250000,
-        outstandingAmount: 50000,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now()
       },
@@ -52,12 +56,16 @@ export const initializeCollections = async () => {
         email: 'admin@xyzent.com',
         phone: '+91 88776 65432',
         address: '789 Industrial Area, Bangalore - 560001',
-        gstin: '29AABCX1234P1Z1',
+        city: 'Bangalore',
         state: 'Karnataka',
+        pincode: '560001',
+        country: 'IN',
+        gstin: '29AABCX1234P1Z1',
+        taxInfo: {
+          id: '29AABCX1234P1Z1',
+          type: 'GSTIN'
+        },
         status: 'active',
-        totalInvoices: 3,
-        totalAmount: 180000,
-        outstandingAmount: 0,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now()
       }
@@ -183,3 +191,4 @@ export const initializeCollections = async () => {
     return false;
   }
 };
+

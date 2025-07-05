@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { 
   collection, 
@@ -54,7 +55,12 @@ export interface Client {
   city: string;
   state: string;
   pincode: string;
+  country?: string;
   gstin?: string;
+  taxInfo?: {
+    id: string;
+    type: string;
+  };
   status: 'active' | 'inactive';
   createdAt: Date;
   updatedAt: Date;
