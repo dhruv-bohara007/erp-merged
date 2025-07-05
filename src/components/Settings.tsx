@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,21 +15,29 @@ import {
   Bell, 
   Palette,
   Upload,
-  Save
+  Save,
+  Edit,
+  X
 } from 'lucide-react';
+import { useCompanyData, CompanyData } from '@/hooks/useCompanyData';
+import { countriesWithTaxInfo, CountryTaxInfo } from '@/data/countriesWithTax';
 
 const Settings = () => {
-  const [businessInfo, setBusinessInfo] = useState({
-    companyName: 'Your Business Name',
-    email: 'your@email.com',
-    phone: '+91 98765 43210',
-    address: '123 Business Street, Mumbai, Maharashtra 400001',
-    website: 'www.yourbusiness.com',
-    gstin: '27AABCU9603R1ZM', // GST Identification Number
-    pan: 'AABCU9603R',
-    bankDetails: 'Account: 1234567890, IFSC: HDFC0000123, Bank: HDFC Bank'
+  const { companyData, loading, saving, saveCompanyData } = useCompanyData();
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState<CompanyData | null>(null);
+  const [selectedCountryInfo, setSelectedCountryInfo] = useState<CountryTaxInfo | null>(null);
+
+  // Notification settings
+  const [notifications, setNotifications] = useState({
+    emailReminders: true,
+    smsReminders: false,
+    overdueAlerts: true,
+    paymentReceived: true,
+    weeklyReports: true
   });
 
+  // Invoice settings
   const [invoiceSettings, setInvoiceSettings] = useState({
     invoicePrefix: 'INV',
     invoiceNumber: 1,
@@ -41,13 +49,79 @@ const Settings = () => {
     footerText: 'Thank you for your business! Please pay within the due date.'
   });
 
-  const [notifications, setNotifications] = useState({
-    emailReminders: true,
-    smsReminders: false,
-    overdueAlerts: true,
-    paymentReceived: true,
-    weeklyReports: true
-  });
+  useEffect(() => {
+    if (companyData) {
+      setFormData(companyData);
+      const countryInfo = countriesWithTaxInfo.find(c => c.value === companyData.country);
+      setSelectedCountryInfo(countryInfo || countriesWithTaxInfo[0]);
+    }
+  }, [companyData]);
+
+  const handleInputChange = (field: string, value: string) => {
+    if (!formData) return;
+    
+    if (field.includes('.')) {
+      const [parent, child] = field.split('.');
+      setFormData({
+        ...formData,
+        [parent]: {
+          ...formData[parent as keyof CompanyData],
+          [child]: value
+        }
+      });
+    } else {
+      setFormData({
+        ...formData,
+        [field]: value
+      });
+    }
+  };
+
+  const handleCountryChange = (countryValue: string) => {
+    const countryInfo = countriesWithTaxInfo.find(c => c.value === countryValue);
+    if (countryInfo && formData) {
+      setSelectedCountryInfo(countryInfo);
+      setFormData({
+        ...formData,
+        country: countryValue,
+        taxInfo: {
+          ...formData.taxInfo,
+          primaryType: countryInfo.primaryTaxLabel
+        },
+        bankInfo: {
+          ...formData.bankInfo,
+          routingType: countryInfo.routingType
+        }
+      });
+    }
+  };
+
+  const handleEdit = () => {
+    setIsEditing(true);
+  };
+
+  const handleSave = async () => {
+    if (formData) {
+      await saveCompanyData(formData);
+      setIsEditing(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setFormData(companyData);
+    setIsEditing(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading company profile...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -71,104 +145,200 @@ const Settings = () => {
           <TabsContent value="business">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building className="w-5 h-5" />
-                  Business Information
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Building className="w-5 h-5" />
+                    Business Information
+                  </CardTitle>
+                  {!isEditing ? (
+                    <Button onClick={handleEdit} variant="outline" size="sm">
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit
+                    </Button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button onClick={handleSave} size="sm" disabled={saving}>
+                        <Save className="w-4 h-4 mr-2" />
+                        {saving ? 'Saving...' : 'Save'}
+                      </Button>
+                      <Button onClick={handleCancel} variant="outline" size="sm">
+                        <X className="w-4 h-4 mr-2" />
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="companyName">Company Name</Label>
-                    <Input
-                      id="companyName"
-                      value={businessInfo.companyName}
-                      onChange={(e) => setBusinessInfo({...businessInfo, companyName: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={businessInfo.email}
-                      onChange={(e) => setBusinessInfo({...businessInfo, email: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone</Label>
-                    <Input
-                      id="phone"
-                      value={businessInfo.phone}
-                      onChange={(e) => setBusinessInfo({...businessInfo, phone: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="website">Website</Label>
-                    <Input
-                      id="website"
-                      value={businessInfo.website}
-                      onChange={(e) => setBusinessInfo({...businessInfo, website: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="gstin">GSTIN</Label>
-                    <Input
-                      id="gstin"
-                      value={businessInfo.gstin}
-                      onChange={(e) => setBusinessInfo({...businessInfo, gstin: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="pan">PAN</Label>
-                    <Input
-                      id="pan"
-                      value={businessInfo.pan}
-                      onChange={(e) => setBusinessInfo({...businessInfo, pan: e.target.value})}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="address">Business Address</Label>
-                  <Textarea
-                    id="address"
-                    value={businessInfo.address}
-                    onChange={(e) => setBusinessInfo({...businessInfo, address: e.target.value})}
-                    rows={3}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="bankDetails">Bank Details</Label>
-                  <Textarea
-                    id="bankDetails"
-                    value={businessInfo.bankDetails}
-                    onChange={(e) => setBusinessInfo({...businessInfo, bankDetails: e.target.value})}
-                    rows={3}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Company Logo</Label>
-                  <div className="flex items-center gap-4">
-                    <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center">
-                      <Building className="w-8 h-8 text-gray-400" />
+                {formData && (
+                  <>
+                    {/* Basic Company Info */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="companyName">Company Name</Label>
+                        <Input
+                          id="companyName"
+                          value={formData.companyName}
+                          onChange={(e) => handleInputChange('companyName', e.target.value)}
+                          disabled={!isEditing}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => handleInputChange('email', e.target.value)}
+                          disabled={!isEditing}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="phone">Phone</Label>
+                        <Input
+                          id="phone"
+                          value={formData.phone}
+                          onChange={(e) => handleInputChange('phone', e.target.value)}
+                          disabled={!isEditing}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="website">Website</Label>
+                        <Input
+                          id="website"
+                          value={formData.website || ''}
+                          onChange={(e) => handleInputChange('website', e.target.value)}
+                          disabled={!isEditing}
+                        />
+                      </div>
                     </div>
-                    <Button variant="outline">
-                      <Upload className="w-4 h-4 mr-2" />
-                      Upload Logo
-                    </Button>
-                  </div>
-                </div>
-                
-                {/* Save Button */}
-                <div className="pt-4 border-t">
-                  <Button className="flex items-center gap-2">
-                    <Save className="w-4 h-4" />
-                    Save Changes
-                  </Button>
-                  <p className="text-sm text-gray-500 mt-2">
-                    Note: To fully integrate with your company database, please connect to Supabase for backend functionality.
-                  </p>
-                </div>
+
+                    {/* Address */}
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="streetAddress">Street Address</Label>
+                        <Textarea
+                          id="streetAddress"
+                          value={formData.streetAddress}
+                          onChange={(e) => handleInputChange('streetAddress', e.target.value)}
+                          rows={2}
+                          disabled={!isEditing}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="city">City</Label>
+                          <Input
+                            id="city"
+                            value={formData.city}
+                            onChange={(e) => handleInputChange('city', e.target.value)}
+                            disabled={!isEditing}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="country">Country</Label>
+                          <Select 
+                            value={formData.country} 
+                            onValueChange={handleCountryChange}
+                            disabled={!isEditing}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {countriesWithTaxInfo.map((country) => (
+                                <SelectItem key={country.value} value={country.value}>
+                                  {country.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tax Information */}
+                    {selectedCountryInfo && (
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-medium text-gray-900">Tax Information</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="primaryTaxId">{selectedCountryInfo.primaryTaxLabel}</Label>
+                            <Input
+                              id="primaryTaxId"
+                              value={formData.taxInfo.primaryId}
+                              onChange={(e) => handleInputChange('taxInfo.primaryId', e.target.value)}
+                              disabled={!isEditing}
+                            />
+                          </div>
+                          {selectedCountryInfo.secondaryTaxLabel && (
+                            <div className="space-y-2">
+                              <Label htmlFor="secondaryTaxId">{selectedCountryInfo.secondaryTaxLabel}</Label>
+                              <Input
+                                id="secondaryTaxId"
+                                value={formData.taxInfo.secondaryId || ''}
+                                onChange={(e) => handleInputChange('taxInfo.secondaryId', e.target.value)}
+                                disabled={!isEditing}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Banking Information */}
+                    {selectedCountryInfo && (
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-medium text-gray-900">Banking Information</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="bankName">Bank Name</Label>
+                            <Input
+                              id="bankName"
+                              value={formData.bankInfo.bankName}
+                              onChange={(e) => handleInputChange('bankInfo.bankName', e.target.value)}
+                              disabled={!isEditing}
+                              required
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="accountNumber">Account Number</Label>
+                            <Input
+                              id="accountNumber"
+                              value={formData.bankInfo.accountNumber}
+                              onChange={(e) => handleInputChange('bankInfo.accountNumber', e.target.value)}
+                              disabled={!isEditing}
+                              required
+                            />
+                          </div>
+                          <div className="space-y-2 col-span-2">
+                            <Label htmlFor="routingCode">{selectedCountryInfo.routingLabel}</Label>
+                            <Input
+                              id="routingCode"
+                              value={formData.bankInfo.routingCode}
+                              onChange={(e) => handleInputChange('bankInfo.routingCode', e.target.value)}
+                              disabled={!isEditing}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Company Logo */}
+                    <div className="space-y-2">
+                      <Label>Company Logo</Label>
+                      <div className="flex items-center gap-4">
+                        <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center">
+                          <Building className="w-8 h-8 text-gray-400" />
+                        </div>
+                        <Button variant="outline" disabled={!isEditing}>
+                          <Upload className="w-4 h-4 mr-2" />
+                          Upload Logo
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
