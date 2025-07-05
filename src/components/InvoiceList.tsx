@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,51 +16,24 @@ import {
   Trash2
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { useFirestore } from '@/hooks/useFirestore';
+import { useInvoices } from '@/hooks/useFirestore';
 import InvoiceDetailsModal from './InvoiceDetailsModal';
 import { useToast } from '@/hooks/use-toast';
 import { useFormValidation } from '@/hooks/useFormValidation';
-
-interface Invoice {
-  id: string;
-  invoiceNumber: string;
-  clientId: string;
-  clientName: string;
-  issueDate: string;
-  dueDate: string;
-  totalAmount: number;
-  status: 'draft' | 'sent' | 'paid' | 'overdue';
-  items: Array<{
-    description: string;
-    quantity: number;
-    rate: number;
-    amount: number;
-  }>;
-  taxes: Array<{
-    name: string;
-    rate: number;
-    amount: number;
-  }>;
-  subtotal: number;
-  totalTax: number;
-  companyId: string;
-  createdAt: string;
-  updatedAt: string;
-}
 
 const InvoiceList = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { canCreateInvoice, getValidationMessage } = useFormValidation();
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   
   const { 
-    documents: invoices, 
+    invoices, 
     loading, 
-    deleteDocument 
-  } = useFirestore<Invoice>('invoices');
+    deleteInvoice 
+  } = useInvoices();
 
   const filteredInvoices = invoices.filter(invoice =>
     invoice.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -78,7 +52,7 @@ const InvoiceList = () => {
     navigate('/invoices/new');
   };
 
-  const handleViewInvoice = (invoice: Invoice) => {
+  const handleViewInvoice = (invoice: any) => {
     setSelectedInvoice(invoice);
     setShowDetailsModal(true);
   };
@@ -98,7 +72,7 @@ const InvoiceList = () => {
   const handleDeleteInvoice = async (invoiceId: string) => {
     if (window.confirm('Are you sure you want to delete this invoice? This action cannot be undone.')) {
       try {
-        await deleteDocument(invoiceId);
+        await deleteInvoice(invoiceId);
         toast({
           title: 'Success',
           description: 'Invoice deleted successfully'
@@ -192,8 +166,8 @@ const InvoiceList = () => {
               <CardContent>
                 <div className="text-sm text-gray-500">
                   <p>Client: {invoice.clientName}</p>
-                  <p>Issue Date: {format(new Date(invoice.issueDate), 'MMM d, yyyy')}</p>
-                  <p>Due Date: {format(new Date(invoice.dueDate), 'MMM d, yyyy')}</p>
+                  <p>Issue Date: {format(invoice.issueDate, 'MMM d, yyyy')}</p>
+                  <p>Due Date: {format(invoice.dueDate, 'MMM d, yyyy')}</p>
                   <p className="font-medium">Amount: {formatCurrency(invoice.totalAmount)}</p>
                 </div>
                 <div className="flex justify-end gap-2 mt-4">
