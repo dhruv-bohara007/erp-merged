@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,12 +20,18 @@ import {
   X
 } from 'lucide-react';
 import { useCompanyData, CompanyData } from '@/hooks/useCompanyData';
+import { useInvoiceSettings, InvoiceSettings } from '@/hooks/useInvoiceSettings';
 import { countriesWithTaxInfo, CountryTaxInfo } from '@/data/countriesWithTax';
+import { countryTaxData, CountryTaxInfo as CountryTaxDataInfo } from '@/data/countryTaxData';
+import { countries } from '@/data/countries';
 
 const Settings = () => {
   const { companyData, loading, saving, saveCompanyData } = useCompanyData();
+  const { invoiceSettings, loading: invoiceLoading, saving: invoiceSaving, saveInvoiceSettings } = useInvoiceSettings();
   const [isEditing, setIsEditing] = useState(false);
+  const [isInvoiceEditing, setIsInvoiceEditing] = useState(false);
   const [formData, setFormData] = useState<CompanyData | null>(null);
+  const [invoiceFormData, setInvoiceFormData] = useState<InvoiceSettings | null>(null);
   const [selectedCountryInfo, setSelectedCountryInfo] = useState<CountryTaxInfo | null>(null);
 
   // Notification settings
@@ -38,18 +43,6 @@ const Settings = () => {
     weeklyReports: true
   });
 
-  // Invoice settings
-  const [invoiceSettings, setInvoiceSettings] = useState({
-    invoicePrefix: 'INV',
-    invoiceNumber: 1,
-    defaultCGST: 9,
-    defaultSGST: 9,
-    defaultIGST: 18,
-    defaultCurrency: 'INR',
-    paymentTerms: 'Net 30',
-    footerText: 'Thank you for your business! Please pay within the due date.'
-  });
-
   useEffect(() => {
     if (companyData) {
       setFormData(companyData);
@@ -57,6 +50,12 @@ const Settings = () => {
       setSelectedCountryInfo(countryInfo || countriesWithTaxInfo[0]);
     }
   }, [companyData]);
+
+  useEffect(() => {
+    if (invoiceSettings) {
+      setInvoiceFormData(invoiceSettings);
+    }
+  }, [invoiceSettings]);
 
   const handleInputChange = (field: string, value: string) => {
     if (!formData) return;
@@ -89,6 +88,15 @@ const Settings = () => {
     }
   };
 
+  const handleInvoiceInputChange = (field: string, value: string | number) => {
+    if (!invoiceFormData) return;
+    
+    setInvoiceFormData({
+      ...invoiceFormData,
+      [field]: value
+    });
+  };
+
   const handleCountryChange = (countryValue: string) => {
     const countryInfo = countriesWithTaxInfo.find(c => c.value === countryValue);
     if (countryInfo && formData) {
@@ -108,6 +116,28 @@ const Settings = () => {
     }
   };
 
+  const handleInvoiceCountryChange = (countryCode: string) => {
+    const countryTaxInfo = countryTaxData.find(c => c.code === countryCode);
+    if (countryTaxInfo && invoiceFormData) {
+      setInvoiceFormData({
+        ...invoiceFormData,
+        defaultTaxes: countryTaxInfo.defaultTaxes
+      });
+    }
+  };
+
+  const handleTaxRateChange = (index: number, rate: number) => {
+    if (!invoiceFormData) return;
+    
+    const updatedTaxes = [...invoiceFormData.defaultTaxes];
+    updatedTaxes[index] = { ...updatedTaxes[index], rate };
+    
+    setInvoiceFormData({
+      ...invoiceFormData,
+      defaultTaxes: updatedTaxes
+    });
+  };
+
   const handleEdit = () => {
     setIsEditing(true);
   };
@@ -124,7 +154,23 @@ const Settings = () => {
     setIsEditing(false);
   };
 
-  if (loading) {
+  const handleInvoiceEdit = () => {
+    setIsInvoiceEditing(true);
+  };
+
+  const handleInvoiceSave = async () => {
+    if (invoiceFormData) {
+      await saveInvoiceSettings(invoiceFormData);
+      setIsInvoiceEditing(false);
+    }
+  };
+
+  const handleInvoiceCancel = () => {
+    setInvoiceFormData(invoiceSettings);
+    setIsInvoiceEditing(false);
+  };
+
+  if (loading || invoiceLoading) {
     return (
       <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
         <div className="text-center">
@@ -359,82 +405,139 @@ const Settings = () => {
           <TabsContent value="invoice">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="w-5 h-5" />
-                  Invoice Settings
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="w-5 h-5" />
+                    Invoice Settings
+                  </CardTitle>
+                  {!isInvoiceEditing ? (
+                    <Button onClick={handleInvoiceEdit} variant="outline" size="sm">
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit
+                    </Button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button onClick={handleInvoiceSave} size="sm" disabled={invoiceSaving}>
+                        <Save className="w-4 h-4 mr-2" />
+                        {invoiceSaving ? 'Saving...' : 'Save'}
+                      </Button>
+                      <Button onClick={handleInvoiceCancel} variant="outline" size="sm">
+                        <X className="w-4 h-4 mr-2" />
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="invoicePrefix">Invoice Prefix</Label>
-                    <Input
-                      id="invoicePrefix"
-                      value={invoiceSettings.invoicePrefix}
-                      onChange={(e) => setInvoiceSettings({...invoiceSettings, invoicePrefix: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="invoiceNumber">Next Invoice Number</Label>
-                    <Input
-                      id="invoiceNumber"
-                      type="number"
-                      value={invoiceSettings.invoiceNumber}
-                      onChange={(e) => setInvoiceSettings({...invoiceSettings, invoiceNumber: Number(e.target.value)})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="defaultCGST">Default CGST Rate (%)</Label>
-                    <Input
-                      id="defaultCGST"
-                      type="number"
-                      value={invoiceSettings.defaultCGST}
-                      onChange={(e) => setInvoiceSettings({...invoiceSettings, defaultCGST: Number(e.target.value)})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="defaultSGST">Default SGST Rate (%)</Label>
-                    <Input
-                      id="defaultSGST"
-                      type="number"
-                      value={invoiceSettings.defaultSGST}
-                      onChange={(e) => setInvoiceSettings({...invoiceSettings, defaultSGST: Number(e.target.value)})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="defaultIGST">Default IGST Rate (%)</Label>
-                    <Input
-                      id="defaultIGST"
-                      type="number"
-                      value={invoiceSettings.defaultIGST}
-                      onChange={(e) => setInvoiceSettings({...invoiceSettings, defaultIGST: Number(e.target.value)})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="paymentTerms">Default Payment Terms</Label>
-                    <Select value={invoiceSettings.paymentTerms} onValueChange={(value) => setInvoiceSettings({...invoiceSettings, paymentTerms: value})}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Net 15">Net 15</SelectItem>
-                        <SelectItem value="Net 30">Net 30</SelectItem>
-                        <SelectItem value="Net 45">Net 45</SelectItem>
-                        <SelectItem value="Net 60">Net 60</SelectItem>
-                        <SelectItem value="Due on Receipt">Due on Receipt</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="footerText">Invoice Footer Text</Label>
-                  <Textarea
-                    id="footerText"
-                    value={invoiceSettings.footerText}
-                    onChange={(e) => setInvoiceSettings({...invoiceSettings, footerText: e.target.value})}
-                    rows={3}
-                  />
-                </div>
+                {invoiceFormData && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="invoicePrefix">Invoice Prefix</Label>
+                        <Input
+                          id="invoicePrefix"
+                          value={invoiceFormData.invoicePrefix}
+                          onChange={(e) => handleInvoiceInputChange('invoicePrefix', e.target.value)}
+                          disabled={!isInvoiceEditing}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="nextInvoiceNumber">Next Invoice Number</Label>
+                        <Input
+                          id="nextInvoiceNumber"
+                          type="number"
+                          value={invoiceFormData.nextInvoiceNumber}
+                          onChange={(e) => handleInvoiceInputChange('nextInvoiceNumber', Number(e.target.value))}
+                          disabled={!isInvoiceEditing}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Country Selection for Tax Settings */}
+                    <div className="space-y-2">
+                      <Label htmlFor="taxCountry">Tax Configuration Country</Label>
+                      <Select 
+                        value={companyData?.country || 'IN'} 
+                        onValueChange={handleInvoiceCountryChange}
+                        disabled={!isInvoiceEditing}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {countryTaxData.map((country) => (
+                            <SelectItem key={country.code} value={country.code}>
+                              {country.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Dynamic Tax Fields */}
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-medium text-gray-900">Default Tax Rates</h3>
+                      <div className="space-y-3">
+                        {invoiceFormData.defaultTaxes.map((tax, index) => (
+                          <div key={index} className="grid grid-cols-2 gap-4 items-center">
+                            <div className="space-y-2">
+                              <Label>{tax.name}</Label>
+                              <Input
+                                value={tax.name}
+                                disabled
+                                className="bg-gray-50"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Rate (%)</Label>
+                              <Input
+                                type="number"
+                                value={tax.rate}
+                                onChange={(e) => handleTaxRateChange(index, Number(e.target.value))}
+                                disabled={!isInvoiceEditing}
+                                step="0.01"
+                                min="0"
+                                max="100"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="paymentTerms">Default Payment Terms</Label>
+                      <Select 
+                        value={invoiceFormData.paymentTerms} 
+                        onValueChange={(value) => handleInvoiceInputChange('paymentTerms', value)}
+                        disabled={!isInvoiceEditing}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Net 15">Net 15</SelectItem>
+                          <SelectItem value="Net 30">Net 30</SelectItem>
+                          <SelectItem value="Net 45">Net 45</SelectItem>
+                          <SelectItem value="Net 60">Net 60</SelectItem>
+                          <SelectItem value="Due on Receipt">Due on Receipt</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="footerText">Invoice Footer Text</Label>
+                      <Textarea
+                        id="footerText"
+                        value={invoiceFormData.footerText}
+                        onChange={(e) => handleInvoiceInputChange('footerText', e.target.value)}
+                        rows={3}
+                        disabled={!isInvoiceEditing}
+                      />
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
