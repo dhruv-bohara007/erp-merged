@@ -29,11 +29,18 @@ export interface Client {
   id: string;
   name: string;
   email: string;
-  phone: string; // Format: +91 XXXXX XXXXX
+  phone: string; // Format: +91 XXXXX XXXXX or international format
   address: string;
-  gstin?: string; // Client's GSTIN if registered
-  pan?: string; // Client's PAN
-  state: string; // For GST calculation (CGST+SGST vs IGST)
+  city: string;
+  state: string; // For GST calculation (CGST+SGST vs IGST) or general location
+  pincode: string; // PIN code or postal code
+  country?: string; // ISO country code (e.g., 'IN', 'US', 'GB')
+  gstin?: string; // Client's GSTIN if registered (backward compatibility)
+  pan?: string; // Client's PAN (backward compatibility)
+  taxInfo?: {
+    id: string; // Tax ID (GSTIN, EIN, VAT, etc.)
+    type: string; // Tax type label (GSTIN, Federal EIN, VAT Number, etc.)
+  };
   status: 'active' | 'inactive';
   totalInvoices: number;
   totalAmount: number;

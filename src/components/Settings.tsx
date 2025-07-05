@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,7 @@ const Settings = () => {
   const [formData, setFormData] = useState<CompanyData | null>(null);
   const [invoiceFormData, setInvoiceFormData] = useState<InvoiceSettings | null>(null);
   const [selectedCountryInfo, setSelectedCountryInfo] = useState<CountryTaxInfo | null>(null);
+  const [invoiceTaxCountry, setInvoiceTaxCountry] = useState<string>('IN');
 
   // Notification settings
   const [notifications, setNotifications] = useState({
@@ -56,6 +58,12 @@ const Settings = () => {
       setInvoiceFormData(invoiceSettings);
     }
   }, [invoiceSettings]);
+
+  useEffect(() => {
+    if (companyData?.country) {
+      setInvoiceTaxCountry(companyData.country);
+    }
+  }, [companyData?.country]);
 
   const handleInputChange = (field: string, value: string) => {
     if (!formData) return;
@@ -117,6 +125,7 @@ const Settings = () => {
   };
 
   const handleInvoiceCountryChange = (countryCode: string) => {
+    setInvoiceTaxCountry(countryCode);
     const countryTaxInfo = countryTaxData.find(c => c.code === countryCode);
     if (countryTaxInfo && invoiceFormData) {
       setInvoiceFormData({
@@ -344,7 +353,6 @@ const Settings = () => {
                       </div>
                     )}
 
-                    {/* Banking Information */}
                     {selectedCountryInfo && formData.bankInfo && (
                       <div className="space-y-4">
                         <h3 className="text-lg font-medium text-gray-900">Banking Information</h3>
@@ -458,7 +466,7 @@ const Settings = () => {
                     <div className="space-y-2">
                       <Label htmlFor="taxCountry">Tax Configuration Country</Label>
                       <Select 
-                        value={companyData?.country || 'IN'} 
+                        value={invoiceTaxCountry} 
                         onValueChange={handleInvoiceCountryChange}
                         disabled={!isInvoiceEditing}
                       >
@@ -617,7 +625,6 @@ const Settings = () => {
             </Card>
           </TabsContent>
 
-          {/* Appearance */}
           <TabsContent value="appearance">
             <Card>
               <CardHeader>
@@ -660,7 +667,6 @@ const Settings = () => {
             </Card>
           </TabsContent>
 
-          {/* Integrations */}
           <TabsContent value="integrations">
             <Card>
               <CardHeader>

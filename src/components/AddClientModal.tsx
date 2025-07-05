@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -7,6 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useClients, Client } from '@/hooks/useFirestore';
 import { useToast } from '@/hooks/use-toast';
+import { countries } from '@/data/countries';
+import { countriesWithTaxInfo } from '@/data/countriesWithTax';
 
 interface AddClientModalProps {
   open: boolean;
@@ -33,16 +34,42 @@ const AddClientModal = ({ open, onOpenChange }: AddClientModalProps) => {
     city: '',
     state: '',
     pincode: '',
-    gstin: '',
+    country: 'IN',
+    taxInfo: {
+      id: '',
+      type: 'GSTIN'
+    },
     status: 'active' as const
   });
+
+  const selectedCountryInfo = countriesWithTaxInfo.find(c => c.value === formData.country);
+  const isIndianClient = formData.country === 'IN';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      await addClient(formData);
+      // Create client data in the format expected by Firestore
+      const clientData = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        pincode: formData.pincode,
+        country: formData.country,
+        taxInfo: {
+          id: formData.taxInfo.id,
+          type: formData.taxInfo.type
+        },
+        // Keep backward compatibility for GSTIN field
+        gstin: formData.country === 'IN' ? formData.taxInfo.id : '',
+        status: formData.status
+      };
+
+      await addClient(clientData);
       toast({
         title: "Success",
         description: "Client added successfully",
@@ -56,7 +83,11 @@ const AddClientModal = ({ open, onOpenChange }: AddClientModalProps) => {
         city: '',
         state: '',
         pincode: '',
-        gstin: '',
+        country: 'IN',
+        taxInfo: {
+          id: '',
+          type: 'GSTIN'
+        },
         status: 'active'
       });
     } catch (error) {
@@ -68,6 +99,19 @@ const AddClientModal = ({ open, onOpenChange }: AddClientModalProps) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCountryChange = (countryCode: string) => {
+    const countryInfo = countriesWithTaxInfo.find(c => c.value === countryCode);
+    setFormData({
+      ...formData,
+      country: countryCode,
+      state: countryCode === 'IN' ? formData.state : '',
+      taxInfo: {
+        id: '',
+        type: countryInfo?.primaryTaxLabel || 'Tax ID'
+      }
+    });
   };
 
   return (
@@ -110,14 +154,36 @@ const AddClientModal = ({ open, onOpenChange }: AddClientModalProps) => {
               />
             </div>
             <div>
-              <Label htmlFor="gstin">GSTIN</Label>
-              <Input
-                id="gstin"
-                value={formData.gstin}
-                onChange={(e) => setFormData({...formData, gstin: e.target.value})}
-              />
+              <Label htmlFor="country">Country *</Label>
+              <Select value={formData.country} onValueChange={handleCountryChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select country" />
+                </SelectTrigger>
+                <SelectContent>
+                  {countries.map((country) => (
+                    <SelectItem key={country.value} value={country.value}>
+                      {country.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
+
+          {selectedCountryInfo && (
+            <div>
+              <Label htmlFor="taxId">{selectedCountryInfo.primaryTaxLabel}</Label>
+              <Input
+                id="taxId"
+                value={formData.taxInfo.id}
+                onChange={(e) => setFormData({
+                  ...formData, 
+                  taxInfo: { ...formData.taxInfo, id: e.target.value }
+                })}
+                placeholder={`Enter ${selectedCountryInfo.primaryTaxLabel}`}
+              />
+            </div>
+          )}
 
           <div>
             <Label htmlFor="address">Address *</Label>
@@ -141,21 +207,31 @@ const AddClientModal = ({ open, onOpenChange }: AddClientModalProps) => {
             </div>
             <div>
               <Label htmlFor="state">State *</Label>
-              <Select onValueChange={(value) => setFormData({...formData, state: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select state" />
-                </SelectTrigger>
-                <SelectContent>
-                  {indianStates.map((state) => (
-                    <SelectItem key={state} value={state}>
-                      {state}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {isIndianClient ? (
+                <Select value={formData.state} onValueChange={(value) => setFormData({...formData, state: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select state" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {indianStates.map((state) => (
+                      <SelectItem key={state} value={state}>
+                        {state}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  id="state"
+                  value={formData.state}
+                  onChange={(e) => setFormData({...formData, state: e.target.value})}
+                  placeholder="Enter state/province"
+                  required
+                />
+              )}
             </div>
             <div>
-              <Label htmlFor="pincode">Pincode *</Label>
+              <Label htmlFor="pincode">{isIndianClient ? 'Pincode' : 'Postal Code'} *</Label>
               <Input
                 id="pincode"
                 value={formData.pincode}
