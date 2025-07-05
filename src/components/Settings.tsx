@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -189,7 +190,7 @@ const Settings = () => {
                         <Label htmlFor="companyName">Company Name</Label>
                         <Input
                           id="companyName"
-                          value={formData.companyName}
+                          value={formData.companyName || ''}
                           onChange={(e) => handleInputChange('companyName', e.target.value)}
                           disabled={!isEditing}
                         />
@@ -199,7 +200,7 @@ const Settings = () => {
                         <Input
                           id="email"
                           type="email"
-                          value={formData.email}
+                          value={formData.email || ''}
                           onChange={(e) => handleInputChange('email', e.target.value)}
                           disabled={!isEditing}
                         />
@@ -208,7 +209,7 @@ const Settings = () => {
                         <Label htmlFor="phone">Phone</Label>
                         <Input
                           id="phone"
-                          value={formData.phone}
+                          value={formData.phone || ''}
                           onChange={(e) => handleInputChange('phone', e.target.value)}
                           disabled={!isEditing}
                         />
@@ -230,7 +231,7 @@ const Settings = () => {
                         <Label htmlFor="streetAddress">Street Address</Label>
                         <Textarea
                           id="streetAddress"
-                          value={formData.streetAddress}
+                          value={formData.streetAddress || ''}
                           onChange={(e) => handleInputChange('streetAddress', e.target.value)}
                           rows={2}
                           disabled={!isEditing}
@@ -241,7 +242,7 @@ const Settings = () => {
                           <Label htmlFor="city">City</Label>
                           <Input
                             id="city"
-                            value={formData.city}
+                            value={formData.city || ''}
                             onChange={(e) => handleInputChange('city', e.target.value)}
                             disabled={!isEditing}
                           />
@@ -249,7 +250,7 @@ const Settings = () => {
                         <div className="space-y-2">
                           <Label htmlFor="country">Country</Label>
                           <Select 
-                            value={formData.country} 
+                            value={formData.country || 'US'} 
                             onValueChange={handleCountryChange}
                             disabled={!isEditing}
                           >
@@ -269,7 +270,7 @@ const Settings = () => {
                     </div>
 
                     {/* Tax Information */}
-                    {selectedCountryInfo && (
+                    {selectedCountryInfo && formData.taxInfo && (
                       <div className="space-y-4">
                         <h3 className="text-lg font-medium text-gray-900">Tax Information</h3>
                         <div className="grid grid-cols-2 gap-4">
@@ -277,7 +278,7 @@ const Settings = () => {
                             <Label htmlFor="primaryTaxId">{selectedCountryInfo.primaryTaxLabel}</Label>
                             <Input
                               id="primaryTaxId"
-                              value={formData.taxInfo.primaryId}
+                              value={formData.taxInfo.primaryId || ''}
                               onChange={(e) => handleInputChange('taxInfo.primaryId', e.target.value)}
                               disabled={!isEditing}
                             />
@@ -298,7 +299,7 @@ const Settings = () => {
                     )}
 
                     {/* Banking Information */}
-                    {selectedCountryInfo && (
+                    {selectedCountryInfo && formData.bankInfo && (
                       <div className="space-y-4">
                         <h3 className="text-lg font-medium text-gray-900">Banking Information</h3>
                         <div className="grid grid-cols-2 gap-4">
@@ -306,7 +307,7 @@ const Settings = () => {
                             <Label htmlFor="bankName">Bank Name</Label>
                             <Input
                               id="bankName"
-                              value={formData.bankInfo.bankName}
+                              value={formData.bankInfo.bankName || ''}
                               onChange={(e) => handleInputChange('bankInfo.bankName', e.target.value)}
                               disabled={!isEditing}
                               required
@@ -316,7 +317,7 @@ const Settings = () => {
                             <Label htmlFor="accountNumber">Account Number</Label>
                             <Input
                               id="accountNumber"
-                              value={formData.bankInfo.accountNumber}
+                              value={formData.bankInfo.accountNumber || ''}
                               onChange={(e) => handleInputChange('bankInfo.accountNumber', e.target.value)}
                               disabled={!isEditing}
                               required
@@ -326,7 +327,7 @@ const Settings = () => {
                             <Label htmlFor="routingCode">{selectedCountryInfo.routingLabel}</Label>
                             <Input
                               id="routingCode"
-                              value={formData.bankInfo.routingCode}
+                              value={formData.bankInfo.routingCode || ''}
                               onChange={(e) => handleInputChange('bankInfo.routingCode', e.target.value)}
                               disabled={!isEditing}
                             />

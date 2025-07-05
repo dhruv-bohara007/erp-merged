@@ -44,7 +44,23 @@ export const useCompanyData = () => {
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
-        setCompanyData(docSnap.data() as CompanyData);
+        const data = docSnap.data() as CompanyData;
+        // Ensure taxInfo and bankInfo are properly initialized
+        const normalizedData: CompanyData = {
+          ...data,
+          taxInfo: data.taxInfo || {
+            primaryId: '',
+            primaryType: 'Federal EIN',
+            secondaryId: ''
+          },
+          bankInfo: data.bankInfo || {
+            bankName: '',
+            accountNumber: '',
+            routingCode: '',
+            routingType: 'ROUTING'
+          }
+        };
+        setCompanyData(normalizedData);
       } else {
         // Initialize with default data
         const defaultData: CompanyData = {
