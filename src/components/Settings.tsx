@@ -14,7 +14,6 @@ import {
   FileText, 
   Bell, 
   Palette,
-  Upload,
   Save,
   Edit,
   X
@@ -237,6 +236,43 @@ const Settings = () => {
               <CardContent className="space-y-6">
                 {formData && (
                   <>
+                    {/* Company Logo */}
+                    <div className="space-y-4">
+                      <Label>Company Logo</Label>
+                      <div className="flex items-start gap-4">
+                        <div className="w-24 h-24 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden">
+                          {formData.imageUrl ? (
+                            <img 
+                              src={formData.imageUrl} 
+                              alt="Company Logo" 
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                              }}
+                            />
+                          ) : (
+                            <Building className="w-8 h-8 text-gray-400" />
+                          )}
+                          <Building className="w-8 h-8 text-gray-400 hidden" />
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          <Label htmlFor="imageUrl">Logo Image URL</Label>
+                          <Input
+                            id="imageUrl"
+                            type="url"
+                            placeholder="https://example.com/logo.png"
+                            value={formData.imageUrl || ''}
+                            onChange={(e) => handleInputChange('imageUrl', e.target.value)}
+                            disabled={!isEditing}
+                          />
+                          <p className="text-xs text-gray-500">
+                            Enter a URL to your company logo image. Recommended size: 200x200px
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Basic Company Info */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -387,20 +423,6 @@ const Settings = () => {
                         </div>
                       </div>
                     )}
-
-                    {/* Company Logo */}
-                    <div className="space-y-2">
-                      <Label>Company Logo</Label>
-                      <div className="flex items-center gap-4">
-                        <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center">
-                          <Building className="w-8 h-8 text-gray-400" />
-                        </div>
-                        <Button variant="outline" disabled={!isEditing}>
-                          <Upload className="w-4 h-4 mr-2" />
-                          Upload Logo
-                        </Button>
-                      </div>
-                    </div>
                   </>
                 )}
               </CardContent>

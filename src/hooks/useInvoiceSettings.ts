@@ -101,6 +101,18 @@ export const useInvoiceSettings = () => {
     }
   };
 
+  const isInvoiceSettingsComplete = (settings: InvoiceSettings | null): boolean => {
+    if (!settings) return false;
+    
+    return !!(
+      settings.invoicePrefix &&
+      settings.nextInvoiceNumber &&
+      settings.paymentTerms &&
+      settings.footerText &&
+      settings.defaultTaxes.length > 0
+    );
+  };
+
   useEffect(() => {
     fetchInvoiceSettings();
   }, [currentUser?.uid]);
@@ -110,6 +122,7 @@ export const useInvoiceSettings = () => {
     loading,
     saving,
     saveInvoiceSettings,
-    refetchSettings: fetchInvoiceSettings
+    refetchSettings: fetchInvoiceSettings,
+    isInvoiceSettingsComplete
   };
 };

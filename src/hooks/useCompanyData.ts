@@ -14,6 +14,7 @@ export interface CompanyData {
   email: string;
   phone: string;
   website?: string;
+  imageUrl?: string;
   createdAt: string;
   updatedAt: string;
   taxInfo: {
@@ -72,6 +73,7 @@ export const useCompanyData = () => {
           email: currentUser.email || '',
           phone: '',
           website: '',
+          imageUrl: '',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           taxInfo: {
@@ -130,6 +132,23 @@ export const useCompanyData = () => {
     }
   };
 
+  const isBusinessFormComplete = (data: CompanyData | null): boolean => {
+    if (!data) return false;
+    
+    return !!(
+      data.companyName &&
+      data.streetAddress &&
+      data.city &&
+      data.country &&
+      data.email &&
+      data.phone &&
+      data.taxInfo.primaryId &&
+      data.bankInfo.bankName &&
+      data.bankInfo.accountNumber &&
+      data.bankInfo.routingCode
+    );
+  };
+
   useEffect(() => {
     fetchCompanyData();
   }, [currentUser?.uid]);
@@ -139,6 +158,7 @@ export const useCompanyData = () => {
     loading,
     saving,
     saveCompanyData,
-    refetchData: fetchCompanyData
+    refetchData: fetchCompanyData,
+    isBusinessFormComplete
   };
 };
