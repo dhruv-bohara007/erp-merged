@@ -48,6 +48,9 @@ export const initializeCollections = async () => {
           type: 'GSTIN'
         },
         status: 'active',
+        totalInvoices: 0,
+        totalAmount: 0,
+        outstandingAmount: 0,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now()
       },
@@ -66,6 +69,9 @@ export const initializeCollections = async () => {
           type: 'GSTIN'
         },
         status: 'active',
+        totalInvoices: 0,
+        totalAmount: 0,
+        outstandingAmount: 0,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now()
       }
