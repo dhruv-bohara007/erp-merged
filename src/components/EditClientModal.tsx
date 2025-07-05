@@ -5,8 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useClients } from '@/hooks/useFirestore';
 import { useToast } from '@/hooks/use-toast';
+import { countries } from '@/data/countries';
 import type { Client } from '@/hooks/useFirestore';
 
 interface EditClientModalProps {
@@ -15,9 +17,28 @@ interface EditClientModalProps {
   client: Client | null;
 }
 
+// Tax ID mappings for different countries
+const taxIdMappings: Record<string, string> = {
+  'US': 'Federal EIN',
+  'IN': 'GSTIN',
+  'GB': 'VAT Registration Number',
+  'DE': 'VAT ID',
+  'FR': 'SIRET',
+  'CA': 'Business Number',
+  'AU': 'ABN',
+  'JP': 'Corporate Number',
+  'CN': 'USCI',
+  'SG': 'UEN',
+  'AE': 'TRN',
+  'SA': 'CR Number',
+  'BR': 'CNPJ',
+  'MX': 'RFC',
+};
+
 const EditClientModal = ({ open, onOpenChange, client }: EditClientModalProps) => {
   const { updateClient } = useClients();
   const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -27,7 +48,11 @@ const EditClientModal = ({ open, onOpenChange, client }: EditClientModalProps) =
     city: '',
     state: '',
     pincode: '',
-    gstin: '',
+    country: '',
+    taxInfo: {
+      id: '',
+      type: ''
+    },
     status: 'active' as 'active' | 'inactive'
   });
 
@@ -41,17 +66,56 @@ const EditClientModal = ({ open, onOpenChange, client }: EditClientModalProps) =
         city: client.city || '',
         state: client.state || '',
         pincode: client.pincode || '',
-        gstin: client.gstin || '',
+        country: client.country || '',
+        taxInfo: {
+          id: client.taxInfo?.id || '',
+          type: client.taxInfo?.type || ''
+        },
         status: client.status || 'active'
       });
     }
   }, [client]);
 
+  const handleCountryChange = (countryCode: string) => {
+    const taxType = taxIdMappings[countryCode] || 'Tax ID';
+    setFormData(prev => ({
+      ...prev,
+      country: countryCode,
+      taxInfo: {
+        ...prev.taxInfo,
+        type: taxType
+      }
+    }));
+  };
+
+  const handleTaxIdChange = (taxId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      taxInfo: {
+        ...prev.taxInfo,
+        id: taxId
+      }
+    }));
+  };
+
   const handleSave = async () => {
     if (!client) return;
     
+    setLoading(true);
     try {
-      await updateClient(client.id, formData);
+      await updateClient(client.id, {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        pincode: formData.pincode,
+        country: formData.country,
+        taxInfo: formData.taxInfo.id ? formData.taxInfo : undefined,
+        status: formData.status
+      });
+      
       toast({
         title: "Success",
         description: "Client updated successfully",
@@ -63,14 +127,23 @@ const EditClientModal = ({ open, onOpenChange, client }: EditClientModalProps) =
         description: "Failed to update client",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleCancel = () => {
+    onOpenChange(false);
   };
 
   if (!client) return null;
 
+  const selectedCountry = countries.find(c => c.value === formData.country);
+  const taxIdLabel = formData.taxInfo.type || 'Tax ID';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Client</DialogTitle>
         </DialogHeader>
@@ -100,16 +173,31 @@ const EditClientModal = ({ open, onOpenChange, client }: EditClientModalProps) =
               id="phone"
               value={formData.phone}
               onChange={(e) => setFormData({...formData, phone: e.target.value})}
-              placeholder="+91 XXXXX XXXXX"
+              placeholder="+1 XXX XXX XXXX"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="gstin">GSTIN</Label>
+            <Label htmlFor="country">Country</Label>
+            <Select value={formData.country} onValueChange={handleCountryChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select country" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[200px]">
+                {countries.map((country) => (
+                  <SelectItem key={country.value} value={country.value}>
+                    {country.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="taxId">{taxIdLabel}</Label>
             <Input
-              id="gstin"
-              value={formData.gstin}
-              onChange={(e) => setFormData({...formData, gstin: e.target.value})}
-              placeholder="Enter GSTIN"
+              id="taxId"
+              value={formData.taxInfo.id}
+              onChange={(e) => handleTaxIdChange(e.target.value)}
+              placeholder={`Enter ${taxIdLabel}`}
             />
           </div>
           <div className="space-y-2">
@@ -151,10 +239,12 @@ const EditClientModal = ({ open, onOpenChange, client }: EditClientModalProps) =
           </div>
         </div>
         <div className="flex justify-end gap-3">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={handleCancel} disabled={loading}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>Save Changes</Button>
+          <Button onClick={handleSave} disabled={loading}>
+            {loading ? 'Saving...' : 'Save Changes'}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
