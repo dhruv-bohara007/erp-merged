@@ -13,6 +13,7 @@ import {
   Timestamp 
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface Invoice {
   id: string;
@@ -113,9 +114,19 @@ export const useInvoices = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { currentUser } = useAuth();
 
   useEffect(() => {
-    const q = query(collection(db, 'invoices'), orderBy('createdAt', 'desc'));
+    if (!currentUser?.companyId) {
+      setLoading(false);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'invoices'), 
+      where('companyId', '==', currentUser.companyId),
+      orderBy('createdAt', 'desc')
+    );
     
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
@@ -137,12 +148,17 @@ export const useInvoices = () => {
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [currentUser?.companyId]);
 
   const addInvoice = async (invoice: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (!currentUser?.companyId) {
+      throw new Error('User company ID not found');
+    }
+
     try {
       const docRef = await addDoc(collection(db, 'invoices'), {
         ...invoice,
+        companyId: currentUser.companyId,
         issueDate: Timestamp.fromDate(invoice.issueDate),
         dueDate: Timestamp.fromDate(invoice.dueDate),
         createdAt: Timestamp.now(),
@@ -181,9 +197,19 @@ export const useClients = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { currentUser } = useAuth();
 
   useEffect(() => {
-    const q = query(collection(db, 'clients'), orderBy('createdAt', 'desc'));
+    if (!currentUser?.companyId) {
+      setLoading(false);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'clients'), 
+      where('companyId', '==', currentUser.companyId),
+      orderBy('createdAt', 'desc')
+    );
     
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
@@ -203,12 +229,17 @@ export const useClients = () => {
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [currentUser?.companyId]);
 
   const addClient = async (client: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (!currentUser?.companyId) {
+      throw new Error('User company ID not found');
+    }
+
     try {
       const docRef = await addDoc(collection(db, 'clients'), {
         ...client,
+        companyId: currentUser.companyId,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       });
@@ -245,9 +276,19 @@ export const usePayments = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { currentUser } = useAuth();
 
   useEffect(() => {
-    const q = query(collection(db, 'payments'), orderBy('createdAt', 'desc'));
+    if (!currentUser?.companyId) {
+      setLoading(false);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'payments'), 
+      where('companyId', '==', currentUser.companyId),
+      orderBy('createdAt', 'desc')
+    );
     
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
@@ -267,12 +308,17 @@ export const usePayments = () => {
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [currentUser?.companyId]);
 
   const addPayment = async (payment: Omit<Payment, 'id' | 'createdAt'>) => {
+    if (!currentUser?.companyId) {
+      throw new Error('User company ID not found');
+    }
+
     try {
       const docRef = await addDoc(collection(db, 'payments'), {
         ...payment,
+        companyId: currentUser.companyId,
         paymentDate: Timestamp.fromDate(payment.paymentDate),
         createdAt: Timestamp.now(),
       });
@@ -289,9 +335,19 @@ export const useExpenses = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { currentUser } = useAuth();
 
   useEffect(() => {
-    const q = query(collection(db, 'expenses'), orderBy('createdAt', 'desc'));
+    if (!currentUser?.companyId) {
+      setLoading(false);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'expenses'), 
+      where('companyId', '==', currentUser.companyId),
+      orderBy('createdAt', 'desc')
+    );
     
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
@@ -312,12 +368,17 @@ export const useExpenses = () => {
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [currentUser?.companyId]);
 
   const addExpense = async (expense: Omit<Expense, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (!currentUser?.companyId) {
+      throw new Error('User company ID not found');
+    }
+
     try {
       const docRef = await addDoc(collection(db, 'expenses'), {
         ...expense,
+        companyId: currentUser.companyId,
         expenseDate: Timestamp.fromDate(expense.expenseDate),
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
@@ -355,9 +416,19 @@ export const useInventory = () => {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { currentUser } = useAuth();
 
   useEffect(() => {
-    const q = query(collection(db, 'inventory'), orderBy('name', 'asc'));
+    if (!currentUser?.companyId) {
+      setLoading(false);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'inventory'), 
+      where('companyId', '==', currentUser.companyId),
+      orderBy('name', 'asc')
+    );
     
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
@@ -377,12 +448,17 @@ export const useInventory = () => {
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [currentUser?.companyId]);
 
   const addInventoryItem = async (item: Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (!currentUser?.companyId) {
+      throw new Error('User company ID not found');
+    }
+
     try {
       const docRef = await addDoc(collection(db, 'inventory'), {
         ...item,
+        companyId: currentUser.companyId,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       });
