@@ -10,7 +10,7 @@ import {
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 
-export type UserRole = 'client' | 'company_admin' | 'super_admin';
+export type UserRole = 'company_admin' | 'super_admin';
 
 export interface AuthUser extends User {
   role?: UserRole;
@@ -47,7 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     return {
       ...user,
-      role: userData?.role || 'client',
+      role: userData?.role || 'company_admin',
       companyId: userData?.companyId,
       hasCompletedSetup: userData?.hasCompletedSetup || false
     };
@@ -59,7 +59,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCurrentUser(authUser);
   };
 
-  const register = async (email: string, password: string, role: UserRole = 'client') => {
+  const register = async (email: string, password: string, role: UserRole = 'company_admin') => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     
     // Store user role in Firestore

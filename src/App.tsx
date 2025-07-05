@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,7 +9,6 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import LoginForm from "@/components/LoginForm";
 import RegisterForm from "@/components/RegisterForm";
 import Index from "./pages/Index";
-import ClientDashboard from "./pages/ClientDashboard";
 import SuperDashboard from "./pages/SuperDashboard";
 import InvoiceForm from "./components/InvoiceForm";
 import InvoiceList from "./components/InvoiceList";
@@ -38,12 +38,11 @@ const AuthenticatedApp = () => {
     }
     
     const roleRedirects = {
-      client: '/client-dashboard',
       company_admin: '/admin-dashboard',
       super_admin: '/super-dashboard'
     };
     
-    return roleRedirects[currentUser.role || 'client'];
+    return roleRedirects[currentUser.role || 'company_admin'];
   };
 
   return (
@@ -61,13 +60,6 @@ const AuthenticatedApp = () => {
         <Route path="/company-setup" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
             <CompanySignupForm />
-          </ProtectedRoute>
-        } />
-
-        {/* Client Dashboard */}
-        <Route path="/client-dashboard" element={
-          <ProtectedRoute allowedRoles={['client']}>
-            <ClientDashboard />
           </ProtectedRoute>
         } />
 

@@ -20,15 +20,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to={redirectTo} replace />;
   }
 
-  if (allowedRoles.length > 0 && !allowedRoles.includes(currentUser.role || 'client')) {
+  if (allowedRoles.length > 0 && !allowedRoles.includes(currentUser.role || 'company_admin')) {
     // Redirect to appropriate dashboard based on role
     const roleRedirects = {
-      client: '/client-dashboard',
       company_admin: '/admin-dashboard',
       super_admin: '/super-dashboard'
     };
     
-    return <Navigate to={roleRedirects[currentUser.role || 'client']} replace />;
+    return <Navigate to={roleRedirects[currentUser.role || 'company_admin']} replace />;
   }
 
   return <>{children}</>;
