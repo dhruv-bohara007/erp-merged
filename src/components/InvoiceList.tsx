@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -191,15 +192,39 @@ const InvoiceList = () => {
       {selectedInvoice && (
         <InvoiceDetailsModal
           invoice={selectedInvoice}
-          isOpen={showDetailsModal}
-          onClose={() => {
-            setShowDetailsModal(false);
-            setSelectedInvoice(null);
+          open={showDetailsModal}
+          onOpenChange={(open) => {
+            setShowDetailsModal(open);
+            if (!open) {
+              setSelectedInvoice(null);
+            }
           }}
         />
       )}
     </div>
   );
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'paid':
+        return 'bg-green-100 text-green-800';
+      case 'sent':
+        return 'bg-blue-100 text-blue-800';
+      case 'overdue':
+        return 'bg-red-100 text-red-800';
+      case 'draft':
+        return 'bg-gray-100 text-gray-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount);
+  };
 };
 
 export default InvoiceList;
