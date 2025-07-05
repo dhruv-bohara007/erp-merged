@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,7 +33,6 @@ const Settings = () => {
   const [formData, setFormData] = useState<CompanyData | null>(null);
   const [invoiceFormData, setInvoiceFormData] = useState<InvoiceSettings | null>(null);
   const [selectedCountryInfo, setSelectedCountryInfo] = useState<CountryTaxInfo | null>(null);
-  const [invoiceTaxCountry, setInvoiceTaxCountry] = useState<string>('IN');
 
   // Notification settings
   const [notifications, setNotifications] = useState({
@@ -59,9 +57,16 @@ const Settings = () => {
     }
   }, [invoiceSettings]);
 
+  // Auto-populate invoice tax settings based on company country
   useEffect(() => {
-    if (companyData?.country) {
-      setInvoiceTaxCountry(companyData.country);
+    if (companyData?.country && invoiceFormData) {
+      const countryTaxInfo = countryTaxData.find(c => c.code === companyData.country);
+      if (countryTaxInfo) {
+        setInvoiceFormData(prev => ({
+          ...prev!,
+          defaultTaxes: countryTaxInfo.defaultTaxes
+        }));
+      }
     }
   }, [companyData?.country]);
 
@@ -124,17 +129,6 @@ const Settings = () => {
     }
   };
 
-  const handleInvoiceCountryChange = (countryCode: string) => {
-    setInvoiceTaxCountry(countryCode);
-    const countryTaxInfo = countryTaxData.find(c => c.code === countryCode);
-    if (countryTaxInfo && invoiceFormData) {
-      setInvoiceFormData({
-        ...invoiceFormData,
-        defaultTaxes: countryTaxInfo.defaultTaxes
-      });
-    }
-  };
-
   const handleTaxRateChange = (index: number, rate: number) => {
     if (!invoiceFormData) return;
     
@@ -189,6 +183,10 @@ const Settings = () => {
       </div>
     );
   }
+
+  // Get current country info for display
+  const currentCountryTaxInfo = countryTaxData.find(c => c.code === companyData?.country);
+  const currentCountryName = countries.find(c => c.value === companyData?.country)?.label || 'Unknown';
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -462,30 +460,28 @@ const Settings = () => {
                       </div>
                     </div>
 
-                    {/* Country Selection for Tax Settings */}
+                    {/* Country Display (Read-only) */}
                     <div className="space-y-2">
-                      <Label htmlFor="taxCountry">Tax Configuration Country</Label>
-                      <Select 
-                        value={invoiceTaxCountry} 
-                        onValueChange={handleInvoiceCountryChange}
-                        disabled={!isInvoiceEditing}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {countryTaxData.map((country) => (
-                            <SelectItem key={country.code} value={country.code}>
-                              {country.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Label>Tax Configuration Country</Label>
+                      <div className="p-3 bg-gray-50 rounded-lg border">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">{currentCountryName}</span>
+                          <span className="text-sm text-gray-500">
+                            Detected from company profile
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Tax rates are automatically configured based on your company's country. 
+                          To change this, update your country in the Business tab.
+                        </p>
+                      </div>
                     </div>
 
                     {/* Dynamic Tax Fields */}
                     <div className="space-y-4">
-                      <h3 className="text-lg font-medium text-gray-900">Default Tax Rates</h3>
+                      <h3 className="text-lg font-medium text-gray-900">
+                        Default Tax Rates for {currentCountryName}
+                      </h3>
                       <div className="space-y-3">
                         {invoiceFormData.defaultTaxes.map((tax, index) => (
                           <div key={index} className="grid grid-cols-2 gap-4 items-center">

@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { CalendarDays, MapPin, Building, Mail, Phone, Globe } from 'lucide-react';
 import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
 import { useClients } from '@/hooks/useFirestore';
+import { useCompanyData } from '@/hooks/useCompanyData';
 import type { Invoice } from '@/hooks/useFirestore';
 
 interface InvoiceDetailsModalProps {
@@ -19,6 +20,7 @@ interface InvoiceDetailsModalProps {
 const InvoiceDetailsModal = ({ open, onOpenChange, invoice }: InvoiceDetailsModalProps) => {
   const { convertCurrency, formatCurrency, getCurrencyInfo, loading } = useCurrencyConverter();
   const { clients } = useClients();
+  const { companyData } = useCompanyData();
   const [clientDetails, setClientDetails] = useState<any>(null);
 
   useEffect(() => {
@@ -39,9 +41,10 @@ const InvoiceDetailsModal = ({ open, onOpenChange, invoice }: InvoiceDetailsModa
     }
   };
 
-  // Assume company is in India (IN) and client country from client details
-  const companyCountry = 'IN';
-  const clientCountry = clientDetails?.country || 'IN';
+  // Get company country from company data, fallback to India
+  const companyCountry = companyData?.country || 'IN';
+  // Get client country from client details, fallback to company country
+  const clientCountry = clientDetails?.country || companyCountry;
   
   const companyCurrency = getCurrencyInfo(companyCountry);
   const clientCurrency = getCurrencyInfo(clientCountry);
