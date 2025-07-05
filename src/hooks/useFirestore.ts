@@ -118,18 +118,21 @@ export const useInvoices = () => {
 
   useEffect(() => {
     if (!currentUser?.companyId) {
+      setInvoices([]);
       setLoading(false);
       return;
     }
 
+    console.log('Setting up invoices listener for company:', currentUser.companyId);
+    
     const q = query(
       collection(db, 'invoices'), 
-      where('companyId', '==', currentUser.companyId),
-      orderBy('createdAt', 'desc')
+      where('companyId', '==', currentUser.companyId)
     );
     
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
+        console.log('Invoices snapshot received:', snapshot.docs.length, 'documents');
         const invoiceData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
@@ -138,10 +141,16 @@ export const useInvoices = () => {
           createdAt: doc.data().createdAt?.toDate(),
           updatedAt: doc.data().updatedAt?.toDate(),
         })) as Invoice[];
+        
+        // Sort in memory instead of using orderBy to avoid composite index
+        invoiceData.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+        
         setInvoices(invoiceData);
         setLoading(false);
+        setError(null);
       },
       (err) => {
+        console.error('Error fetching invoices:', err);
         setError(err.message);
         setLoading(false);
       }
@@ -166,6 +175,7 @@ export const useInvoices = () => {
       });
       return docRef.id;
     } catch (err) {
+      console.error('Error adding invoice:', err);
       throw new Error(err instanceof Error ? err.message : 'Failed to add invoice');
     }
   };
@@ -178,6 +188,7 @@ export const useInvoices = () => {
         updatedAt: Timestamp.now(),
       });
     } catch (err) {
+      console.error('Error updating invoice:', err);
       throw new Error(err instanceof Error ? err.message : 'Failed to update invoice');
     }
   };
@@ -186,6 +197,7 @@ export const useInvoices = () => {
     try {
       await deleteDoc(doc(db, 'invoices', id));
     } catch (err) {
+      console.error('Error deleting invoice:', err);
       throw new Error(err instanceof Error ? err.message : 'Failed to delete invoice');
     }
   };
@@ -201,28 +213,37 @@ export const useClients = () => {
 
   useEffect(() => {
     if (!currentUser?.companyId) {
+      setClients([]);
       setLoading(false);
       return;
     }
 
+    console.log('Setting up clients listener for company:', currentUser.companyId);
+    
     const q = query(
       collection(db, 'clients'), 
-      where('companyId', '==', currentUser.companyId),
-      orderBy('createdAt', 'desc')
+      where('companyId', '==', currentUser.companyId)
     );
     
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
+        console.log('Clients snapshot received:', snapshot.docs.length, 'documents');
         const clientData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
           createdAt: doc.data().createdAt?.toDate(),
           updatedAt: doc.data().updatedAt?.toDate(),
         })) as Client[];
+        
+        // Sort in memory instead of using orderBy to avoid composite index
+        clientData.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+        
         setClients(clientData);
         setLoading(false);
+        setError(null);
       },
       (err) => {
+        console.error('Error fetching clients:', err);
         setError(err.message);
         setLoading(false);
       }
@@ -245,6 +266,7 @@ export const useClients = () => {
       });
       return docRef.id;
     } catch (err) {
+      console.error('Error adding client:', err);
       throw new Error(err instanceof Error ? err.message : 'Failed to add client');
     }
   };
@@ -257,6 +279,7 @@ export const useClients = () => {
         updatedAt: Timestamp.now(),
       });
     } catch (err) {
+      console.error('Error updating client:', err);
       throw new Error(err instanceof Error ? err.message : 'Failed to update client');
     }
   };
@@ -265,6 +288,7 @@ export const useClients = () => {
     try {
       await deleteDoc(doc(db, 'clients', id));
     } catch (err) {
+      console.error('Error deleting client:', err);
       throw new Error(err instanceof Error ? err.message : 'Failed to delete client');
     }
   };
@@ -280,28 +304,37 @@ export const usePayments = () => {
 
   useEffect(() => {
     if (!currentUser?.companyId) {
+      setPayments([]);
       setLoading(false);
       return;
     }
 
+    console.log('Setting up payments listener for company:', currentUser.companyId);
+    
     const q = query(
       collection(db, 'payments'), 
-      where('companyId', '==', currentUser.companyId),
-      orderBy('createdAt', 'desc')
+      where('companyId', '==', currentUser.companyId)
     );
     
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
+        console.log('Payments snapshot received:', snapshot.docs.length, 'documents');
         const paymentData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
           paymentDate: doc.data().paymentDate?.toDate(),
           createdAt: doc.data().createdAt?.toDate(),
         })) as Payment[];
+        
+        // Sort in memory instead of using orderBy to avoid composite index
+        paymentData.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+        
         setPayments(paymentData);
         setLoading(false);
+        setError(null);
       },
       (err) => {
+        console.error('Error fetching payments:', err);
         setError(err.message);
         setLoading(false);
       }
@@ -324,6 +357,7 @@ export const usePayments = () => {
       });
       return docRef.id;
     } catch (err) {
+      console.error('Error adding payment:', err);
       throw new Error(err instanceof Error ? err.message : 'Failed to add payment');
     }
   };
@@ -339,18 +373,21 @@ export const useExpenses = () => {
 
   useEffect(() => {
     if (!currentUser?.companyId) {
+      setExpenses([]);
       setLoading(false);
       return;
     }
 
+    console.log('Setting up expenses listener for company:', currentUser.companyId);
+    
     const q = query(
       collection(db, 'expenses'), 
-      where('companyId', '==', currentUser.companyId),
-      orderBy('createdAt', 'desc')
+      where('companyId', '==', currentUser.companyId)
     );
     
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
+        console.log('Expenses snapshot received:', snapshot.docs.length, 'documents');
         const expenseData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
@@ -358,10 +395,16 @@ export const useExpenses = () => {
           createdAt: doc.data().createdAt?.toDate(),
           updatedAt: doc.data().updatedAt?.toDate(),
         })) as Expense[];
+        
+        // Sort in memory instead of using orderBy to avoid composite index
+        expenseData.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+        
         setExpenses(expenseData);
         setLoading(false);
+        setError(null);
       },
       (err) => {
+        console.error('Error fetching expenses:', err);
         setError(err.message);
         setLoading(false);
       }
@@ -385,6 +428,7 @@ export const useExpenses = () => {
       });
       return docRef.id;
     } catch (err) {
+      console.error('Error adding expense:', err);
       throw new Error(err instanceof Error ? err.message : 'Failed to add expense');
     }
   };
@@ -397,6 +441,7 @@ export const useExpenses = () => {
         updatedAt: Timestamp.now(),
       });
     } catch (err) {
+      console.error('Error updating expense:', err);
       throw new Error(err instanceof Error ? err.message : 'Failed to update expense');
     }
   };
@@ -405,6 +450,7 @@ export const useExpenses = () => {
     try {
       await deleteDoc(doc(db, 'expenses', id));
     } catch (err) {
+      console.error('Error deleting expense:', err);
       throw new Error(err instanceof Error ? err.message : 'Failed to delete expense');
     }
   };
@@ -420,28 +466,37 @@ export const useInventory = () => {
 
   useEffect(() => {
     if (!currentUser?.companyId) {
+      setInventory([]);
       setLoading(false);
       return;
     }
 
+    console.log('Setting up inventory listener for company:', currentUser.companyId);
+    
     const q = query(
       collection(db, 'inventory'), 
-      where('companyId', '==', currentUser.companyId),
-      orderBy('name', 'asc')
+      where('companyId', '==', currentUser.companyId)
     );
     
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
+        console.log('Inventory snapshot received:', snapshot.docs.length, 'documents');
         const inventoryData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
           createdAt: doc.data().createdAt?.toDate(),
           updatedAt: doc.data().updatedAt?.toDate(),
         })) as InventoryItem[];
+        
+        // Sort by name in memory instead of using orderBy to avoid composite index
+        inventoryData.sort((a, b) => a.name.localeCompare(b.name));
+        
         setInventory(inventoryData);
         setLoading(false);
+        setError(null);
       },
       (err) => {
+        console.error('Error fetching inventory:', err);
         setError(err.message);
         setLoading(false);
       }
@@ -464,6 +519,7 @@ export const useInventory = () => {
       });
       return docRef.id;
     } catch (err) {
+      console.error('Error adding inventory item:', err);
       throw new Error(err instanceof Error ? err.message : 'Failed to add inventory item');
     }
   };
@@ -476,6 +532,7 @@ export const useInventory = () => {
         updatedAt: Timestamp.now(),
       });
     } catch (err) {
+      console.error('Error updating inventory item:', err);
       throw new Error(err instanceof Error ? err.message : 'Failed to update inventory item');
     }
   };
@@ -484,6 +541,7 @@ export const useInventory = () => {
     try {
       await deleteDoc(doc(db, 'inventory', id));
     } catch (err) {
+      console.error('Error deleting inventory item:', err);
       throw new Error(err instanceof Error ? err.message : 'Failed to delete inventory item');
     }
   };
