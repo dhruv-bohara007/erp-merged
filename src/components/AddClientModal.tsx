@@ -7,24 +7,18 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useClients, Client } from '@/hooks/useFirestore';
 import { useToast } from '@/hooks/use-toast';
+import { countriesWithTaxId } from '@/data/countriesWithTaxId';
 
 interface AddClientModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-const indianStates = [
-  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat',
-  'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh',
-  'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab',
-  'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh',
-  'Uttarakhand', 'West Bengal', 'Delhi', 'Chandigarh', 'Puducherry'
-];
-
 const AddClientModal = ({ open, onOpenChange }: AddClientModalProps) => {
   const { addClient } = useClients();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState('IN');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -33,16 +27,49 @@ const AddClientModal = ({ open, onOpenChange }: AddClientModalProps) => {
     city: '',
     state: '',
     pincode: '',
-    gstin: '',
+    country: 'IN',
+    taxInfo: {
+      id: '',
+      type: 'GSTIN'
+    },
     status: 'active' as const
   });
+
+  const selectedCountryData = countriesWithTaxId.find(c => c.code === selectedCountry);
+
+  const handleCountryChange = (countryCode: string) => {
+    setSelectedCountry(countryCode);
+    const countryData = countriesWithTaxId.find(c => c.code === countryCode);
+    setFormData({
+      ...formData,
+      country: countryCode,
+      taxInfo: {
+        id: '',
+        type: countryData?.taxIdType || 'TAX_ID'
+      }
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      await addClient(formData);
+      // Create client data with country and taxInfo
+      const clientData = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        pincode: formData.pincode,
+        country: formData.country,
+        taxInfo: formData.taxInfo,
+        status: formData.status
+      };
+
+      await addClient(clientData);
       toast({
         title: "Success",
         description: "Client added successfully",
@@ -56,9 +83,14 @@ const AddClientModal = ({ open, onOpenChange }: AddClientModalProps) => {
         city: '',
         state: '',
         pincode: '',
-        gstin: '',
+        country: 'IN',
+        taxInfo: {
+          id: '',
+          type: 'GSTIN'
+        },
         status: 'active'
       });
+      setSelectedCountry('IN');
     } catch (error) {
       toast({
         title: "Error",
@@ -79,11 +111,12 @@ const AddClientModal = ({ open, onOpenChange }: AddClientModalProps) => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="name">Name *</Label>
+              <Label htmlFor="name">Company Name *</Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({...formData, name: e.target.value})}
+                placeholder="Enter company name"
                 required
               />
             </div>
@@ -94,6 +127,7 @@ const AddClientModal = ({ open, onOpenChange }: AddClientModalProps) => {
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
+                placeholder="Enter email address"
                 required
               />
             </div>
@@ -106,17 +140,38 @@ const AddClientModal = ({ open, onOpenChange }: AddClientModalProps) => {
                 id="phone"
                 value={formData.phone}
                 onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                placeholder="+91 XXXXX XXXXX"
                 required
               />
             </div>
             <div>
-              <Label htmlFor="gstin">GSTIN</Label>
-              <Input
-                id="gstin"
-                value={formData.gstin}
-                onChange={(e) => setFormData({...formData, gstin: e.target.value})}
-              />
+              <Label htmlFor="country">Country *</Label>
+              <Select value={selectedCountry} onValueChange={handleCountryChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select country" />
+                </SelectTrigger>
+                <SelectContent>
+                  {countriesWithTaxId.map((country) => (
+                    <SelectItem key={country.code} value={country.code}>
+                      {country.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+          </div>
+
+          <div>
+            <Label htmlFor="taxId">{selectedCountryData?.taxIdLabel || 'Tax ID'}</Label>
+            <Input
+              id="taxId"
+              value={formData.taxInfo.id}
+              onChange={(e) => setFormData({
+                ...formData, 
+                taxInfo: { ...formData.taxInfo, id: e.target.value }
+              })}
+              placeholder={selectedCountryData?.placeholder || 'Enter Tax ID'}
+            />
           </div>
 
           <div>
@@ -125,6 +180,7 @@ const AddClientModal = ({ open, onOpenChange }: AddClientModalProps) => {
               id="address"
               value={formData.address}
               onChange={(e) => setFormData({...formData, address: e.target.value})}
+              placeholder="Enter complete address"
               required
             />
           </div>
@@ -136,30 +192,27 @@ const AddClientModal = ({ open, onOpenChange }: AddClientModalProps) => {
                 id="city"
                 value={formData.city}
                 onChange={(e) => setFormData({...formData, city: e.target.value})}
+                placeholder="Enter city"
                 required
               />
             </div>
             <div>
               <Label htmlFor="state">State *</Label>
-              <Select onValueChange={(value) => setFormData({...formData, state: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select state" />
-                </SelectTrigger>
-                <SelectContent>
-                  {indianStates.map((state) => (
-                    <SelectItem key={state} value={state}>
-                      {state}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                id="state"
+                value={formData.state}
+                onChange={(e) => setFormData({...formData, state: e.target.value})}
+                placeholder="Enter state"
+                required
+              />
             </div>
             <div>
-              <Label htmlFor="pincode">Pincode *</Label>
+              <Label htmlFor="pincode">PIN Code *</Label>
               <Input
                 id="pincode"
                 value={formData.pincode}
                 onChange={(e) => setFormData({...formData, pincode: e.target.value})}
+                placeholder="Enter PIN code"
                 required
               />
             </div>
