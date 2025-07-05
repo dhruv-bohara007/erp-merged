@@ -54,11 +54,6 @@ export interface Client {
   city: string;
   state: string;
   pincode: string;
-  country?: string;
-  taxInfo?: {
-    id: string;
-    type: string;
-  };
   gstin?: string;
   status: 'active' | 'inactive';
   createdAt: Date;
