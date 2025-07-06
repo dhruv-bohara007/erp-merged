@@ -6,6 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
+import CountryDropdown from './CountryDropdown';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -73,7 +74,10 @@ const AdminNavigation = () => {
             <span className="ml-2 text-xl font-semibold text-gray-900 dark:text-white">InvoiceApp</span>
           </div>
           
-          <div className="mt-8 flex-1 flex flex-col">
+          {/* Country Dropdown */}
+          <CountryDropdown />
+          
+          <div className="mt-4 flex-1 flex flex-col">
             <nav className="flex-1 px-2 space-y-1">
               {navItems.map((item) => (
                 <NavLink
@@ -171,6 +175,11 @@ const AdminNavigation = () => {
         {isMobileMenuOpen && (
           <div className="lg:hidden">
             <div className="pt-2 pb-3 space-y-1 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+              {/* Mobile Country Dropdown */}
+              <div className="px-4 mb-4">
+                <CountryDropdown />
+              </div>
+              
               {navItems.map((item) => (
                 <NavLink
                   key={item.to}
