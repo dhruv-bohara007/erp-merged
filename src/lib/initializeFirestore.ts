@@ -1,3 +1,4 @@
+
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { Company, Client, Invoice, Payment, GSTReturn, TDSRecord } from '../types/firestore';
@@ -93,7 +94,6 @@ export const initializeCollections = async () => {
       clientId: clientRefs[0].id,
       clientName: 'ABC Corporation',
       clientEmail: 'contact@abccorp.com',
-      clientState: 'Delhi',
       issueDate: Timestamp.now(),
       dueDate: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)), // 30 days from now
       status: 'sent',
