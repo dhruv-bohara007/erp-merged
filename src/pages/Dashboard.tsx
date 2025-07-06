@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,9 +16,7 @@ import {
 } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useInvoices, useClients, usePayments } from '@/hooks/useFirestore';
-import { useCurrency } from '@/contexts/CurrencyContext';
 import AddClientModal from '@/components/AddClientModal';
-import CurrencySelector from '@/components/CurrencySelector';
 import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
@@ -28,9 +27,8 @@ const Dashboard = () => {
   const { invoices, loading: invoicesLoading } = useInvoices();
   const { clients, loading: clientsLoading } = useClients();
   const { payments, loading: paymentsLoading } = usePayments();
-  const { formatAmount, convertAmount, selectedCurrency } = useCurrency();
 
-  // Calculate dashboard metrics using totalAmountINR and convert using selected currency
+  // Calculate dashboard metrics using totalAmountINR
   const totalInvoices = invoices.length;
   const paidInvoices = invoices.filter(inv => inv.status === 'paid');
   const unpaidInvoices = invoices.filter(inv => inv.status === 'sent' || inv.status === 'draft');
@@ -47,7 +45,7 @@ const Dashboard = () => {
     { name: 'Overdue', value: overdueInvoices.length, color: '#EF4444' },
   ];
 
-  // Monthly revenue data (last 6 months) using totalAmountINR and convert
+  // Monthly revenue data (last 6 months) using totalAmountINR
   const getMonthlyRevenue = () => {
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const last6Months = [];
@@ -57,7 +55,7 @@ const Dashboard = () => {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const monthYear = `${monthNames[date.getMonth()]}`;
       
-      const monthlyTotalINR = paidInvoices
+      const monthlyTotal = paidInvoices
         .filter(inv => {
           if (!inv.issueDate) return false;
           const invDate = new Date(inv.issueDate);
@@ -65,40 +63,33 @@ const Dashboard = () => {
         })
         .reduce((sum, inv) => sum + (inv.totalAmountINR || inv.totalAmount || 0), 0);
       
-      last6Months.push({ 
-        month: monthYear, 
-        revenue: convertAmount(monthlyTotalINR)
-      });
+      last6Months.push({ month: monthYear, revenue: monthlyTotal });
     }
     
     return last6Months;
   };
 
-  // Top clients by total invoice value using totalAmountINR and convert
+  // Top clients by total invoice value using totalAmountINR
   const getTopClients = () => {
     const clientTotals = new Map();
     
     invoices.forEach(invoice => {
       if (!invoice.clientId || !invoice.clientName) return;
-      const invoiceAmountINR = invoice.totalAmountINR || invoice.totalAmount || 0;
+      const invoiceAmount = invoice.totalAmountINR || invoice.totalAmount || 0;
       
-      const current = clientTotals.get(invoice.clientId) || { name: invoice.clientName, totalINR: 0 };
-      current.totalINR += invoiceAmountINR;
+      const current = clientTotals.get(invoice.clientId) || { name: invoice.clientName, total: 0 };
+      current.total += invoiceAmount;
       clientTotals.set(invoice.clientId, current);
     });
     
     return Array.from(clientTotals.values())
-      .map(client => ({
-        ...client,
-        total: convertAmount(client.totalINR)
-      }))
       .sort((a, b) => b.total - a.total)
       .slice(0, 5);
   };
 
   const topClients = getTopClients();
 
-  // Recent activities with currency conversion
+  // Recent activities
   const getRecentActivities = () => {
     const activities = [];
     
@@ -110,7 +101,7 @@ const Dashboard = () => {
         id: `payment-${payment.id}`,
         type: 'payment',
         message: `Payment received from ${payment.clientName}`,
-        amount: formatAmount(payment.amount),
+        amount: `₹${payment.amount.toLocaleString()}`,
         time: formatTimeAgo(payment.createdAt)
       });
     });
@@ -119,15 +110,13 @@ const Dashboard = () => {
     invoices.slice(0, 2).forEach(invoice => {
       if (!invoice.id || !invoice.invoiceNumber || !invoice.totalAmount || !invoice.createdAt) return;
       
-      const amountINR = invoice.totalAmountINR || invoice.totalAmount || 0;
-      
       activities.push({
         id: `invoice-${invoice.id}`,
         type: invoice.status === 'overdue' ? 'overdue' : 'invoice',
         message: invoice.status === 'overdue' 
           ? `Invoice ${invoice.invoiceNumber} is overdue`
           : `Invoice ${invoice.invoiceNumber} sent to ${invoice.clientName || 'Client'}`,
-        amount: formatAmount(amountINR),
+        amount: `₹${invoice.totalAmount.toLocaleString()}`,
         time: formatTimeAgo(invoice.createdAt)
       });
     });
@@ -148,6 +137,12 @@ const Dashboard = () => {
     return 'Just now';
   };
 
+  const formatIndianCurrency = (amount: number) => {
+    if (!amount) return '₹0.00';
+    
+    return `₹${amount.toFixed(2)}`;
+  };
+
   // Get the data by calling the functions
   const revenueData = getMonthlyRevenue();
   const recentActivities = getRecentActivities();
@@ -166,36 +161,31 @@ const Dashboard = () => {
   return (
     <div className="p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header with Currency Selector */}
-        <div className="flex justify-between items-start">
+        {/* Header */}
+        <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Invoice Dashboard</h1>
             <p className="text-gray-600 mt-2">Welcome back! Here's your business overview.</p>
           </div>
-          <div className="flex gap-4 items-start">
-            <div className="w-64">
-              <CurrencySelector />
-            </div>
-            <div className="flex gap-3">
-              <Button 
-                className="bg-blue-600 hover:bg-blue-700"
-                onClick={() => navigate('/invoices/new')}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                New Invoice
-              </Button>
-              <Button 
-                variant="outline"
-                onClick={() => setShowAddClientModal(true)}
-              >
-                <Users className="w-4 h-4 mr-2" />
-                Add Client
-              </Button>
-            </div>
+          <div className="flex gap-3">
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={() => navigate('/invoices/new')}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              New Invoice
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={() => setShowAddClientModal(true)}
+            >
+              <Users className="w-4 h-4 mr-2" />
+              Add Client
+            </Button>
           </div>
         </div>
 
-        {/* Summary Cards with converted amounts */}
+        {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card className="border-l-4 border-l-blue-500">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -214,7 +204,7 @@ const Dashboard = () => {
               <IndianRupee className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatAmount(totalPaidAmount)}</div>
+              <div className="text-2xl font-bold">{formatIndianCurrency(totalPaidAmount)}</div>
               <p className="text-xs text-gray-500">{paidInvoices.length} invoices paid</p>
             </CardContent>
           </Card>
@@ -225,7 +215,7 @@ const Dashboard = () => {
               <Calendar className="h-4 w-4 text-orange-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatAmount(totalUnpaidAmount)}</div>
+              <div className="text-2xl font-bold">{formatIndianCurrency(totalUnpaidAmount)}</div>
               <p className="text-xs text-gray-500">{unpaidInvoices.length} invoices pending</p>
             </CardContent>
           </Card>
@@ -236,7 +226,7 @@ const Dashboard = () => {
               <AlertCircle className="h-4 w-4 text-red-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatAmount(totalOverdueAmount)}</div>
+              <div className="text-2xl font-bold">{formatIndianCurrency(totalOverdueAmount)}</div>
               <p className="text-xs text-gray-500">{overdueInvoices.length} invoices overdue</p>
             </CardContent>
           </Card>
@@ -244,7 +234,7 @@ const Dashboard = () => {
 
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Revenue Chart with converted amounts */}
+          {/* Revenue Chart */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -257,11 +247,8 @@ const Dashboard = () => {
                 <BarChart data={revenueData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
-                  <YAxis tickFormatter={(value) => {
-                    if (selectedCurrency === 'INR') return `₹${(value/100000).toFixed(0)}L`;
-                    return `${(value/1000).toFixed(0)}K`;
-                  }} />
-                  <Tooltip formatter={(value) => [formatAmount(Number(value)), 'Revenue']} />
+                  <YAxis tickFormatter={(value) => `₹${(value/100000).toFixed(0)}L`} />
+                  <Tooltip formatter={(value) => [formatIndianCurrency(Number(value)), 'Revenue']} />
                   <Bar dataKey="revenue" fill="#3B82F6" />
                 </BarChart>
               </ResponsiveContainer>
@@ -307,7 +294,7 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        {/* Top Clients & Recent Activities with converted amounts */}
+        {/* Top Clients & Recent Activities */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Top Clients */}
           <Card>
@@ -328,7 +315,7 @@ const Dashboard = () => {
                       </div>
                     </div>
                     <Badge variant="default">
-                      {formatAmount(client.totalINR)}
+                      {formatIndianCurrency(client.total)}
                     </Badge>
                   </div>
                 ))}
