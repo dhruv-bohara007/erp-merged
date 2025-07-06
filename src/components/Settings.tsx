@@ -14,10 +14,11 @@ import {
   FileText, 
   Bell, 
   Palette,
-  Upload,
   Save,
   Edit,
-  X
+  X,
+  Image,
+  FileSignature
 } from 'lucide-react';
 import { useCompanyData, CompanyData } from '@/hooks/useCompanyData';
 import { useInvoiceSettings, InvoiceSettings } from '@/hooks/useInvoiceSettings';
@@ -175,10 +176,10 @@ const Settings = () => {
 
   if (loading || invoiceLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Loading company profile...</p>
+          <p className="mt-2 text-gray-600 dark:text-white">Loading company profile...</p>
         </div>
       </div>
     );
@@ -189,12 +190,12 @@ const Settings = () => {
   const currentCountryName = countries.find(c => c.value === companyData?.country)?.label || 'Unknown';
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
+        {/* Header with enhanced visibility */}
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Company Profile</h1>
-          <p className="text-gray-600 mt-2">Manage your company profile and application preferences</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Company Profile</h1>
+          <p className="text-gray-600 dark:text-white mt-2">Manage your company profile and application preferences</p>
         </div>
 
         <Tabs defaultValue="business" className="space-y-6">
@@ -211,7 +212,7 @@ const Settings = () => {
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
                     <Building className="w-5 h-5" />
                     Business Information
                   </CardTitle>
@@ -322,10 +323,88 @@ const Settings = () => {
                       </div>
                     </div>
 
+                    {/* Company Logo and Owner Signature URLs */}
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white">Branding & Signatures</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="logoUrl" className="flex items-center gap-2">
+                              <Image className="w-4 h-4" />
+                              Company Logo URL
+                            </Label>
+                            <Input
+                              id="logoUrl"
+                              type="url"
+                              placeholder="https://example.com/logo.png"
+                              value={formData.logoUrl || ''}
+                              onChange={(e) => handleInputChange('logoUrl', e.target.value)}
+                              disabled={!isEditing}
+                            />
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              Enter the URL of your company logo image
+                            </p>
+                          </div>
+                          {formData.logoUrl && (
+                            <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center overflow-hidden">
+                              <img 
+                                src={formData.logoUrl} 
+                                alt="Company Logo" 
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.nextElementSibling!.style.display = 'flex';
+                                }}
+                              />
+                              <div className="hidden items-center justify-center w-full h-full">
+                                <Building className="w-8 h-8 text-gray-400" />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="ownerSignatureUrl" className="flex items-center gap-2">
+                              <FileSignature className="w-4 h-4" />
+                              Owner Signature URL
+                            </Label>
+                            <Input
+                              id="ownerSignatureUrl"
+                              type="url"
+                              placeholder="https://example.com/signature.png"
+                              value={formData.ownerSignatureUrl || ''}
+                              onChange={(e) => handleInputChange('ownerSignatureUrl', e.target.value)}
+                              disabled={!isEditing}
+                            />
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              Enter the URL of the business owner's digital signature
+                            </p>
+                          </div>
+                          {formData.ownerSignatureUrl && (
+                            <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center overflow-hidden">
+                              <img 
+                                src={formData.ownerSignatureUrl} 
+                                alt="Owner Signature" 
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.nextElementSibling!.style.display = 'flex';
+                                }}
+                              />
+                              <div className="hidden items-center justify-center w-full h-full">
+                                <FileSignature className="w-8 h-8 text-gray-400" />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Tax Information */}
                     {selectedCountryInfo && formData.taxInfo && (
                       <div className="space-y-4">
-                        <h3 className="text-lg font-medium text-gray-900">Tax Information</h3>
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">Tax Information</h3>
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label htmlFor="primaryTaxId">{selectedCountryInfo.primaryTaxLabel}</Label>
@@ -353,7 +432,7 @@ const Settings = () => {
 
                     {selectedCountryInfo && formData.bankInfo && (
                       <div className="space-y-4">
-                        <h3 className="text-lg font-medium text-gray-900">Banking Information</h3>
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">Banking Information</h3>
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label htmlFor="bankName">Bank Name</Label>
@@ -387,20 +466,6 @@ const Settings = () => {
                         </div>
                       </div>
                     )}
-
-                    {/* Company Logo */}
-                    <div className="space-y-2">
-                      <Label>Company Logo</Label>
-                      <div className="flex items-center gap-4">
-                        <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center">
-                          <Building className="w-8 h-8 text-gray-400" />
-                        </div>
-                        <Button variant="outline" disabled={!isEditing}>
-                          <Upload className="w-4 h-4 mr-2" />
-                          Upload Logo
-                        </Button>
-                      </div>
-                    </div>
                   </>
                 )}
               </CardContent>
@@ -412,7 +477,7 @@ const Settings = () => {
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
                     <FileText className="w-5 h-5" />
                     Invoice Settings
                   </CardTitle>
@@ -463,14 +528,14 @@ const Settings = () => {
                     {/* Country Display (Read-only) */}
                     <div className="space-y-2">
                       <Label>Tax Configuration Country</Label>
-                      <div className="p-3 bg-gray-50 rounded-lg border">
+                      <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border">
                         <div className="flex items-center justify-between">
-                          <span className="font-medium">{currentCountryName}</span>
-                          <span className="text-sm text-gray-500">
+                          <span className="font-medium text-gray-900 dark:text-white">{currentCountryName}</span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400">
                             Detected from company profile
                           </span>
                         </div>
-                        <p className="text-xs text-gray-600 mt-1">
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                           Tax rates are automatically configured based on your company's country. 
                           To change this, update your country in the Business tab.
                         </p>
@@ -479,7 +544,7 @@ const Settings = () => {
 
                     {/* Dynamic Tax Fields */}
                     <div className="space-y-4">
-                      <h3 className="text-lg font-medium text-gray-900">
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                         Default Tax Rates for {currentCountryName}
                       </h3>
                       <div className="space-y-3">
@@ -490,7 +555,7 @@ const Settings = () => {
                               <Input
                                 value={tax.name}
                                 disabled
-                                className="bg-gray-50"
+                                className="bg-gray-50 dark:bg-gray-800"
                               />
                             </div>
                             <div className="space-y-2">
@@ -550,7 +615,7 @@ const Settings = () => {
           <TabsContent value="notifications">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
                   <Bell className="w-5 h-5" />
                   Notification Settings
                 </CardTitle>
@@ -560,7 +625,7 @@ const Settings = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <Label htmlFor="emailReminders">Email Reminders</Label>
-                      <p className="text-sm text-gray-500">Send email reminders for due invoices</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Send email reminders for due invoices</p>
                     </div>
                     <Switch
                       id="emailReminders"
@@ -572,7 +637,7 @@ const Settings = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <Label htmlFor="smsReminders">SMS Reminders</Label>
-                      <p className="text-sm text-gray-500">Send SMS reminders for due invoices</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Send SMS reminders for due invoices</p>
                     </div>
                     <Switch
                       id="smsReminders"
@@ -584,7 +649,7 @@ const Settings = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <Label htmlFor="overdueAlerts">Overdue Alerts</Label>
-                      <p className="text-sm text-gray-500">Get notified when invoices become overdue</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Get notified when invoices become overdue</p>
                     </div>
                     <Switch
                       id="overdueAlerts"
@@ -596,7 +661,7 @@ const Settings = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <Label htmlFor="paymentReceived">Payment Received</Label>
-                      <p className="text-sm text-gray-500">Get notified when payments are received</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Get notified when payments are received</p>
                     </div>
                     <Switch
                       id="paymentReceived"
@@ -608,7 +673,7 @@ const Settings = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <Label htmlFor="weeklyReports">Weekly Reports</Label>
-                      <p className="text-sm text-gray-500">Receive weekly summary reports</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Receive weekly summary reports</p>
                     </div>
                     <Switch
                       id="weeklyReports"
@@ -624,7 +689,7 @@ const Settings = () => {
           <TabsContent value="appearance">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
                   <Palette className="w-5 h-5" />
                   Appearance & Branding
                 </CardTitle>
@@ -634,17 +699,17 @@ const Settings = () => {
                   <div className="space-y-2">
                     <Label>Invoice Template</Label>
                     <div className="grid grid-cols-3 gap-4">
-                      <div className="border-2 border-blue-500 rounded-lg p-4 bg-blue-50">
-                        <div className="text-sm font-medium">Modern</div>
-                        <div className="text-xs text-gray-500">Clean and professional</div>
+                      <div className="border-2 border-blue-500 rounded-lg p-4 bg-blue-50 dark:bg-blue-900/20">
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">Modern</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Clean and professional</div>
                       </div>
-                      <div className="border-2 border-gray-200 rounded-lg p-4 cursor-pointer hover:border-gray-300">
-                        <div className="text-sm font-medium">Classic</div>
-                        <div className="text-xs text-gray-500">Traditional layout</div>
+                      <div className="border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4 cursor-pointer hover:border-gray-300 dark:hover:border-gray-600">
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">Classic</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Traditional layout</div>
                       </div>
-                      <div className="border-2 border-gray-200 rounded-lg p-4 cursor-pointer hover:border-gray-300">
-                        <div className="text-sm font-medium">Minimal</div>
-                        <div className="text-xs text-gray-500">Simple and clean</div>
+                      <div className="border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4 cursor-pointer hover:border-gray-300 dark:hover:border-gray-600">
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">Minimal</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Simple and clean</div>
                       </div>
                     </div>
                   </div>
@@ -666,45 +731,45 @@ const Settings = () => {
           <TabsContent value="integrations">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
                   <IndianRupee className="w-5 h-5" />
                   Payment Integrations
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center justify-between p-4 border dark:border-gray-700 rounded-lg">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
                         <IndianRupee className="w-5 h-5 text-blue-600" />
                       </div>
                       <div>
-                        <div className="font-medium">Razorpay</div>
-                        <div className="text-sm text-gray-500">Accept online payments in India</div>
+                        <div className="font-medium text-gray-900 dark:text-white">Razorpay</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">Accept online payments in India</div>
                       </div>
                     </div>
                     <Button variant="outline">Connect</Button>
                   </div>
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center justify-between p-4 border dark:border-gray-700 rounded-lg">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
                         <IndianRupee className="w-5 h-5 text-blue-600" />
                       </div>
                       <div>
-                        <div className="font-medium">PayU</div>
-                        <div className="text-sm text-gray-500">Indian payment gateway</div>
+                        <div className="font-medium text-gray-900 dark:text-white">PayU</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">Indian payment gateway</div>
                       </div>
                     </div>
                     <Button variant="outline">Connect</Button>
                   </div>
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center justify-between p-4 border dark:border-gray-700 rounded-lg">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
                         <IndianRupee className="w-5 h-5 text-blue-600" />
                       </div>
                       <div>
-                        <div className="font-medium">Paytm</div>
-                        <div className="text-sm text-gray-500">Paytm payment gateway</div>
+                        <div className="font-medium text-gray-900 dark:text-white">Paytm</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">Paytm payment gateway</div>
                       </div>
                     </div>
                     <Button variant="outline">Connect</Button>
