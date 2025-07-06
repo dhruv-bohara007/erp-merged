@@ -106,7 +106,7 @@ export const initializeCollections = async () => {
         }
       ],
       subtotal: 100000,
-      totalGst: 18000,
+      totalGST: 18000,
       totalAmount: 118000,
       // Required currency fields
       totalAmountINR: 118000,
