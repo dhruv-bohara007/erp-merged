@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -13,8 +14,6 @@ export interface CompanyData {
   email: string;
   phone: string;
   website?: string;
-  logoUrl?: string;
-  ownerSignatureUrl?: string;
   createdAt: string;
   updatedAt: string;
   taxInfo: {
@@ -49,8 +48,6 @@ export const useCompanyData = () => {
         // Ensure taxInfo and bankInfo are properly initialized
         const normalizedData: CompanyData = {
           ...data,
-          logoUrl: data.logoUrl || '',
-          ownerSignatureUrl: data.ownerSignatureUrl || '',
           taxInfo: data.taxInfo || {
             primaryId: '',
             primaryType: 'Federal EIN',
@@ -75,8 +72,6 @@ export const useCompanyData = () => {
           email: currentUser.email || '',
           phone: '',
           website: '',
-          logoUrl: '',
-          ownerSignatureUrl: '',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           taxInfo: {
