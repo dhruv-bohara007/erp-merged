@@ -1,13 +1,16 @@
 
+
 interface ExchangeRates {
   [key: string]: number;
 }
 
 interface ExchangeRateResponse {
-  result: string;
-  base_code: string;
+  result?: string;
+  base_code?: string;
+  base?: string;
   rates: ExchangeRates;
-  time_last_update_unix: number;
+  time_last_update_unix?: number;
+  time_last_updated?: number;
 }
 
 class ExchangeRateService {
@@ -54,14 +57,20 @@ class ExchangeRateService {
   private async fetchRates(): Promise<ExchangeRates> {
     try {
       const response = await fetch(this.API_URL);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data: ExchangeRateResponse = await response.json();
       
-      if (data.result === 'success') {
-        // Convert to INR base rates (inverse of the rates since API gives INR as base)
+      // Check if we have rates data
+      if (data.rates && typeof data.rates === 'object') {
+        // Convert to INR base rates (rates are already INR-based from this API)
         const inrRates: ExchangeRates = { INR: 1 };
         
         for (const [currency, rate] of Object.entries(data.rates)) {
-          if (currency !== 'INR') {
+          if (currency !== 'INR' && typeof rate === 'number') {
             inrRates[currency] = rate;
           }
         }
@@ -70,9 +79,10 @@ class ExchangeRateService {
         this.lastUpdate = Date.now();
         this.saveCachedRates();
         
+        console.log('Exchange rates fetched successfully:', Object.keys(inrRates).length, 'currencies');
         return inrRates;
       } else {
-        throw new Error('API response unsuccessful');
+        throw new Error('Invalid API response format');
       }
     } catch (error) {
       console.error('Failed to fetch exchange rates:', error);
@@ -84,6 +94,7 @@ class ExchangeRateService {
       }
       
       // Fallback rates
+      console.log('Using fallback exchange rates');
       return {
         INR: 1,
         USD: 0.012,
@@ -149,3 +160,4 @@ class ExchangeRateService {
 }
 
 export const exchangeRateService = ExchangeRateService.getInstance();
+
