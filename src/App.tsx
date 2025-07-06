@@ -12,7 +12,6 @@ import Dashboard from '@/pages/Dashboard';
 import SuperDashboard from '@/pages/SuperDashboard';
 import InvoiceForm from '@/components/InvoiceForm';
 import InvoiceList from '@/components/InvoiceList';
-import InvoiceView from '@/components/InvoiceView';
 import ClientManagement from '@/components/ClientManagement';
 import Payments from '@/components/Payments';
 import Reports from '@/components/Reports';
@@ -61,7 +60,6 @@ function App() {
                               <Route path="/" element={<Dashboard />} />
                               <Route path="/invoices" element={<InvoiceList />} />
                               <Route path="/invoices/new" element={<InvoiceForm />} />
-                              <Route path="/invoices/:id" element={<InvoiceView />} />
                               <Route path="/clients" element={<ClientManagement />} />
                               <Route path="/payments" element={<Payments />} />
                               <Route path="/reports" element={<Reports />} />
