@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,15 +19,18 @@ import {
   FileText
 } from 'lucide-react';
 import { useInvoices } from '@/hooks/useFirestore';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import InvoiceView from './InvoiceView';
+import CurrencySelector from './CurrencySelector';
 import type { Invoice } from '@/hooks/useFirestore';
 
 const InvoiceList = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { invoices, loading, deleteInvoice, updateInvoice } = useInvoices();
+  const { formatAmount, convertAmount } = useCurrency();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -90,7 +94,10 @@ const InvoiceList = () => {
   };
 
   const handleDownloadPDF = (invoice: Invoice) => {
-    // Create a basic PDF content
+    // Create a basic PDF content with currency conversion
+    const amountINR = invoice.totalAmountINR || invoice.totalAmount || 0;
+    const gstINR = invoice.totalGst || 0;
+    
     const content = `
 INVOICE
 
@@ -103,16 +110,16 @@ Due Date: ${invoice.dueDate?.toLocaleDateString()}
 
 Items:
 ${invoice.items?.map(item => 
-  `${item.description} - Qty: ${item.quantity} - Rate: ₹${item.rate} - Amount: ₹${item.amount}`
+  `${item.description} - Qty: ${item.quantity} - Rate: ${formatAmount(item.rate)} - Amount: ${formatAmount(item.amount)}`
 ).join('\n')}
 
-Subtotal: ₹${invoice.subtotal?.toLocaleString()}
-CGST: ₹${invoice.cgst?.toLocaleString()}
-SGST: ₹${invoice.sgst?.toLocaleString()}
-IGST: ₹${invoice.igst?.toLocaleString()}
-Total GST: ₹${invoice.totalGst?.toLocaleString()}
+Subtotal: ${formatAmount(invoice.subtotal || 0)}
+CGST: ${formatAmount(invoice.cgst || 0)}
+SGST: ${formatAmount(invoice.sgst || 0)}
+IGST: ${formatAmount(invoice.igst || 0)}
+Total GST: ${formatAmount(gstINR)}
 
-TOTAL AMOUNT: ₹${invoice.totalAmount?.toLocaleString()}
+TOTAL AMOUNT: ${formatAmount(amountINR)}
 
 Notes: ${invoice.notes || 'N/A'}
 Terms: ${invoice.terms || 'N/A'}
@@ -134,16 +141,11 @@ Terms: ${invoice.terms || 'N/A'}
     });
   };
 
-  // Calculate totals for filtered invoices using totalAmountINR
-  const totalAmount = filteredInvoices.reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
-  const paidAmount = filteredInvoices.filter(inv => inv.status === 'paid').reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
-  const unpaidAmount = filteredInvoices.filter(inv => inv.status === 'sent' || inv.status === 'draft').reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
-  const overdueAmount = filteredInvoices.filter(inv => inv.status === 'overdue').reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
-
-  // Format currency to 2 decimal places
-  const formatINR = (amount: number) => {
-    return `₹${amount.toFixed(2)}`;
-  };
+  // Calculate totals for filtered invoices using totalAmountINR and convert
+  const totalAmountINR = filteredInvoices.reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
+  const paidAmountINR = filteredInvoices.filter(inv => inv.status === 'paid').reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
+  const unpaidAmountINR = filteredInvoices.filter(inv => inv.status === 'sent' || inv.status === 'draft').reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
+  const overdueAmountINR = filteredInvoices.filter(inv => inv.status === 'overdue').reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
 
   if (loading) {
     return (
@@ -158,25 +160,30 @@ Terms: ${invoice.terms || 'N/A'}
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-start">
         <h1 className="text-3xl font-bold">Invoice Management</h1>
-        <Button 
-          className="bg-blue-600 hover:bg-blue-700"
-          onClick={() => navigate('/invoices/new')}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Create Invoice
-        </Button>
+        <div className="flex gap-4 items-start">
+          <div className="w-64">
+            <CurrencySelector />
+          </div>
+          <Button 
+            className="bg-blue-600 hover:bg-blue-700"
+            onClick={() => navigate('/invoices/new')}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Create Invoice
+          </Button>
+        </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary Cards with converted amounts */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Amount</p>
-                <p className="text-2xl font-bold">{formatINR(totalAmount)}</p>
+                <p className="text-2xl font-bold">{formatAmount(totalAmountINR)}</p>
               </div>
               <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
                 <IndianRupee className="h-4 w-4 text-blue-600" />
@@ -190,7 +197,7 @@ Terms: ${invoice.terms || 'N/A'}
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Paid</p>
-                <p className="text-2xl font-bold text-green-600">{formatINR(paidAmount)}</p>
+                <p className="text-2xl font-bold text-green-600">{formatAmount(paidAmountINR)}</p>
               </div>
               <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
                 <IndianRupee className="h-4 w-4 text-green-600" />
@@ -204,7 +211,7 @@ Terms: ${invoice.terms || 'N/A'}
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Unpaid</p>
-                <p className="text-2xl font-bold text-yellow-600">{formatINR(unpaidAmount)}</p>
+                <p className="text-2xl font-bold text-yellow-600">{formatAmount(unpaidAmountINR)}</p>
               </div>
               <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
                 <IndianRupee className="h-4 w-4 text-yellow-600" />
@@ -218,7 +225,7 @@ Terms: ${invoice.terms || 'N/A'}
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Overdue</p>
-                <p className="text-2xl font-bold text-red-600">{formatINR(overdueAmount)}</p>
+                <p className="text-2xl font-bold text-red-600">{formatAmount(overdueAmountINR)}</p>
               </div>
               <div className="h-8 w-8 bg-red-100 rounded-full flex items-center justify-center">
                 <IndianRupee className="h-4 w-4 text-red-600" />
@@ -293,85 +300,90 @@ Terms: ${invoice.terms || 'N/A'}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredInvoices.map((invoice) => (
-                    <TableRow key={invoice.id}>
-                      <TableCell>
-                        <div className="font-medium">{invoice.invoiceNumber || 'N/A'}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{invoice.clientName || 'N/A'}</div>
-                          <div className="text-sm text-gray-500">{invoice.clientEmail || 'N/A'}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{formatINR(invoice.totalAmountINR || invoice.totalAmount || 0)}</div>
-                        <div className="text-sm text-gray-500">GST: {formatINR(invoice.totalGst || 0)}</div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(invoice.status || 'draft')}>
-                          {(invoice.status || 'draft').charAt(0).toUpperCase() + (invoice.status || 'draft').slice(1)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center text-sm">
-                          <Calendar className="w-3 h-3 mr-1 text-gray-400" />
-                          {invoice.issueDate ? invoice.issueDate.toLocaleDateString() : 'N/A'}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className={`flex items-center text-sm ${
-                          invoice.status === 'overdue' ? 'text-red-600' : ''
-                        }`}>
-                          <Calendar className="w-3 h-3 mr-1 text-gray-400" />
-                          {invoice.dueDate ? invoice.dueDate.toLocaleDateString() : 'N/A'}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            title="View Invoice"
-                            onClick={() => handleViewInvoice(invoice)}
-                          >
-                            <Eye className="w-3 h-3" />
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            title="Download PDF"
-                            onClick={() => handleDownloadPDF(invoice)}
-                          >
-                            <Download className="w-3 h-3" />
-                          </Button>
-                          <Button variant="outline" size="sm" title="Send Email">
-                            <Mail className="w-3 h-3" />
-                          </Button>
-                          {(invoice.status === 'sent' || invoice.status === 'overdue') && (
+                  {filteredInvoices.map((invoice) => {
+                    const amountINR = invoice.totalAmountINR || invoice.totalAmount || 0;
+                    const gstINR = invoice.totalGst || 0;
+                    
+                    return (
+                      <TableRow key={invoice.id}>
+                        <TableCell>
+                          <div className="font-medium">{invoice.invoiceNumber || 'N/A'}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{invoice.clientName || 'N/A'}</div>
+                            <div className="text-sm text-gray-500">{invoice.clientEmail || 'N/A'}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">{formatAmount(amountINR)}</div>
+                          <div className="text-sm text-gray-500">GST: {formatAmount(gstINR)}</div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(invoice.status || 'draft')}>
+                            {(invoice.status || 'draft').charAt(0).toUpperCase() + (invoice.status || 'draft').slice(1)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center text-sm">
+                            <Calendar className="w-3 h-3 mr-1 text-gray-400" />
+                            {invoice.issueDate ? invoice.issueDate.toLocaleDateString() : 'N/A'}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className={`flex items-center text-sm ${
+                            invoice.status === 'overdue' ? 'text-red-600' : ''
+                          }`}>
+                            <Calendar className="w-3 h-3 mr-1 text-gray-400" />
+                            {invoice.dueDate ? invoice.dueDate.toLocaleDateString() : 'N/A'}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
                             <Button 
                               variant="outline" 
                               size="sm" 
-                              onClick={() => handleMarkAsPaid(invoice.id)}
-                              className="text-green-600 hover:text-green-700"
-                              title="Mark as Paid"
+                              title="View Invoice"
+                              onClick={() => handleViewInvoice(invoice)}
                             >
-                              ✓
+                              <Eye className="w-3 h-3" />
                             </Button>
-                          )}
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleDeleteInvoice(invoice.id)}
-                            className="text-red-600 hover:text-red-700"
-                            title="Delete Invoice"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              title="Download PDF"
+                              onClick={() => handleDownloadPDF(invoice)}
+                            >
+                              <Download className="w-3 h-3" />
+                            </Button>
+                            <Button variant="outline" size="sm" title="Send Email">
+                              <Mail className="w-3 h-3" />
+                            </Button>
+                            {(invoice.status === 'sent' || invoice.status === 'overdue') && (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => handleMarkAsPaid(invoice.id)}
+                                className="text-green-600 hover:text-green-700"
+                                title="Mark as Paid"
+                              >
+                                ✓
+                              </Button>
+                            )}
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleDeleteInvoice(invoice.id)}
+                              className="text-red-600 hover:text-red-700"
+                              title="Delete Invoice"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
