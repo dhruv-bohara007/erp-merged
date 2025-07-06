@@ -6,6 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
+import CurrencyDropdown from './CurrencyDropdown';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -96,6 +97,9 @@ const AdminNavigation = () => {
                 </NavLink>
               ))}
             </nav>
+            
+            {/* Currency Dropdown */}
+            <CurrencyDropdown />
             
             {/* Theme Toggle */}
             <div className="px-2 mb-4">
@@ -193,8 +197,13 @@ const AdminNavigation = () => {
                 </NavLink>
               ))}
               
-              {/* Mobile Theme Toggle */}
+              {/* Mobile Currency Dropdown */}
               <div className="px-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <CurrencyDropdown className="px-0" />
+              </div>
+              
+              {/* Mobile Theme Toggle */}
+              <div className="px-4">
                 <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg mb-3">
                   <div className="flex items-center space-x-2">
                     {theme === 'light' ? (
