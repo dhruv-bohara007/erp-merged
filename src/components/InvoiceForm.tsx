@@ -47,6 +47,12 @@ const InvoiceForm = () => {
 
   const [selectedClient, setSelectedClient] = useState<any>(null);
 
+  // Calculate totals first (moved before useEffect to fix declaration order)
+  const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
+  const companyCountry = companyData?.country || 'US';
+  const clientCountry = selectedClient?.country || 'US';
+  const taxCalculation = calculateTaxes(subtotal, companyCountry, clientCountry);
+
   // Find selected client details
   useEffect(() => {
     if (invoiceData.clientId) {
@@ -62,10 +68,6 @@ const InvoiceForm = () => {
     const convertAmounts = async () => {
       if (!selectedClient) return;
 
-      const companyCountry = companyData?.country || 'US';
-      const clientCountry = selectedClient?.country || 'US';
-      
-      const taxCalculation = calculateTaxes(subtotal, companyCountry, clientCountry);
       const companyTotal = taxCalculation.totalAmount;
 
       try {
@@ -119,14 +121,6 @@ const InvoiceForm = () => {
     }));
   };
 
-  // Calculate totals with dynamic taxes
-  const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
-  
-  const companyCountry = companyData?.country || 'US';
-  const clientCountry = selectedClient?.country || 'US';
-  
-  const taxCalculation = calculateTaxes(subtotal, companyCountry, clientCountry);
-  
   // Currency info
   const companyCurrency = getCurrencyInfo(companyCountry);
   const clientCurrency = getCurrencyInfo(clientCountry);

@@ -1,5 +1,3 @@
-
-
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { Company, Client, Invoice, Payment, GSTReturn, TDSRecord } from '../types/firestore';
@@ -21,7 +19,7 @@ export const initializeCollections = async () => {
         accountNumber: '123456789012',
         ifscCode: 'HDFC0001234',
         bankName: 'HDFC Bank',
-        accountHolderName: 'TechSolutions Pvt Ltd'
+        accountHolderName: 'TechSolutions PvLtd'
       },
       currency: 'INR',
       defaultCGST: 9,
@@ -89,35 +87,41 @@ export const initializeCollections = async () => {
       console.log('Client added with ID:', clientRef.id);
     }
 
-    // Sample Invoice Data
+    // Sample Invoice Data with required currency fields
     const sampleInvoice: Omit<Invoice, 'id'> = {
       invoiceNumber: 'INV-2024-001',
       clientId: clientRefs[0].id,
       clientName: 'ABC Corporation',
       clientEmail: 'contact@abccorp.com',
-      clientGSTIN: '07AABCA1234N1Z9',
+      clientState: 'Delhi',
       issueDate: Timestamp.now(),
       dueDate: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)), // 30 days from now
-      status: 'unpaid',
+      status: 'sent',
       items: [
         {
-          id: '1',
           description: 'Software Development Services',
-          hsn: '998314',
           quantity: 1,
           rate: 100000,
           amount: 100000
         }
       ],
       subtotal: 100000,
-      discount: 0,
-      discountAmount: 0,
-      isInterState: true, // Mumbai to Delhi
-      igstRate: 18,
-      igstAmount: 18000,
-      totalGST: 18000,
-      total: 118000,
-      currency: 'INR',
+      cgst: 9000,
+      sgst: 9000,
+      igst: 0,
+      totalGst: 18000,
+      totalAmount: 118000,
+      // Required currency fields
+      totalAmountINR: 118000, // Since company is in India, INR amount is same as totalAmount
+      companyCurrency: 'INR',
+      companyAmount: 118000,
+      clientCurrency: 'INR', // Client is also in India
+      clientAmount: 118000,
+      conversionRate: {
+        companyToINR: 1, // No conversion needed for INR to INR
+        INRToClient: 1,
+        timestamp: Timestamp.now()
+      },
       notes: 'Payment due within 30 days',
       terms: 'Net 30 days payment terms',
       createdAt: Timestamp.now(),
@@ -197,4 +201,3 @@ export const initializeCollections = async () => {
     return false;
   }
 };
-
