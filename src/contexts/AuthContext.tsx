@@ -16,6 +16,7 @@ export interface AuthUser extends User {
   role?: UserRole;
   companyId?: string;
   hasCompletedSetup?: boolean;
+  country?: string;
 }
 
 interface AuthContextType {
@@ -49,7 +50,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...user,
       role: userData?.role || 'company_admin',
       companyId: userData?.companyId,
-      hasCompletedSetup: userData?.hasCompletedSetup || false
+      hasCompletedSetup: userData?.hasCompletedSetup || false,
+      country: userData?.country
     };
   };
 
