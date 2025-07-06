@@ -1,3 +1,4 @@
+
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { Company, Client, Invoice, Payment, GSTReturn, TDSRecord } from '../types/firestore';
@@ -87,18 +88,18 @@ export const initializeCollections = async () => {
       console.log('Client added with ID:', clientRef.id);
     }
 
-    // Sample Invoice Data - simplified to match the actual Invoice type
+    // Sample Invoice Data - using correct property names from Invoice interface
     const sampleInvoice: Omit<Invoice, 'id'> = {
       invoiceNumber: 'INV-2024-001',
       clientId: clientRefs[0].id,
       clientName: 'ABC Corporation',
       clientEmail: 'contact@abccorp.com',
+      clientState: 'Delhi',
       issueDate: Timestamp.now(),
       dueDate: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)), // 30 days from now
       status: 'sent',
       items: [
         {
-          id: '1',
           description: 'Software Development Services',
           quantity: 1,
           rate: 100000,
@@ -106,9 +107,10 @@ export const initializeCollections = async () => {
         }
       ],
       subtotal: 100000,
-      totalGST: 18000,
-      totalAmount: 118000,
-      // Required currency fields
+      cgst: 9000,
+      sgst: 9000,
+      igst: 0,
+      totalGst: 18000,
       totalAmountINR: 118000,
       companyCurrency: 'INR',
       companyAmount: 118000,
