@@ -348,7 +348,7 @@ const InvoiceForm = () => {
                       {currencyLoading ? (
                         <Loader2 className="w-4 h-4 animate-spin inline" />
                       ) : (
-                        formatCurrency(currencyAmounts.clientAmount, clientCountry)
+                        `${clientCurrency.symbol}${currencyAmounts.clientAmount.toFixed(2)}`
                       )}
                     </span>
                   </div>
@@ -358,7 +358,7 @@ const InvoiceForm = () => {
               {/* Exchange Rate Info */}
               {selectedClient && currencyAmounts.companyToINRRate !== 1 && (
                 <div className="text-xs text-gray-500 mt-2">
-                  <p>Exchange rates: 1 {companyCurrency.code} = ₹{(1/currencyAmounts.companyToINRRate).toFixed(4)}</p>
+                  <p>Exchange rates: 1 {companyCurrency.code} = ₹{currencyAmounts.companyToINRRate.toFixed(4)}</p>
                   {companyCountry !== clientCountry && (
                     <p>1 INR = {currencyAmounts.INRToClientRate.toFixed(4)} {clientCurrency.code}</p>
                   )}

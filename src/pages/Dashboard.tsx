@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,15 +27,15 @@ const Dashboard = () => {
   const { clients, loading: clientsLoading } = useClients();
   const { payments, loading: paymentsLoading } = usePayments();
 
-  // Calculate dashboard metrics
+  // Calculate dashboard metrics using totalAmountINR
   const totalInvoices = invoices.length;
   const paidInvoices = invoices.filter(inv => inv.status === 'paid');
   const unpaidInvoices = invoices.filter(inv => inv.status === 'sent' || inv.status === 'draft');
   const overdueInvoices = invoices.filter(inv => inv.status === 'overdue');
 
-  const totalPaidAmount = paidInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
-  const totalUnpaidAmount = unpaidInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
-  const totalOverdueAmount = overdueInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+  const totalPaidAmount = paidInvoices.reduce((sum, inv) => sum + (inv.totalAmountINR || inv.totalAmount || 0), 0);
+  const totalUnpaidAmount = unpaidInvoices.reduce((sum, inv) => sum + (inv.totalAmountINR || inv.totalAmount || 0), 0);
+  const totalOverdueAmount = overdueInvoices.reduce((sum, inv) => sum + (inv.totalAmountINR || inv.totalAmount || 0), 0);
 
   // Status data for pie chart
   const statusData = [
@@ -45,7 +44,7 @@ const Dashboard = () => {
     { name: 'Overdue', value: overdueInvoices.length, color: '#EF4444' },
   ];
 
-  // Monthly revenue data (last 6 months)
+  // Monthly revenue data (last 6 months) using totalAmountINR
   const getMonthlyRevenue = () => {
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const last6Months = [];
@@ -61,7 +60,7 @@ const Dashboard = () => {
           const invDate = new Date(inv.issueDate);
           return invDate.getMonth() === date.getMonth() && invDate.getFullYear() === date.getFullYear();
         })
-        .reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+        .reduce((sum, inv) => sum + (inv.totalAmountINR || inv.totalAmount || 0), 0);
       
       last6Months.push({ month: monthYear, revenue: monthlyTotal });
     }
@@ -69,17 +68,16 @@ const Dashboard = () => {
     return last6Months;
   };
 
-  const revenueData = getMonthlyRevenue();
-
-  // Top clients by total invoice value
+  // Top clients by total invoice value using totalAmountINR
   const getTopClients = () => {
     const clientTotals = new Map();
     
     invoices.forEach(invoice => {
-      if (!invoice.clientId || !invoice.clientName || !invoice.totalAmount) return;
+      if (!invoice.clientId || !invoice.clientName) return;
+      const invoiceAmount = invoice.totalAmountINR || invoice.totalAmount || 0;
       
       const current = clientTotals.get(invoice.clientId) || { name: invoice.clientName, total: 0 };
-      current.total += invoice.totalAmount;
+      current.total += invoiceAmount;
       clientTotals.set(invoice.clientId, current);
     });
     
@@ -138,16 +136,10 @@ const Dashboard = () => {
     return 'Just now';
   };
 
-  const recentActivities = getRecentActivities();
-
   const formatIndianCurrency = (amount: number) => {
-    if (!amount) return '₹0';
+    if (!amount) return '₹0.00';
     
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0
-    }).format(amount);
+    return `₹${amount.toFixed(2)}`;
   };
 
   if (invoicesLoading || clientsLoading || paymentsLoading) {

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -135,11 +134,16 @@ Terms: ${invoice.terms || 'N/A'}
     });
   };
 
-  // Calculate totals for filtered invoices with null checks
-  const totalAmount = filteredInvoices.reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
-  const paidAmount = filteredInvoices.filter(inv => inv.status === 'paid').reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
-  const unpaidAmount = filteredInvoices.filter(inv => inv.status === 'sent' || inv.status === 'draft').reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
-  const overdueAmount = filteredInvoices.filter(inv => inv.status === 'overdue').reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
+  // Calculate totals for filtered invoices using totalAmountINR
+  const totalAmount = filteredInvoices.reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
+  const paidAmount = filteredInvoices.filter(inv => inv.status === 'paid').reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
+  const unpaidAmount = filteredInvoices.filter(inv => inv.status === 'sent' || inv.status === 'draft').reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
+  const overdueAmount = filteredInvoices.filter(inv => inv.status === 'overdue').reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
+
+  // Format currency to 2 decimal places
+  const formatINR = (amount: number) => {
+    return `₹${amount.toFixed(2)}`;
+  };
 
   if (loading) {
     return (
@@ -172,7 +176,7 @@ Terms: ${invoice.terms || 'N/A'}
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Amount</p>
-                <p className="text-2xl font-bold">₹{totalAmount.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{formatINR(totalAmount)}</p>
               </div>
               <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
                 <IndianRupee className="h-4 w-4 text-blue-600" />
@@ -186,7 +190,7 @@ Terms: ${invoice.terms || 'N/A'}
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Paid</p>
-                <p className="text-2xl font-bold text-green-600">₹{paidAmount.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-green-600">{formatINR(paidAmount)}</p>
               </div>
               <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
                 <IndianRupee className="h-4 w-4 text-green-600" />
@@ -200,7 +204,7 @@ Terms: ${invoice.terms || 'N/A'}
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Unpaid</p>
-                <p className="text-2xl font-bold text-yellow-600">₹{unpaidAmount.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-yellow-600">{formatINR(unpaidAmount)}</p>
               </div>
               <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
                 <IndianRupee className="h-4 w-4 text-yellow-600" />
@@ -214,7 +218,7 @@ Terms: ${invoice.terms || 'N/A'}
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Overdue</p>
-                <p className="text-2xl font-bold text-red-600">₹{overdueAmount.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-red-600">{formatINR(overdueAmount)}</p>
               </div>
               <div className="h-8 w-8 bg-red-100 rounded-full flex items-center justify-center">
                 <IndianRupee className="h-4 w-4 text-red-600" />
@@ -301,8 +305,8 @@ Terms: ${invoice.terms || 'N/A'}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium">₹{(invoice.totalAmount || 0).toLocaleString()}</div>
-                        <div className="text-sm text-gray-500">GST: ₹{(invoice.totalGst || 0).toLocaleString()}</div>
+                        <div className="font-medium">{formatINR(invoice.totalAmountINR || invoice.totalAmount || 0)}</div>
+                        <div className="text-sm text-gray-500">GST: {formatINR(invoice.totalGst || 0)}</div>
                       </TableCell>
                       <TableCell>
                         <Badge className={getStatusColor(invoice.status || 'draft')}>
