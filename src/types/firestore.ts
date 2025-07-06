@@ -82,6 +82,17 @@ export interface Invoice {
   totalGST: number;
   total: number;
   currency: string; // 'INR'
+  // New currency conversion fields
+  totalAmountINR: number; // Final amount stored in INR
+  companyCurrency: string; // Original company currency (e.g., 'EUR', 'USD')
+  companyAmount: number; // Amount in company's original currency
+  clientCurrency: string; // Client's local currency
+  clientAmount: number; // Amount converted to client's currency from INR
+  conversionRate?: {
+    companyToINR: number; // Rate used for company currency → INR
+    INRToClient: number; // Rate used for INR → client currency
+    timestamp: Timestamp; // When the conversion was done
+  };
   notes?: string;
   terms?: string;
   paidDate?: Timestamp;

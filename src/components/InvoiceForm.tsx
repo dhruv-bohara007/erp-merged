@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,9 +21,17 @@ const InvoiceForm = () => {
   const { clients } = useClients();
   const { companyData } = useCompanyData();
   const { calculateTaxes, getTaxDisplayName } = useTaxCalculations();
-  const { convertCurrency, formatCurrency, getCurrencyInfo, loading: currencyLoading } = useCurrencyConverter();
+  const { convertToINR, convertFromINR, formatCurrency, getCurrencyInfo, loading: currencyLoading } = useCurrencyConverter();
   
   const [loading, setLoading] = useState(false);
+  const [currencyAmounts, setCurrencyAmounts] = useState({
+    companyAmount: 0,
+    totalAmountINR: 0,
+    clientAmount: 0,
+    companyToINRRate: 1,
+    INRToClientRate: 1
+  });
+
   const [invoiceData, setInvoiceData] = useState({
     invoiceNumber: `INV-${Date.now().toString().slice(-6)}`,
     issueDate: new Date().toISOString().split('T')[0],
@@ -49,6 +56,39 @@ const InvoiceForm = () => {
       setSelectedClient(null);
     }
   }, [invoiceData.clientId, clients]);
+
+  // Real-time currency conversion effect
+  useEffect(() => {
+    const convertAmounts = async () => {
+      if (!selectedClient) return;
+
+      const companyCountry = companyData?.country || 'US';
+      const clientCountry = selectedClient?.country || 'US';
+      
+      const taxCalculation = calculateTaxes(subtotal, companyCountry, clientCountry);
+      const companyTotal = taxCalculation.totalAmount;
+
+      try {
+        // Convert company currency to INR
+        const { amountInINR, rate: companyToINRRate } = await convertToINR(companyTotal, companyCountry);
+        
+        // Convert INR to client currency
+        const { convertedAmount: clientTotal, rate: INRToClientRate } = await convertFromINR(amountInINR, clientCountry);
+
+        setCurrencyAmounts({
+          companyAmount: companyTotal,
+          totalAmountINR: amountInINR,
+          clientAmount: clientTotal,
+          companyToINRRate,
+          INRToClientRate
+        });
+      } catch (error) {
+        console.error('Currency conversion failed:', error);
+      }
+    };
+
+    convertAmounts();
+  }, [subtotal, selectedClient, companyData?.country, convertToINR, convertFromINR, calculateTaxes]);
 
   const addItem = () => {
     const newItem: InvoiceItem = {
@@ -86,12 +126,10 @@ const InvoiceForm = () => {
   const clientCountry = selectedClient?.country || 'US';
   
   const taxCalculation = calculateTaxes(subtotal, companyCountry, clientCountry);
-  const totalAmount = taxCalculation.totalAmount;
   
-  // Currency conversion
+  // Currency info
   const companyCurrency = getCurrencyInfo(companyCountry);
   const clientCurrency = getCurrencyInfo(clientCountry);
-  const convertedAmount = convertCurrency(totalAmount, companyCountry, clientCountry);
 
   const handleSubmit = async (status: 'draft' | 'sent') => {
     if (!invoiceData.clientId) {
@@ -136,7 +174,18 @@ const InvoiceForm = () => {
         sgst: taxCalculation.taxes.find(t => t.name === 'SGST')?.amount || 0,
         igst: taxCalculation.taxes.find(t => t.name === 'IGST')?.amount || 0,
         totalGst: taxCalculation.totalTaxAmount,
-        totalAmount,
+        totalAmount: currencyAmounts.companyAmount,
+        // New currency fields
+        totalAmountINR: currencyAmounts.totalAmountINR,
+        companyCurrency: companyCurrency.code,
+        companyAmount: currencyAmounts.companyAmount,
+        clientCurrency: clientCurrency.code,
+        clientAmount: currencyAmounts.clientAmount,
+        conversionRate: {
+          companyToINR: currencyAmounts.companyToINRRate,
+          INRToClient: currencyAmounts.INRToClientRate,
+          timestamp: new Date()
+        },
         status,
         issueDate: new Date(invoiceData.issueDate),
         dueDate: new Date(invoiceData.dueDate),
@@ -251,7 +300,7 @@ const InvoiceForm = () => {
           </CardContent>
         </Card>
 
-        {/* Invoice Summary with Dynamic Taxes and Currency */}
+        {/* Enhanced Invoice Summary with Multi-Currency Display */}
         <Card>
           <CardHeader>
             <CardTitle>Invoice Summary</CardTitle>
@@ -279,33 +328,46 @@ const InvoiceForm = () => {
               )}
               
               <Separator />
-              <div className="flex justify-between font-bold text-lg">
-                <span>Total Amount ({companyCurrency.code}):</span>
-                <span>{formatCurrency(totalAmount, companyCountry)}</span>
+              
+              {/* Multi-Currency Display */}
+              <div className="space-y-3 bg-blue-50 p-4 rounded-lg">
+                <div className="flex justify-between font-bold text-lg">
+                  <span>Company Currency ({companyCurrency.code}):</span>
+                  <span>{formatCurrency(currencyAmounts.companyAmount, companyCountry)}</span>
+                </div>
+                
+                <div className="flex justify-between text-sm text-blue-700">
+                  <span>Converted to INR:</span>
+                  <span>
+                    {currencyLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin inline" />
+                    ) : (
+                      `₹${currencyAmounts.totalAmountINR.toFixed(2)}`
+                    )}
+                  </span>
+                </div>
+
+                {selectedClient && companyCountry !== clientCountry && (
+                  <div className="flex justify-between text-sm text-green-700">
+                    <span>Client Currency ({clientCurrency.code}):</span>
+                    <span>
+                      {currencyLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin inline" />
+                      ) : (
+                        formatCurrency(currencyAmounts.clientAmount, clientCountry)
+                      )}
+                    </span>
+                  </div>
+                )}
               </div>
 
-              {/* Currency Conversion Display */}
-              {selectedClient && companyCountry !== clientCountry && (
-                <div className="mt-4 p-3 bg-green-50 rounded-lg">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-sm font-medium text-green-900">
-                        Amount in {clientCurrency.name}:
-                      </p>
-                      <p className="text-xs text-green-700">
-                        For client reference
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      {currencyLoading ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <p className="text-lg font-bold text-green-900">
-                          {formatCurrency(convertedAmount, clientCountry)}
-                        </p>
-                      )}
-                    </div>
-                  </div>
+              {/* Exchange Rate Info */}
+              {selectedClient && currencyAmounts.companyToINRRate !== 1 && (
+                <div className="text-xs text-gray-500 mt-2">
+                  <p>Exchange rates: 1 {companyCurrency.code} = ₹{(1/currencyAmounts.companyToINRRate).toFixed(4)}</p>
+                  {companyCountry !== clientCountry && (
+                    <p>1 INR = {currencyAmounts.INRToClientRate.toFixed(4)} {clientCurrency.code}</p>
+                  )}
                 </div>
               )}
             </div>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { 
   collection, 
@@ -30,6 +29,17 @@ export interface Invoice {
   igst: number;
   totalGst: number;
   totalAmount: number;
+  // New currency fields
+  totalAmountINR: number;
+  companyCurrency: string;
+  companyAmount: number;
+  clientCurrency: string;
+  clientAmount: number;
+  conversionRate?: {
+    companyToINR: number;
+    INRToClient: number;
+    timestamp: Date;
+  };
   status: 'draft' | 'sent' | 'paid' | 'overdue';
   issueDate: Date;
   dueDate: Date;
@@ -139,14 +149,27 @@ export const useInvoices = () => {
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
         console.log('Invoices snapshot received:', snapshot.docs.length, 'documents');
-        const invoiceData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          issueDate: doc.data().issueDate?.toDate(),
-          dueDate: doc.data().dueDate?.toDate(),
-          createdAt: doc.data().createdAt?.toDate(),
-          updatedAt: doc.data().updatedAt?.toDate(),
-        })) as Invoice[];
+        const invoiceData = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            // Handle new currency fields with fallbacks
+            totalAmountINR: data.totalAmountINR || data.totalAmount || 0,
+            companyCurrency: data.companyCurrency || 'INR',
+            companyAmount: data.companyAmount || data.totalAmount || 0,
+            clientCurrency: data.clientCurrency || 'INR',
+            clientAmount: data.clientAmount || data.totalAmount || 0,
+            conversionRate: data.conversionRate ? {
+              ...data.conversionRate,
+              timestamp: data.conversionRate.timestamp?.toDate?.() || new Date()
+            } : undefined,
+            issueDate: data.issueDate?.toDate(),
+            dueDate: data.dueDate?.toDate(),
+            createdAt: data.createdAt?.toDate(),
+            updatedAt: data.updatedAt?.toDate(),
+          };
+        }) as Invoice[];
         
         // Sort in memory instead of using orderBy to avoid composite index
         invoiceData.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
@@ -176,6 +199,10 @@ export const useInvoices = () => {
         companyId: currentUser.companyId,
         issueDate: Timestamp.fromDate(invoice.issueDate),
         dueDate: Timestamp.fromDate(invoice.dueDate),
+        conversionRate: invoice.conversionRate ? {
+          ...invoice.conversionRate,
+          timestamp: Timestamp.fromDate(invoice.conversionRate.timestamp)
+        } : undefined,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       });

@@ -1,5 +1,5 @@
-
 import { useState, useEffect } from 'react';
+import { exchangeRateService } from '@/services/exchangeRateService';
 
 interface ExchangeRates {
   [key: string]: number;
@@ -34,60 +34,60 @@ export const currencyMap: Record<string, CurrencyInfo> = {
 };
 
 export const useCurrencyConverter = () => {
-  const [rates, setRates] = useState<ExchangeRates>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchRates = async () => {
-      setLoading(true);
-      try {
-        // Using a free API that doesn't require keys - exchangerate-api.com
-        const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
-        const data = await response.json();
-        setRates(data.rates);
-        setError(null);
-      } catch (err) {
-        console.error('Error fetching exchange rates:', err);
-        setError('Failed to fetch exchange rates');
-        // Fallback rates for basic conversion
-        setRates({
-          USD: 1,
-          INR: 83,
-          GBP: 0.79,
-          EUR: 0.85,
-          CAD: 1.35,
-          AUD: 1.50,
-          JPY: 150,
-          CNY: 7.2,
-          SGD: 1.35,
-          HKD: 7.8,
-          MXN: 17,
-          BRL: 5,
-          ZAR: 18,
-          AED: 3.67,
-          SAR: 3.75,
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
+  const convertToINR = async (amount: number, fromCountry: string): Promise<{ amountInINR: number; rate: number }> => {
+    const fromCurrency = currencyMap[fromCountry]?.code || 'USD';
+    
+    setLoading(true);
+    try {
+      const result = await exchangeRateService.convertToINR(amount, fromCurrency);
+      setError(null);
+      return result;
+    } catch (err) {
+      console.error('Error converting to INR:', err);
+      setError('Failed to convert currency');
+      return { amountInINR: amount, rate: 1 };
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchRates();
-  }, []);
+  const convertFromINR = async (amountINR: number, toCountry: string): Promise<{ convertedAmount: number; rate: number }> => {
+    const toCurrency = currencyMap[toCountry]?.code || 'USD';
+    
+    setLoading(true);
+    try {
+      const result = await exchangeRateService.convertFromINR(amountINR, toCurrency);
+      setError(null);
+      return result;
+    } catch (err) {
+      console.error('Error converting from INR:', err);
+      setError('Failed to convert currency');
+      return { convertedAmount: amountINR, rate: 1 };
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const convertCurrency = (amount: number, fromCountry: string, toCountry: string): number => {
+    // This is a legacy method, kept for compatibility but not recommended for new code
     const fromCurrency = currencyMap[fromCountry]?.code || 'USD';
     const toCurrency = currencyMap[toCountry]?.code || 'USD';
     
     if (fromCurrency === toCurrency) return amount;
     
-    const fromRate = rates[fromCurrency] || 1;
-    const toRate = rates[toCurrency] || 1;
+    // Basic fallback conversion (not real-time)
+    const fallbackRates: Record<string, number> = {
+      USD: 83, INR: 1, EUR: 91, GBP: 105, JPY: 0.55, CAD: 61, AUD: 55
+    };
     
-    // Convert to USD first, then to target currency
-    const usdAmount = amount / fromRate;
-    return usdAmount * toRate;
+    const fromRate = fallbackRates[fromCurrency] || 83;
+    const toRate = fallbackRates[toCurrency] || 83;
+    
+    const inrAmount = amount * fromRate;
+    return inrAmount / toRate;
   };
 
   const getCurrencyInfo = (countryCode: string): CurrencyInfo => {
@@ -100,11 +100,12 @@ export const useCurrencyConverter = () => {
   };
 
   return {
-    convertCurrency,
+    convertToINR,
+    convertFromINR,
+    convertCurrency, // legacy method
     getCurrencyInfo,
     formatCurrency,
     loading,
-    error,
-    rates
+    error
   };
 };
