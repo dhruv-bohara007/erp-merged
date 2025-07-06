@@ -99,6 +99,7 @@ export const initializeCollections = async () => {
       status: 'sent',
       items: [
         {
+          id: '1',
           description: 'Software Development Services',
           quantity: 1,
           rate: 100000,
