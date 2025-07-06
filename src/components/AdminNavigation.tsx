@@ -1,15 +1,11 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { countries } from '@/data/countries';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -25,14 +21,11 @@ import {
   Package,
   TrendingUp,
   Moon,
-  Sun,
-  AlertTriangle
+  Sun
 } from 'lucide-react';
 
 const AdminNavigation = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [userCountry, setUserCountry] = useState<string>('');
-  const [isUpdatingCountry, setIsUpdatingCountry] = useState(false);
   const location = useLocation();
   const { currentUser, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -70,43 +63,6 @@ const AdminNavigation = () => {
     }
   };
 
-  // Load user's country from user data
-  useEffect(() => {
-    if (currentUser?.country) {
-      setUserCountry(currentUser.country);
-    }
-  }, [currentUser]);
-
-  // Handle country change
-  const handleCountryChange = async (newCountry: string) => {
-    if (!currentUser?.uid) return;
-    
-    setIsUpdatingCountry(true);
-    try {
-      const userRef = doc(db, 'users', currentUser.uid);
-      await updateDoc(userRef, { country: newCountry });
-      setUserCountry(newCountry);
-      
-      toast({
-        title: 'Country Updated',
-        description: 'Your country preference has been updated successfully.',
-      });
-    } catch (error) {
-      console.error('Error updating country:', error);
-      toast({
-        title: 'Update Failed',
-        description: 'Failed to update country preference',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsUpdatingCountry(false);
-    }
-  };
-
-  // Check if current country is recognized
-  const isCountryRecognized = countries.some(country => country.value === userCountry);
-  const selectedCountry = countries.find(country => country.value === userCountry);
-
   return (
     <>
       {/* Desktop Sidebar */}
@@ -115,32 +71,6 @@ const AdminNavigation = () => {
           <div className="flex items-center flex-shrink-0 px-4">
             <Building className="h-8 w-8 text-blue-600 dark:text-blue-400" />
             <span className="ml-2 text-xl font-semibold text-gray-900 dark:text-white">InvoiceApp</span>
-          </div>
-          
-          {/* Country Dropdown */}
-          <div className="mt-6 px-4">
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
-              Country
-            </label>
-            <Select value={userCountry} onValueChange={handleCountryChange} disabled={isUpdatingCountry}>
-              <SelectTrigger className="w-full">
-                <div className="flex items-center">
-                  {!isCountryRecognized && userCountry && (
-                    <AlertTriangle className="h-4 w-4 text-yellow-500 mr-2" />
-                  )}
-                  <SelectValue placeholder="Select country">
-                    {selectedCountry ? selectedCountry.label : userCountry || 'Select country'}
-                  </SelectValue>
-                </div>
-              </SelectTrigger>
-              <SelectContent>
-                {countries.map((country) => (
-                  <SelectItem key={country.value} value={country.value}>
-                    {country.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
           
           <div className="mt-8 flex-1 flex flex-col">
@@ -241,32 +171,6 @@ const AdminNavigation = () => {
         {isMobileMenuOpen && (
           <div className="lg:hidden">
             <div className="pt-2 pb-3 space-y-1 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-              {/* Mobile Country Dropdown */}
-              <div className="px-4 pb-4 border-b border-gray-200 dark:border-gray-700">
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
-                  Country
-                </label>
-                <Select value={userCountry} onValueChange={handleCountryChange} disabled={isUpdatingCountry}>
-                  <SelectTrigger className="w-full">
-                    <div className="flex items-center">
-                      {!isCountryRecognized && userCountry && (
-                        <AlertTriangle className="h-4 w-4 text-yellow-500 mr-2" />
-                      )}
-                      <SelectValue placeholder="Select country">
-                        {selectedCountry ? selectedCountry.label : userCountry || 'Select country'}
-                      </SelectValue>
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {countries.map((country) => (
-                      <SelectItem key={country.value} value={country.value}>
-                        {country.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
               {navItems.map((item) => (
                 <NavLink
                   key={item.to}
