@@ -1,4 +1,3 @@
-
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { Company, Client, Invoice, Payment, GSTReturn, TDSRecord } from '../types/firestore';
@@ -88,7 +87,7 @@ export const initializeCollections = async () => {
       console.log('Client added with ID:', clientRef.id);
     }
 
-    // Sample Invoice Data with required currency fields
+    // Sample Invoice Data - simplified to match the actual Invoice type
     const sampleInvoice: Omit<Invoice, 'id'> = {
       invoiceNumber: 'INV-2024-001',
       clientId: clientRefs[0].id,
@@ -107,19 +106,16 @@ export const initializeCollections = async () => {
         }
       ],
       subtotal: 100000,
-      cgst: 9000,
-      sgst: 9000,
-      igst: 0,
       totalGst: 18000,
       totalAmount: 118000,
       // Required currency fields
-      totalAmountINR: 118000, // Since company is in India, INR amount is same as totalAmount
+      totalAmountINR: 118000,
       companyCurrency: 'INR',
       companyAmount: 118000,
-      clientCurrency: 'INR', // Client is also in India
+      clientCurrency: 'INR',
       clientAmount: 118000,
       conversionRate: {
-        companyToINR: 1, // No conversion needed for INR to INR
+        companyToINR: 1,
         INRToClient: 1,
         timestamp: Timestamp.now()
       },
