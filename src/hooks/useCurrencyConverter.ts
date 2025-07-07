@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { exchangeRateService } from '@/services/exchangeRateService';
 
@@ -71,8 +72,43 @@ export const useCurrencyConverter = () => {
     }
   };
 
+  // New method for full company to client conversion
+  const convertCompanyToClient = async (
+    amount: number, 
+    companyCountry: string, 
+    clientCountry: string
+  ): Promise<{
+    companyAmount: number;
+    amountInINR: number;
+    clientAmount: number;
+    companyToINRRate: number;
+    INRToClientRate: number;
+  }> => {
+    const companyCurrency = currencyMap[companyCountry]?.code || 'USD';
+    const clientCurrency = currencyMap[clientCountry]?.code || 'USD';
+    
+    setLoading(true);
+    try {
+      const result = await exchangeRateService.convertCompanyToClient(amount, companyCurrency, clientCurrency);
+      setError(null);
+      return result;
+    } catch (err) {
+      console.error('Error converting company to client currency:', err);
+      setError('Failed to convert currency');
+      return {
+        companyAmount: amount,
+        amountInINR: amount,
+        clientAmount: amount,
+        companyToINRRate: 1,
+        INRToClientRate: 1
+      };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const convertCurrency = (amount: number, fromCountry: string, toCountry: string): number => {
-    // This is a legacy method, kept for compatibility but not recommended for new code
+    // Legacy method, kept for compatibility but not recommended for new code
     const fromCurrency = currencyMap[fromCountry]?.code || 'USD';
     const toCurrency = currencyMap[toCountry]?.code || 'USD';
     
@@ -102,6 +138,7 @@ export const useCurrencyConverter = () => {
   return {
     convertToINR,
     convertFromINR,
+    convertCompanyToClient, // New method
     convertCurrency, // legacy method
     getCurrencyInfo,
     formatCurrency,

@@ -29,7 +29,7 @@ export interface Invoice {
   igst: number;
   totalGst: number;
   totalAmount: number;
-  // New currency fields
+  // Enhanced currency fields with full conversion support
   totalAmountINR: number;
   companyCurrency: string;
   companyAmount: number;

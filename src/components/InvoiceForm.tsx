@@ -21,7 +21,7 @@ const InvoiceForm = () => {
   const { clients } = useClients();
   const { companyData } = useCompanyData();
   const { calculateTaxes, getTaxDisplayName } = useTaxCalculations();
-  const { convertToINR, convertFromINR, formatCurrency, getCurrencyInfo, loading: currencyLoading } = useCurrencyConverter();
+  const { convertCompanyToClient, formatCurrency, getCurrencyInfo, loading: currencyLoading } = useCurrencyConverter();
   
   const [loading, setLoading] = useState(false);
   const [conversionError, setConversionError] = useState<string | null>(null);
@@ -64,7 +64,7 @@ const InvoiceForm = () => {
     }
   }, [invoiceData.clientId, clients]);
 
-  // Improved currency conversion effect with better error handling
+  // Enhanced currency conversion effect with full company-to-client conversion
   useEffect(() => {
     if (!selectedClient || subtotal === 0) {
       // Reset to default values when no client or no items
@@ -84,46 +84,20 @@ const InvoiceForm = () => {
       setConversionError(null);
 
       try {
-        console.log('Starting currency conversion for:', companyTotal, companyCountry, 'to', clientCountry);
+        console.log('Starting full currency conversion for:', companyTotal, companyCountry, 'to', clientCountry);
         
-        // If company currency is already INR, no need for conversion
-        if (companyCountry === 'IN') {
-          const { convertedAmount: clientTotal, rate: INRToClientRate } = await convertFromINR(companyTotal, clientCountry);
-          
-          setCurrencyAmounts({
-            companyAmount: companyTotal,
-            totalAmountINR: companyTotal,
-            clientAmount: clientTotal,
-            companyToINRRate: 1,
-            INRToClientRate
-          });
-        } else {
-          // Convert company currency to INR first
-          const { amountInINR, rate: companyToINRRate } = await convertToINR(companyTotal, companyCountry);
-          
-          // Then convert INR to client currency if needed
-          if (clientCountry === 'IN') {
-            setCurrencyAmounts({
-              companyAmount: companyTotal,
-              totalAmountINR: amountInINR,
-              clientAmount: amountInINR,
-              companyToINRRate,
-              INRToClientRate: 1
-            });
-          } else {
-            const { convertedAmount: clientTotal, rate: INRToClientRate } = await convertFromINR(amountInINR, clientCountry);
-            
-            setCurrencyAmounts({
-              companyAmount: companyTotal,
-              totalAmountINR: amountInINR,
-              clientAmount: clientTotal,
-              companyToINRRate,
-              INRToClientRate
-            });
-          }
-        }
+        // Use the new full conversion method: Company Currency → INR → Client Currency
+        const conversionResult = await convertCompanyToClient(companyTotal, companyCountry, clientCountry);
         
-        console.log('Currency conversion completed successfully');
+        setCurrencyAmounts({
+          companyAmount: conversionResult.companyAmount,
+          totalAmountINR: conversionResult.amountInINR,
+          clientAmount: conversionResult.clientAmount,
+          companyToINRRate: conversionResult.companyToINRRate,
+          INRToClientRate: conversionResult.INRToClientRate
+        });
+        
+        console.log('Full currency conversion completed successfully:', conversionResult);
       } catch (error) {
         console.error('Currency conversion failed:', error);
         setConversionError('Currency conversion failed. Using fallback rates.');
@@ -142,7 +116,7 @@ const InvoiceForm = () => {
     // Debounce the conversion to prevent too many API calls
     const timeoutId = setTimeout(convertAmounts, 300);
     return () => clearTimeout(timeoutId);
-  }, [subtotal, selectedClient, companyData?.country, taxCalculation.totalAmount]);
+  }, [subtotal, selectedClient, companyData?.country, taxCalculation.totalAmount, convertCompanyToClient]);
 
   const addItem = () => {
     const newItem: InvoiceItem = {
@@ -221,11 +195,11 @@ const InvoiceForm = () => {
         igst: taxCalculation.taxes.find(t => t.name === 'IGST')?.amount || 0,
         totalGst: taxCalculation.totalTaxAmount,
         totalAmount: currencyAmounts.companyAmount,
-        // New currency fields
+        // Enhanced currency fields with full conversion data
         totalAmountINR: currencyAmounts.totalAmountINR,
-        companyCurrency: companyCurrency.code,
+        companyCurrency: companyCountry,
         companyAmount: currencyAmounts.companyAmount,
-        clientCurrency: clientCurrency.code,
+        clientCurrency: clientCountry,
         clientAmount: currencyAmounts.clientAmount,
         conversionRate: {
           companyToINR: currencyAmounts.companyToINRRate,
