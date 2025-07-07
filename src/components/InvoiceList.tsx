@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { 
   Search, 
-  Filter, 
   Download, 
   Mail, 
   Trash2, 
@@ -107,9 +107,6 @@ ${invoice.items?.map(item =>
 ).join('\n')}
 
 Subtotal: ₹${invoice.subtotal?.toLocaleString()}
-CGST: ₹${invoice.cgst?.toLocaleString()}
-SGST: ₹${invoice.sgst?.toLocaleString()}
-IGST: ₹${invoice.igst?.toLocaleString()}
 Total GST: ₹${invoice.totalGst?.toLocaleString()}
 
 TOTAL AMOUNT: ₹${invoice.totalAmount?.toLocaleString()}
@@ -285,7 +282,7 @@ Terms: ${invoice.terms || 'N/A'}
                   <TableRow>
                     <TableHead>Invoice #</TableHead>
                     <TableHead>Client</TableHead>
-                    <TableHead>Amount</TableHead>
+                    <TableHead>Total Amount</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Issue Date</TableHead>
                     <TableHead>Due Date</TableHead>
@@ -306,7 +303,6 @@ Terms: ${invoice.terms || 'N/A'}
                       </TableCell>
                       <TableCell>
                         <div className="font-medium">{formatINR(invoice.totalAmountINR || invoice.totalAmount || 0)}</div>
-                        <div className="text-sm text-gray-500">GST: {formatINR(invoice.totalGst || 0)}</div>
                       </TableCell>
                       <TableCell>
                         <Badge className={getStatusColor(invoice.status || 'draft')}>
