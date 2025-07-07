@@ -1,3 +1,4 @@
+
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { Company, Client, Payment, GSTReturn, TDSRecord } from '../types/firestore';
@@ -98,7 +99,6 @@ export const initializeCollections = async () => {
       clientState: 'Delhi',
       items: [
         {
-          id: '1',
           description: 'Software Development Services',
           quantity: 1,
           rate: 100000,
@@ -120,7 +120,7 @@ export const initializeCollections = async () => {
       conversionRate: {
         companyToINR: 1,
         INRToClient: 1,
-        timestamp: Timestamp.now()
+        timestamp: new Date()
       },
       // Country fields
       companyCountry: 'IN',
@@ -147,12 +147,12 @@ export const initializeCollections = async () => {
         type: 'GSTIN'
       },
       status: 'sent',
-      issueDate: Timestamp.now(),
-      dueDate: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)), // 30 days from now
+      issueDate: new Date(),
+      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
       notes: 'Payment due within 30 days',
       terms: 'Net 30 days payment terms',
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now()
+      createdAt: new Date(),
+      updatedAt: new Date()
     };
 
     // Add Invoice
