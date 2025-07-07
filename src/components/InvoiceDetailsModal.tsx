@@ -30,16 +30,29 @@ const InvoiceDetailsModal = ({ invoice, open, onOpenChange }: InvoiceDetailsModa
       
       setLoading(true);
       try {
+        console.log('Fetching company data for companyId:', invoice.companyId);
+        console.log('Fetching client data for clientId:', invoice.clientId);
+
         // Fetch company data
-        const companyDoc = await getDoc(doc(db, 'companies', invoice.companyId || ''));
-        if (companyDoc.exists()) {
-          setCompanyData(companyDoc.data() as CompanyData);
+        if (invoice.companyId) {
+          const companyDoc = await getDoc(doc(db, 'companies', invoice.companyId));
+          if (companyDoc.exists()) {
+            console.log('Company data found:', companyDoc.data());
+            setCompanyData(companyDoc.data() as CompanyData);
+          } else {
+            console.log('Company document does not exist');
+          }
         }
 
         // Fetch client data
-        const clientDoc = await getDoc(doc(db, 'clients', invoice.clientId));
-        if (clientDoc.exists()) {
-          setClientData(clientDoc.data() as Client);
+        if (invoice.clientId) {
+          const clientDoc = await getDoc(doc(db, 'clients', invoice.clientId));
+          if (clientDoc.exists()) {
+            console.log('Client data found:', clientDoc.data());
+            setClientData(clientDoc.data() as Client);
+          } else {
+            console.log('Client document does not exist');
+          }
         }
       } catch (error) {
         console.error('Error fetching additional data:', error);
@@ -179,7 +192,7 @@ Terms: ${invoice.terms || 'N/A'}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {companyData && (
+                {companyData ? (
                   <>
                     <div className="flex items-center gap-4">
                       {companyData.logoUrl && (
@@ -207,30 +220,34 @@ Terms: ${invoice.terms || 'N/A'}
                       </p>
                     </div>
 
-                    <div>
-                      <h4 className="font-medium mb-2 flex items-center gap-2">
-                        <FileText className="w-4 h-4" />
-                        Tax Information
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        {companyData.taxInfo.primaryType}: {companyData.taxInfo.primaryId}
-                        {companyData.taxInfo.secondaryId && (
-                          <><br />Secondary ID: {companyData.taxInfo.secondaryId}</>
-                        )}
-                      </p>
-                    </div>
+                    {companyData.taxInfo && (
+                      <div>
+                        <h4 className="font-medium mb-2 flex items-center gap-2">
+                          <FileText className="w-4 h-4" />
+                          Tax Information
+                        </h4>
+                        <p className="text-sm text-gray-600">
+                          {companyData.taxInfo.primaryType}: {companyData.taxInfo.primaryId}
+                          {companyData.taxInfo.secondaryId && (
+                            <><br />Secondary ID: {companyData.taxInfo.secondaryId}</>
+                          )}
+                        </p>
+                      </div>
+                    )}
 
-                    <div>
-                      <h4 className="font-medium mb-2 flex items-center gap-2">
-                        <CreditCard className="w-4 h-4" />
-                        Bank Information
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        Bank: {companyData.bankInfo.bankName}<br />
-                        Account: {companyData.bankInfo.accountNumber}<br />
-                        {companyData.bankInfo.routingType}: {companyData.bankInfo.routingCode}
-                      </p>
-                    </div>
+                    {companyData.bankInfo && (
+                      <div>
+                        <h4 className="font-medium mb-2 flex items-center gap-2">
+                          <CreditCard className="w-4 h-4" />
+                          Bank Information
+                        </h4>
+                        <p className="text-sm text-gray-600">
+                          Bank: {companyData.bankInfo.bankName}<br />
+                          Account: {companyData.bankInfo.accountNumber}<br />
+                          {companyData.bankInfo.routingType}: {companyData.bankInfo.routingCode}
+                        </p>
+                      </div>
+                    )}
 
                     {companyData.signatureUrl && (
                       <div>
@@ -243,6 +260,10 @@ Terms: ${invoice.terms || 'N/A'}
                       </div>
                     )}
                   </>
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    {loading ? 'Loading company information...' : 'Company information not available'}
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -258,7 +279,7 @@ Terms: ${invoice.terms || 'N/A'}
                   <p className="text-sm text-gray-600">{invoice.clientEmail}</p>
                 </div>
 
-                {clientData && (
+                {clientData ? (
                   <>
                     <div>
                       <h4 className="font-medium mb-2 flex items-center gap-2">
@@ -298,6 +319,10 @@ Terms: ${invoice.terms || 'N/A'}
                       </div>
                     )}
                   </>
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    {loading ? 'Loading client information...' : 'Client information not available'}
+                  </div>
                 )}
 
                 <div className="text-right space-y-2">
