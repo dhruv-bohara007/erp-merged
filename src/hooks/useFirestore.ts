@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { 
   collection, 
@@ -66,6 +67,7 @@ export interface Client {
   state: string;
   pincode: string;
   country?: string;
+  clientCurrency?: string; // Added clientCurrency field
   gstin?: string;
   taxInfo?: {
     id: string;
