@@ -9,6 +9,7 @@ import { CalendarDays, MapPin, Building, Mail, Phone, Globe } from 'lucide-react
 import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
 import { useClients } from '@/hooks/useFirestore';
 import { useCompanyData } from '@/hooks/useCompanyData';
+import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 import type { Invoice } from '@/hooks/useFirestore';
 
 interface InvoiceDetailsModalProps {
@@ -18,7 +19,7 @@ interface InvoiceDetailsModalProps {
 }
 
 const InvoiceDetailsModal = ({ open, onOpenChange, invoice }: InvoiceDetailsModalProps) => {
-  const { convertCurrency, formatCurrency, getCurrencyInfo, loading } = useCurrencyConverter();
+  const { convertCurrency, formatCurrency, loading } = useCurrencyConverter();
   const { clients } = useClients();
   const { companyData } = useCompanyData();
   const [clientDetails, setClientDetails] = useState<any>(null);
@@ -41,18 +42,23 @@ const InvoiceDetailsModal = ({ open, onOpenChange, invoice }: InvoiceDetailsModa
     }
   };
 
-  // Get company country from company data, fallback to US
-  const companyCountry = companyData?.country || 'US';
-  // Get client country from client details, fallback to company country
-  const clientCountry = clientDetails?.country || companyCountry;
+  // Use the stored country fields from the invoice, with fallbacks
+  const companyCountry = invoice.companyCountry || companyData?.country || 'US';
+  const clientCountry = invoice.clientCountry || clientDetails?.country || companyCountry;
   
-  const companyCurrency = getCurrencyInfo(companyCountry);
-  const clientCurrency = getCurrencyInfo(clientCountry);
+  const companyCurrency = getCurrencyByCountry(companyCountry);
+  const clientCurrency = getCurrencyByCountry(clientCountry);
   
   // Convert total amount to client currency if different
   const convertedAmount = companyCountry !== clientCountry 
     ? convertCurrency(invoice.totalAmount, companyCountry, clientCountry)
     : invoice.totalAmount;
+
+  // Helper function to format currency with proper symbol
+  const formatCurrencyAmount = (amount: number, countryCode: string) => {
+    const currency = getCurrencyByCountry(countryCode);
+    return `${currency.symbol}${amount.toFixed(2)}`;
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -102,12 +108,12 @@ const InvoiceDetailsModal = ({ open, onOpenChange, invoice }: InvoiceDetailsModa
                         {clientDetails.state && `${clientDetails.state} `}
                         {clientDetails.pincode}
                       </div>
-                      {clientDetails.country && (
-                        <div className="flex items-center gap-1 mt-1">
-                          <Globe className="h-3 w-3" />
-                          <span className="font-medium">{clientDetails.country}</span>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-1 mt-1">
+                        <Globe className="h-3 w-3" />
+                        <span className="font-medium">
+                          {clientCountry} ({clientCurrency.code})
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -147,33 +153,33 @@ const InvoiceDetailsModal = ({ open, onOpenChange, invoice }: InvoiceDetailsModa
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span>Subtotal:</span>
-                  <span>{formatCurrency(invoice.subtotal, companyCountry)}</span>
+                  <span>{formatCurrencyAmount(invoice.subtotal, companyCountry)}</span>
                 </div>
                 
                 {invoice.cgst > 0 && (
                   <div className="flex justify-between text-sm">
                     <span>CGST:</span>
-                    <span>{formatCurrency(invoice.cgst, companyCountry)}</span>
+                    <span>{formatCurrencyAmount(invoice.cgst, companyCountry)}</span>
                   </div>
                 )}
                 
                 {invoice.sgst > 0 && (
                   <div className="flex justify-between text-sm">
                     <span>SGST:</span>
-                    <span>{formatCurrency(invoice.sgst, companyCountry)}</span>
+                    <span>{formatCurrencyAmount(invoice.sgst, companyCountry)}</span>
                   </div>
                 )}
                 
                 {invoice.igst > 0 && (
                   <div className="flex justify-between text-sm">
                     <span>IGST:</span>
-                    <span>{formatCurrency(invoice.igst, companyCountry)}</span>
+                    <span>{formatCurrencyAmount(invoice.igst, companyCountry)}</span>
                   </div>
                 )}
                 
                 <div className="flex justify-between text-sm">
                   <span>Total Tax:</span>
-                  <span>{formatCurrency(invoice.totalGst, companyCountry)}</span>
+                  <span>{formatCurrencyAmount(invoice.totalGst, companyCountry)}</span>
                 </div>
               </div>
               
@@ -183,7 +189,7 @@ const InvoiceDetailsModal = ({ open, onOpenChange, invoice }: InvoiceDetailsModa
                 <div className="flex justify-between font-semibold text-lg">
                   <span>Total Amount ({companyCurrency.code}):</span>
                   <span className="text-green-600">
-                    {formatCurrency(invoice.totalAmount, companyCountry)}
+                    {formatCurrencyAmount(invoice.totalAmount, companyCountry)}
                   </span>
                 </div>
                 
@@ -194,7 +200,7 @@ const InvoiceDetailsModal = ({ open, onOpenChange, invoice }: InvoiceDetailsModa
                         Client Amount ({clientCurrency.code}):
                       </span>
                       <span className="font-semibold text-blue-800">
-                        {formatCurrency(convertedAmount, clientCountry)}
+                        {formatCurrencyAmount(convertedAmount, clientCountry)}
                       </span>
                     </div>
                     <p className="text-xs text-blue-600 mt-1">
@@ -234,8 +240,8 @@ const InvoiceDetailsModal = ({ open, onOpenChange, invoice }: InvoiceDetailsModa
                     <tr key={index} className="border-b">
                       <td className="py-2">{item.description}</td>
                       <td className="text-right py-2">{item.quantity}</td>
-                      <td className="text-right py-2">{formatCurrency(item.rate, companyCountry)}</td>
-                      <td className="text-right py-2">{formatCurrency(item.amount, companyCountry)}</td>
+                      <td className="text-right py-2">{formatCurrencyAmount(item.rate, companyCountry)}</td>
+                      <td className="text-right py-2">{formatCurrencyAmount(item.amount, companyCountry)}</td>
                     </tr>
                   ))}
                 </tbody>

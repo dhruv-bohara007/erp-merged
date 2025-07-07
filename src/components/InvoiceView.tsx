@@ -68,15 +68,15 @@ Terms: ${invoice.terms || 'N/A'}
     URL.revokeObjectURL(url);
   };
 
-  const companyCurrency = invoice.companyCurrency ? 
-    getCurrencyByCountry(invoice.companyCurrency) : 
-    getCurrencyByCountry('US'); // Default to US
+  // Use the stored country fields from the invoice with fallbacks
+  const companyCountry = invoice.companyCountry || 'US';
+  const clientCountry = invoice.clientCountry || companyCountry;
 
-  const clientCurrency = invoice.clientCurrency ? 
-    getCurrencyByCountry(invoice.clientCurrency) : 
-    companyCurrency; // Use company currency as fallback
+  const companyCurrency = getCurrencyByCountry(companyCountry);
+  const clientCurrency = getCurrencyByCountry(clientCountry);
   
-  const formatCurrency = (amount: number, currencyInfo: typeof companyCurrency) => {
+  const formatCurrency = (amount: number, countryCode: string) => {
+    const currencyInfo = getCurrencyByCountry(countryCode);
     return `${currencyInfo.symbol}${amount.toFixed(2)}`;
   };
 
@@ -109,9 +109,7 @@ Terms: ${invoice.terms || 'N/A'}
     return countryNames[countryCode] || countryCode;
   };
 
-  const showDualCurrency = invoice.companyCurrency && 
-                           invoice.clientCurrency && 
-                           invoice.companyCurrency !== invoice.clientCurrency &&
+  const showDualCurrency = companyCountry !== clientCountry && 
                            invoice.conversionRate;
 
   const companyToINRRate = invoice.conversionRate?.companyToINR || 1;
@@ -151,10 +149,10 @@ Terms: ${invoice.terms || 'N/A'}
                   {showDualCurrency ? (
                     <div>
                       <p className="text-2xl font-bold">
-                        {formatCurrency(invoice.companyAmount || invoice.totalAmount || 0, companyCurrency)}
+                        {formatCurrency(invoice.companyAmount || invoice.totalAmount || 0, companyCountry)}
                       </p>
                       <p className="text-lg text-gray-600">
-                        {formatCurrency(invoice.clientAmount || convertINRToClient(invoice.totalAmountINR || 0), clientCurrency)}
+                        {formatCurrency(invoice.clientAmount || convertINRToClient(invoice.totalAmountINR || 0), clientCountry)}
                       </p>
                       <p className="text-sm text-gray-500">
                         Company ({companyCurrency.code}) / Client ({clientCurrency.code})
@@ -163,7 +161,7 @@ Terms: ${invoice.terms || 'N/A'}
                   ) : (
                     <div>
                       <p className="text-2xl font-bold">
-                        {formatCurrency(invoice.totalAmountINR || invoice.totalAmount || 0, companyCurrency)}
+                        {formatCurrency(invoice.totalAmountINR || invoice.totalAmount || 0, companyCountry)}
                       </p>
                       <p className="text-sm text-gray-500">Total Amount (incl. tax)</p>
                     </div>
@@ -201,7 +199,7 @@ Terms: ${invoice.terms || 'N/A'}
                     <div className="flex items-start gap-2">
                       <Globe className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
                       <div className="text-sm text-gray-600">
-                        <p>Country: {invoice.clientCurrency ? getCountryName(invoice.clientCurrency) : 'Not specified'}</p>
+                        <p>Country: {getCountryName(clientCountry)} ({clientCurrency.code})</p>
                       </div>
                     </div>
                   </div>
@@ -232,21 +230,21 @@ Terms: ${invoice.terms || 'N/A'}
                     <div className="flex-1">
                       <p className="font-medium">{item.description}</p>
                       <p className="text-sm text-gray-600">
-                        Qty: {item.quantity} × {formatCurrency(item.rate || 0, companyCurrency)} (Item Price)
+                        Qty: {item.quantity} × {formatCurrency(item.rate || 0, companyCountry)} (Item Price)
                         {showDualCurrency && (
                           <span className="text-gray-500 ml-1">
-                            ({formatCurrency(convertINRToClient(convertCompanyToINR(item.rate || 0)), clientCurrency)})
+                            ({formatCurrency(convertINRToClient(convertCompanyToINR(item.rate || 0)), clientCountry)})
                           </span>
                         )}
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="font-medium">
-                        {formatCurrency(item.amount || 0, companyCurrency)}
+                        {formatCurrency(item.amount || 0, companyCountry)}
                       </p>
                       {showDualCurrency && (
                         <p className="text-sm text-gray-600">
-                          {formatCurrency(convertINRToClient(convertCompanyToINR(item.amount || 0)), clientCurrency)}
+                          {formatCurrency(convertINRToClient(convertCompanyToINR(item.amount || 0)), clientCountry)}
                         </p>
                       )}
                       <p className="text-xs text-gray-500">Line Total</p>
@@ -261,7 +259,7 @@ Terms: ${invoice.terms || 'N/A'}
                 <div className="flex justify-between">
                   <span>Subtotal (Company - {companyCurrency.code}):</span>
                   <div className="text-right">
-                    <span>{formatCurrency(invoice.subtotal || 0, companyCurrency)}</span>
+                    <span>{formatCurrency(invoice.subtotal || 0, companyCountry)}</span>
                   </div>
                 </div>
                 
@@ -269,20 +267,20 @@ Terms: ${invoice.terms || 'N/A'}
                   <div className="flex justify-between">
                     <span>Subtotal (Client - {clientCurrency.code}):</span>
                     <div className="text-right">
-                      <span>{formatCurrency(convertINRToClient(convertCompanyToINR(invoice.subtotal || 0)), clientCurrency)}</span>
+                      <span>{formatCurrency(convertINRToClient(convertCompanyToINR(invoice.subtotal || 0)), clientCountry)}</span>
                     </div>
                   </div>
                 )}
                 
                 <div className="flex justify-between">
                   <span>Total Tax (Company - {companyCurrency.code}):</span>
-                  <span>{formatCurrency(invoice.totalGst || 0, companyCurrency)}</span>
+                  <span>{formatCurrency(invoice.totalGst || 0, companyCountry)}</span>
                 </div>
                 
                 {showDualCurrency && (
                   <div className="flex justify-between">
                     <span>Total Tax (Client - {clientCurrency.code}):</span>
-                    <span>{formatCurrency(convertINRToClient(convertCompanyToINR(invoice.totalGst || 0)), clientCurrency)}</span>
+                    <span>{formatCurrency(convertINRToClient(convertCompanyToINR(invoice.totalGst || 0)), clientCountry)}</span>
                   </div>
                 )}
                 
@@ -290,13 +288,13 @@ Terms: ${invoice.terms || 'N/A'}
                 
                 <div className="flex justify-between font-bold text-lg">
                   <span>Total Amount (Company - {companyCurrency.code}):</span>
-                  <span>{formatCurrency(invoice.companyAmount || invoice.totalAmount || 0, companyCurrency)}</span>
+                  <span>{formatCurrency(invoice.companyAmount || invoice.totalAmount || 0, companyCountry)}</span>
                 </div>
                 
                 {showDualCurrency && (
                   <div className="flex justify-between font-bold text-lg">
                     <span>Total Amount (Client - {clientCurrency.code}):</span>
-                    <span>{formatCurrency(invoice.clientAmount || convertINRToClient(invoice.totalAmountINR || 0), clientCurrency)}</span>
+                    <span>{formatCurrency(invoice.clientAmount || convertINRToClient(invoice.totalAmountINR || 0), clientCountry)}</span>
                   </div>
                 )}
               </div>
