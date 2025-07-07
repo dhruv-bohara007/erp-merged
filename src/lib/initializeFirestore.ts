@@ -1,7 +1,7 @@
-
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
-import { Company, Client, Invoice, Payment, GSTReturn, TDSRecord } from '../types/firestore';
+import { Company, Client, Payment, GSTReturn, TDSRecord } from '../types/firestore';
+import { Invoice } from '../hooks/useFirestore';
 
 export const initializeCollections = async () => {
   try {
