@@ -19,6 +19,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export interface Invoice {
   id: string;
+  companyId: string; // Added missing companyId property
   invoiceNumber: string;
   clientId: string;
   clientName: string;
