@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -69,7 +70,7 @@ Terms: ${invoice.terms || 'N/A'}
 
   const companyCurrency = invoice.companyCurrency ? 
     getCurrencyByCountry(invoice.companyCurrency) : 
-    getCurrencyByCountry('IN'); // Default to India
+    getCurrencyByCountry('US'); // Default to US
 
   const clientCurrency = invoice.clientCurrency ? 
     getCurrencyByCountry(invoice.clientCurrency) : 
@@ -271,51 +272,6 @@ Terms: ${invoice.terms || 'N/A'}
                       <span>{formatCurrency(convertINRToClient(convertCompanyToINR(invoice.subtotal || 0)), clientCurrency)}</span>
                     </div>
                   </div>
-                )}
-                
-                {invoice.cgst > 0 && (
-                  <>
-                    <div className="flex justify-between text-sm">
-                      <span>CGST (Company - {companyCurrency.code}):</span>
-                      <span>{formatCurrency(invoice.cgst || 0, companyCurrency)}</span>
-                    </div>
-                    {showDualCurrency && (
-                      <div className="flex justify-between text-sm">
-                        <span>CGST (Client - {clientCurrency.code}):</span>
-                        <span>{formatCurrency(convertINRToClient(convertCompanyToINR(invoice.cgst || 0)), clientCurrency)}</span>
-                      </div>
-                    )}
-                  </>
-                )}
-                
-                {invoice.sgst > 0 && (
-                  <>
-                    <div className="flex justify-between text-sm">
-                      <span>SGST (Company - {companyCurrency.code}):</span>
-                      <span>{formatCurrency(invoice.sgst || 0, companyCurrency)}</span>
-                    </div>
-                    {showDualCurrency && (
-                      <div className="flex justify-between text-sm">
-                        <span>SGST (Client - {clientCurrency.code}):</span>
-                        <span>{formatCurrency(convertINRToClient(convertCompanyToINR(invoice.sgst || 0)), clientCurrency)}</span>
-                      </div>
-                    )}
-                  </>
-                )}
-                
-                {invoice.igst > 0 && (
-                  <>
-                    <div className="flex justify-between text-sm">
-                      <span>IGST (Company - {companyCurrency.code}):</span>
-                      <span>{formatCurrency(invoice.igst || 0, companyCurrency)}</span>
-                    </div>
-                    {showDualCurrency && (
-                      <div className="flex justify-between text-sm">
-                        <span>IGST (Client - {clientCurrency.code}):</span>
-                        <span>{formatCurrency(convertINRToClient(convertCompanyToINR(invoice.igst || 0)), clientCurrency)}</span>
-                      </div>
-                    )}
-                  </>
                 )}
                 
                 <div className="flex justify-between">
