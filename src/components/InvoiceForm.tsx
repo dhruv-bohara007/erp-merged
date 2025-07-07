@@ -211,9 +211,6 @@ const InvoiceForm = () => {
       const invoice = {
         invoiceNumber: invoiceData.invoiceNumber,
         clientId: invoiceData.clientId,
-        clientName: selectedClient?.name || '',
-        clientEmail: selectedClient?.email || '',
-        clientState: selectedClient?.state || '',
         items,
         subtotal,
         cgst: taxCalculation.taxes.find(t => t.name === 'CGST')?.amount || 0,
@@ -221,7 +218,7 @@ const InvoiceForm = () => {
         igst: taxCalculation.taxes.find(t => t.name === 'IGST')?.amount || 0,
         totalGst: taxCalculation.totalTaxAmount,
         totalAmount: currencyAmounts.companyAmount,
-        // New currency fields
+        // Currency fields
         totalAmountINR: currencyAmounts.totalAmountINR,
         companyCurrency: companyCurrency.code,
         companyAmount: currencyAmounts.companyAmount,
@@ -232,7 +229,6 @@ const InvoiceForm = () => {
           INRToClient: currencyAmounts.INRToClientRate,
           timestamp: new Date()
         },
-        // Note: companyCountry and clientCountry will be automatically populated by the addInvoice function
         status,
         issueDate: new Date(invoiceData.issueDate),
         dueDate: new Date(invoiceData.dueDate),
@@ -240,7 +236,7 @@ const InvoiceForm = () => {
         terms: invoiceData.terms,
       };
 
-      console.log('Creating invoice with automatic country population...');
+      console.log('Creating invoice with automatic field population from clients and companies collections...');
       await addInvoice(invoice);
       
       toast({
