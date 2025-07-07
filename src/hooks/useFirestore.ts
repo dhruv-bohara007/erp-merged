@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { 
   collection, 
@@ -24,6 +25,8 @@ export interface Invoice {
   clientName: string;
   clientEmail: string;
   clientState: string;
+  clientPhone?: string;
+  clientPincode?: string;
   items: InvoiceItem[];
   subtotal: number;
   cgst: number;
@@ -48,6 +51,8 @@ export interface Invoice {
   // Company snapshot fields
   companyName: string;
   companyLogoUrl?: string;
+  companyPhone?: string;
+  companyCity?: string;
   companyTaxInfo?: {
     gstin: string;
     pan: string;
@@ -197,12 +202,16 @@ export const useInvoices = () => {
             // Handle company snapshot fields with fallbacks
             companyName: data.companyName || '',
             companyLogoUrl: data.companyLogoUrl,
+            companyPhone: data.companyPhone,
+            companyCity: data.companyCity,
             companyTaxInfo: data.companyTaxInfo,
             companyBankDetails: data.companyBankDetails,
             companyAddress: data.companyAddress || '',
             ownerSignatureUrl: data.ownerSignatureUrl,
             // Handle client snapshot fields with fallbacks
             clientAddress: data.clientAddress || '',
+            clientPhone: data.clientPhone,
+            clientPincode: data.clientPincode,
             clientTaxInfo: data.clientTaxInfo,
             // Handle new fields with fallbacks
             bankInfo: data.bankInfo,
@@ -236,7 +245,7 @@ export const useInvoices = () => {
     return () => unsubscribe();
   }, [currentUser?.companyId]);
 
-  const addInvoice = async (invoice: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt' | 'companyCountry' | 'clientCountry' | 'companyId' | 'companyName' | 'companyLogoUrl' | 'companyTaxInfo' | 'companyBankDetails' | 'companyAddress' | 'ownerSignatureUrl' | 'clientAddress' | 'clientTaxInfo' | 'bankInfo' | 'logoUrl' | 'signatureUrl' | 'clientName' | 'clientEmail' | 'clientState'>) => {
+  const addInvoice = async (invoice: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt' | 'companyCountry' | 'clientCountry' | 'companyId' | 'companyName' | 'companyLogoUrl' | 'companyPhone' | 'companyCity' | 'companyTaxInfo' | 'companyBankDetails' | 'companyAddress' | 'ownerSignatureUrl' | 'clientAddress' | 'clientPhone' | 'clientPincode' | 'clientTaxInfo' | 'bankInfo' | 'logoUrl' | 'signatureUrl' | 'clientName' | 'clientEmail' | 'clientState'>) => {
     if (!currentUser?.companyId) {
       throw new Error('User company ID not found');
     }
@@ -256,6 +265,8 @@ export const useInvoices = () => {
       const companyName = companyData?.companyName || companyData?.name || '';
       const companyCurrency = companyData?.companyCurrency || 'INR';
       const companyAddress = companyData?.streetAddress || companyData?.address || '';
+      const companyPhone = companyData?.phone;
+      const companyCity = companyData?.city;
       const companyTaxInfo = companyData?.taxInfo;
       const companyBankDetails = companyData?.bankDetails;
       const bankInfo = companyData?.bankInfo;
@@ -275,6 +286,8 @@ export const useInvoices = () => {
       const clientCountry = clientData?.country || 'IN';
       const clientAddress = clientData?.address || '';
       const clientCurrency = clientData?.clientCurrency || 'INR';
+      const clientPhone = clientData?.phone;
+      const clientPincode = clientData?.pincode;
       const clientTaxInfo = clientData?.taxInfo;
       const clientState = clientData?.state || '';
       const clientName = clientData?.name || '';
@@ -309,6 +322,12 @@ export const useInvoices = () => {
       };
 
       // Only add optional fields if they have values
+      if (companyPhone) {
+        invoiceData.companyPhone = companyPhone;
+      }
+      if (companyCity) {
+        invoiceData.companyCity = companyCity;
+      }
       if (companyTaxInfo) {
         invoiceData.companyTaxInfo = companyTaxInfo;
       }
@@ -330,13 +349,19 @@ export const useInvoices = () => {
       if (companyLogoUrl) {
         invoiceData.companyLogoUrl = companyLogoUrl;
       }
+      if (clientPhone) {
+        invoiceData.clientPhone = clientPhone;
+      }
+      if (clientPincode) {
+        invoiceData.clientPincode = clientPincode;
+      }
       if (clientTaxInfo) {
         invoiceData.clientTaxInfo = clientTaxInfo;
       }
 
       const docRef = await addDoc(collection(db, 'invoices'), invoiceData);
       
-      console.log('Invoice created with complete company and client snapshot data');
+      console.log('Invoice created with complete company and client snapshot data including phone and location details');
       return docRef.id;
     } catch (err) {
       console.error('Error adding invoice:', err);

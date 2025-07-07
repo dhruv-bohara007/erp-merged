@@ -1,11 +1,10 @@
-
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, Download, MapPin, Globe } from 'lucide-react';
+import { Calendar, Download, MapPin, Globe, Phone, Building, FileText, CreditCard } from 'lucide-react';
 import { Invoice } from '@/hooks/useFirestore';
 import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 
@@ -120,7 +119,7 @@ Terms: ${invoice.terms || 'N/A'}
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle>Invoice Details</DialogTitle>
@@ -171,26 +170,120 @@ Terms: ${invoice.terms || 'N/A'}
             </CardHeader>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Client Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Company Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building className="w-5 h-5" />
+                  Company Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-4">
+                  {invoice.logoUrl && (
+                    <img 
+                      src={invoice.logoUrl} 
+                      alt="Company Logo" 
+                      className="w-16 h-16 object-contain rounded"
+                    />
+                  )}
+                  <div>
+                    <h3 className="text-lg font-semibold">{invoice.companyName}</h3>
+                    {invoice.companyPhone && (
+                      <p className="text-sm text-gray-600 flex items-center gap-1">
+                        <Phone className="w-3 h-3" />
+                        {invoice.companyPhone}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="font-medium mb-2 flex items-center gap-2">
+                    <MapPin className="w-4 h-4" />
+                    Address
+                  </h4>
+                  <p className="text-sm text-gray-600">
+                    {invoice.companyAddress}
+                    {invoice.companyCity && <><br />{invoice.companyCity}</>}
+                    <br />
+                    {getCountryName(companyCountry)}
+                  </p>
+                </div>
+
+                {invoice.companyTaxInfo && (
+                  <div>
+                    <h4 className="font-medium mb-2 flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      Tax Information
+                    </h4>
+                    <p className="text-sm text-gray-600">
+                      GSTIN: {invoice.companyTaxInfo.gstin}
+                      {invoice.companyTaxInfo.pan && (
+                        <><br />PAN: {invoice.companyTaxInfo.pan}</>
+                      )}
+                    </p>
+                  </div>
+                )}
+
+                {invoice.bankInfo && (
+                  <div>
+                    <h4 className="font-medium mb-2 flex items-center gap-2">
+                      <CreditCard className="w-4 h-4" />
+                      Bank Information
+                    </h4>
+                    <p className="text-sm text-gray-600">
+                      {JSON.stringify(invoice.bankInfo)}
+                    </p>
+                  </div>
+                )}
+
+                {invoice.signatureUrl && (
+                  <div>
+                    <h4 className="font-medium mb-2">Digital Signature</h4>
+                    <img 
+                      src={invoice.signatureUrl} 
+                      alt="Digital Signature" 
+                      className="max-w-32 h-16 object-contain border rounded"
+                    />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Client Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Client Information</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
                   <div>
                     <h4 className="font-semibold text-lg">{invoice.clientName}</h4>
                     <p className="text-sm text-gray-600">{invoice.clientEmail}</p>
+                    {invoice.clientPhone && (
+                      <p className="text-sm text-gray-600 flex items-center gap-1">
+                        <Phone className="w-3 h-3" />
+                        {invoice.clientPhone}
+                      </p>
+                    )}
                   </div>
                   
                   <div className="space-y-2">
                     <div className="flex items-start gap-2">
                       <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
                       <div className="text-sm text-gray-600">
+                        {invoice.clientAddress && (
+                          <p>{invoice.clientAddress}</p>
+                        )}
                         {invoice.clientState && (
                           <p>State: {invoice.clientState}</p>
                         )}
-                        {!invoice.clientState && (
+                        {invoice.clientPincode && (
+                          <p>Pincode: {invoice.clientPincode}</p>
+                        )}
+                        {!invoice.clientAddress && !invoice.clientState && !invoice.clientPincode && (
                           <p>Address information not available</p>
                         )}
                       </div>
@@ -202,22 +295,31 @@ Terms: ${invoice.terms || 'N/A'}
                         <p>Country: {getCountryName(clientCountry)} ({clientCurrency.code})</p>
                       </div>
                     </div>
-                  </div>
-                </div>
 
-                <div className="text-right space-y-2">
-                  <div className="flex items-center justify-end gap-2">
-                    <Calendar className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm">Issue Date: {invoice.issueDate?.toLocaleDateString()}</span>
+                    {invoice.clientTaxInfo && (
+                      <div className="flex items-start gap-2">
+                        <FileText className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                        <div className="text-sm text-gray-600">
+                          <p>{invoice.clientTaxInfo.type}: {invoice.clientTaxInfo.id}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center justify-end gap-2">
-                    <Calendar className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm">Due Date: {invoice.dueDate?.toLocaleDateString()}</span>
+
+                  <div className="text-right space-y-2">
+                    <div className="flex items-center justify-end gap-2">
+                      <Calendar className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm">Issue Date: {invoice.issueDate?.toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex items-center justify-end gap-2">
+                      <Calendar className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm">Due Date: {invoice.dueDate?.toLocaleDateString()}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
 
           <Card>
             <CardHeader>
