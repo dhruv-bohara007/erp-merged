@@ -45,6 +45,27 @@ export interface Invoice {
   // New country fields
   companyCountry: string;
   clientCountry: string;
+  // New company snapshot fields
+  companyName: string;
+  companyLogoUrl?: string;
+  companyTaxInfo?: {
+    gstin: string;
+    pan: string;
+  };
+  companyBankDetails?: {
+    accountNumber: string;
+    ifscCode: string;
+    bankName: string;
+    accountHolderName: string;
+  };
+  companyAddress: string;
+  ownerSignatureUrl?: string;
+  // New client snapshot fields
+  clientAddress: string;
+  clientTaxInfo?: {
+    id: string;
+    type: string;
+  };
   status: 'draft' | 'sent' | 'paid' | 'overdue';
   issueDate: Date;
   dueDate: Date;
@@ -169,6 +190,16 @@ export const useInvoices = () => {
             // Handle new country fields with fallbacks
             companyCountry: data.companyCountry || 'IN',
             clientCountry: data.clientCountry || 'IN',
+            // Handle new company snapshot fields with fallbacks
+            companyName: data.companyName || '',
+            companyLogoUrl: data.companyLogoUrl,
+            companyTaxInfo: data.companyTaxInfo,
+            companyBankDetails: data.companyBankDetails,
+            companyAddress: data.companyAddress || '',
+            ownerSignatureUrl: data.ownerSignatureUrl,
+            // Handle new client snapshot fields with fallbacks
+            clientAddress: data.clientAddress || '',
+            clientTaxInfo: data.clientTaxInfo,
             conversionRate: data.conversionRate ? {
               ...data.conversionRate,
               timestamp: data.conversionRate.timestamp?.toDate?.() || new Date()
@@ -197,7 +228,7 @@ export const useInvoices = () => {
     return () => unsubscribe();
   }, [currentUser?.companyId]);
 
-  const addInvoice = async (invoice: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt' | 'companyCountry' | 'clientCountry' | 'companyId'>) => {
+  const addInvoice = async (invoice: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt' | 'companyCountry' | 'clientCountry' | 'companyId' | 'companyName' | 'companyLogoUrl' | 'companyTaxInfo' | 'companyBankDetails' | 'companyAddress' | 'ownerSignatureUrl' | 'clientAddress' | 'clientTaxInfo'>) => {
     if (!currentUser?.companyId) {
       throw new Error('User company ID not found');
     }
@@ -205,21 +236,52 @@ export const useInvoices = () => {
     try {
       console.log('Fetching company and client data for invoice creation...');
       
-      // Fetch company document to get companyCountry
+      // Fetch company document to get all required company fields
       const companyDoc = await getDoc(doc(db, 'companies', currentUser.companyId));
-      const companyCountry = companyDoc.exists() ? companyDoc.data()?.country || 'IN' : 'IN';
+      if (!companyDoc.exists()) {
+        throw new Error('Company document not found');
+      }
       
-      // Fetch client document to get clientCountry
+      const companyData = companyDoc.data();
+      const companyCountry = companyData?.country || 'IN';
+      const companyName = companyData?.name || '';
+      const companyLogoUrl = companyData?.logo;
+      const companyTaxInfo = companyData?.gstin && companyData?.pan ? {
+        gstin: companyData.gstin,
+        pan: companyData.pan
+      } : undefined;
+      const companyBankDetails = companyData?.bankDetails;
+      const companyAddress = companyData?.address || '';
+      const ownerSignatureUrl = companyData?.ownerSignatureUrl;
+      
+      // Fetch client document to get all required client fields
       const clientDoc = await getDoc(doc(db, 'clients', invoice.clientId));
-      const clientCountry = clientDoc.exists() ? clientDoc.data()?.country || 'IN' : 'IN';
+      if (!clientDoc.exists()) {
+        throw new Error('Client document not found');
+      }
       
-      console.log('Country data fetched:', { companyCountry, clientCountry });
+      const clientData = clientDoc.data();
+      const clientCountry = clientData?.country || 'IN';
+      const clientAddress = clientData?.address || '';
+      const clientTaxInfo = clientData?.taxInfo;
+      
+      console.log('Company and client data fetched successfully');
 
       const docRef = await addDoc(collection(db, 'invoices'), {
         ...invoice,
         companyId: currentUser.companyId,
         companyCountry,
         clientCountry,
+        // Company snapshot fields
+        companyName,
+        companyLogoUrl,
+        companyTaxInfo,
+        companyBankDetails,
+        companyAddress,
+        ownerSignatureUrl,
+        // Client snapshot fields
+        clientAddress,
+        clientTaxInfo,
         issueDate: Timestamp.fromDate(invoice.issueDate),
         dueDate: Timestamp.fromDate(invoice.dueDate),
         conversionRate: invoice.conversionRate ? {
@@ -230,7 +292,7 @@ export const useInvoices = () => {
         updatedAt: Timestamp.now(),
       });
       
-      console.log('Invoice created with country fields:', { companyCountry, clientCountry });
+      console.log('Invoice created with company and client snapshot data');
       return docRef.id;
     } catch (err) {
       console.error('Error adding invoice:', err);

@@ -96,6 +96,27 @@ export interface Invoice {
   // New country fields for automatic population
   companyCountry: string; // Automatically fetched from company document
   clientCountry: string; // Automatically fetched from client document
+  // New company snapshot fields
+  companyName: string;
+  companyLogoUrl?: string;
+  companyTaxInfo?: {
+    gstin: string;
+    pan: string;
+  };
+  companyBankDetails?: {
+    accountNumber: string;
+    ifscCode: string;
+    bankName: string;
+    accountHolderName: string;
+  };
+  companyAddress: string;
+  ownerSignatureUrl?: string;
+  // New client snapshot fields
+  clientAddress: string;
+  clientTaxInfo?: {
+    id: string;
+    type: string;
+  };
   notes?: string;
   terms?: string;
   paidDate?: Timestamp;
