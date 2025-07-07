@@ -15,6 +15,8 @@ export interface CompanyData {
   email: string;
   phone: string;
   website?: string;
+  logoUrl?: string; // New field for logo URL
+  signatureUrl?: string; // New field for digital signature URL
   createdAt: string;
   updatedAt: string;
   taxInfo: {

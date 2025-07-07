@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,7 +18,8 @@ import {
   Upload,
   Save,
   Edit,
-  X
+  X,
+  Image
 } from 'lucide-react';
 import { useCompanyData, CompanyData } from '@/hooks/useCompanyData';
 import { useInvoiceSettings, InvoiceSettings } from '@/hooks/useInvoiceSettings';
@@ -404,17 +406,76 @@ const Settings = () => {
                       </div>
                     )}
 
-                    {/* Company Logo */}
-                    <div className="space-y-2">
-                      <Label>Company Logo</Label>
-                      <div className="flex items-center gap-4">
-                        <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center">
-                          <Building className="w-8 h-8 text-gray-400" />
+                    {/* Company Logo and Digital Signature URLs */}
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-medium text-gray-900">Branding & Signatures</h3>
+                      <div className="grid grid-cols-1 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="logoUrl">Company Logo URL</Label>
+                          <Input
+                            id="logoUrl"
+                            type="url"
+                            placeholder="https://example.com/logo.png"
+                            value={formData.logoUrl || ''}
+                            onChange={(e) => handleInputChange('logoUrl', e.target.value)}
+                            disabled={!isEditing}
+                          />
+                          <p className="text-xs text-gray-500">
+                            Enter the URL of your company logo image
+                          </p>
+                          {formData.logoUrl && (
+                            <div className="flex items-center gap-4 mt-2">
+                              <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+                                <img
+                                  src={formData.logoUrl}
+                                  alt="Company Logo"
+                                  className="w-full h-full object-contain"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                    const fallback = target.parentElement?.querySelector('.fallback-icon');
+                                    if (fallback) fallback.classList.remove('hidden');
+                                  }}
+                                />
+                                <Building className="w-8 h-8 text-gray-400 fallback-icon hidden" />
+                              </div>
+                              <span className="text-sm text-gray-600">Logo Preview</span>
+                            </div>
+                          )}
                         </div>
-                        <Button variant="outline" disabled={!isEditing}>
-                          <Upload className="w-4 h-4 mr-2" />
-                          Upload Logo
-                        </Button>
+                        <div className="space-y-2">
+                          <Label htmlFor="signatureUrl">Digital Signature URL</Label>
+                          <Input
+                            id="signatureUrl"
+                            type="url"
+                            placeholder="https://example.com/signature.png"
+                            value={formData.signatureUrl || ''}
+                            onChange={(e) => handleInputChange('signatureUrl', e.target.value)}
+                            disabled={!isEditing}
+                          />
+                          <p className="text-xs text-gray-500">
+                            Enter the URL of your digital signature image
+                          </p>
+                          {formData.signatureUrl && (
+                            <div className="flex items-center gap-4 mt-2">
+                              <div className="w-32 h-16 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+                                <img
+                                  src={formData.signatureUrl}
+                                  alt="Digital Signature"
+                                  className="w-full h-full object-contain"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                    const fallback = target.parentElement?.querySelector('.fallback-icon');
+                                    if (fallback) fallback.classList.remove('hidden');
+                                  }}
+                                />
+                                <Image className="w-6 h-6 text-gray-400 fallback-icon hidden" />
+                              </div>
+                              <span className="text-sm text-gray-600">Signature Preview</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </>
