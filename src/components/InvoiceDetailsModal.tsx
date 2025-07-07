@@ -1,11 +1,8 @@
 
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Calendar, Download, MapPin, Globe, Building, CreditCard, FileText, Phone } from 'lucide-react';
 import { Invoice } from '@/hooks/useFirestore';
 import { CompanyData } from '@/hooks/useCompanyData';
@@ -13,6 +10,7 @@ import { Client } from '@/hooks/useFirestore';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 interface InvoiceDetailsModalProps {
   invoice: Invoice | null;
@@ -69,11 +67,11 @@ const InvoiceDetailsModal = ({ invoice, open, onOpenChange }: InvoiceDetailsModa
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'paid': return 'bg-green-50 text-green-700 border-green-200';
-      case 'sent': return 'bg-blue-50 text-blue-700 border-blue-200';
-      case 'draft': return 'bg-gray-50 text-gray-700 border-gray-200';
-      case 'overdue': return 'bg-red-50 text-red-700 border-red-200';
-      default: return 'bg-gray-50 text-gray-700 border-gray-200';
+      case 'paid': return 'success';
+      case 'sent': return 'primary';
+      case 'draft': return 'secondary';
+      case 'overdue': return 'danger';
+      default: return 'secondary';
     }
   };
 
@@ -109,13 +107,13 @@ Terms: ${invoice.terms || 'N/A'}
 
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Invoice-${invoice.invoiceNumber}.txt`;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Invoice-${invoice.invoiceNumber}.txt`;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
 
@@ -135,7 +133,6 @@ Terms: ${invoice.terms || 'N/A'}
   const formatBankInfo = (bankInfo: any) => {
     if (!bankInfo || typeof bankInfo !== 'object') return null;
     
-    // Handle different possible bank info structures
     const bankName = bankInfo.bankName || bankInfo.bank_name || 'N/A';
     const accountNumber = bankInfo.accountNumber || bankInfo.account_number || 'N/A';
     const routingCode = bankInfo.routingCode || bankInfo.routing_code || bankInfo.ifscCode || bankInfo.ifsc_code || 'N/A';
@@ -146,367 +143,380 @@ Terms: ${invoice.terms || 'N/A'}
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto bg-white">
-        <DialogHeader className="border-b pb-6 bg-gradient-to-r from-blue-50 to-indigo-50 -m-6 p-6 mb-6">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-3xl font-bold text-gray-900">Invoice Details</DialogTitle>
-            <Button
-              variant="default"
-              size="lg"
-              onClick={handleDownloadPDF}
-              className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition-all duration-200 hover:shadow-xl"
-            >
-              <Download className="w-5 h-5 mr-2" />
-              Download PDF
-            </Button>
-          </div>
-        </DialogHeader>
+      <DialogContent className="modal-dialog modal-xl" style={{ maxWidth: '1200px', width: '90vw' }}>
+        <div className="modal-content">
+          <DialogHeader className="modal-header bg-primary text-white">
+            <div className="d-flex justify-content-between align-items-center w-100">
+              <DialogTitle className="modal-title h3 mb-0">Invoice Details</DialogTitle>
+              <Button
+                variant="outline"
+                className="btn btn-light"
+                onClick={handleDownloadPDF}
+              >
+                <Download className="me-2" style={{ width: '16px', height: '16px' }} />
+                Download PDF
+              </Button>
+            </div>
+          </DialogHeader>
 
-        <div className="space-y-8 py-2">
-          {/* Invoice Header */}
-          <Card className="border-2 border-blue-100 shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white -m-6 p-6 mb-6">
-              <div className="flex justify-between items-start">
-                <div className="space-y-3">
-                  <h1 className="text-4xl font-bold">Invoice #{invoice.invoiceNumber}</h1>
-                  <Badge className={`${getStatusColor(invoice.status || 'draft')} font-semibold px-4 py-2 text-sm`}>
-                    {(invoice.status || 'draft').charAt(0).toUpperCase() + (invoice.status || 'draft').slice(1)}
-                  </Badge>
-                </div>
-                <div className="text-right">
-                  {showDualCurrency ? (
-                    <div className="space-y-2">
-                      <p className="text-4xl font-bold">
-                        {formatCurrency(invoice.companyAmount || invoice.totalAmount || 0, companyCountry)}
-                      </p>
-                      <p className="text-xl opacity-90">
-                        {formatCurrency(invoice.clientAmount || 0, clientCountry)}
-                      </p>
-                      <p className="text-sm opacity-80">
-                        Company ({companyCurrency.code}) / Client ({clientCurrency.code})
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <p className="text-4xl font-bold">
-                        {formatCurrency(invoice.totalAmount || 0, companyCountry)}
-                      </p>
-                      <p className="text-sm opacity-80 font-medium">Total Amount</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Company Information */}
-            <Card className="border-2 border-blue-100 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 border-b-2 border-blue-200">
-                <CardTitle className="flex items-center gap-3 text-xl font-bold text-gray-900">
-                  <Building className="w-6 h-6 text-blue-600" />
-                  Company Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6 p-6">
-                <div className="flex items-center gap-4">
-                  {(companyData?.logoUrl || invoice.logoUrl) && (
-                    <div className="flex-shrink-0">
-                      <img 
-                        src={companyData?.logoUrl || invoice.logoUrl} 
-                        alt="Company Logo" 
-                        className="w-20 h-20 object-contain rounded-lg border-2 border-gray-200 shadow-sm"
-                      />
-                    </div>
-                  )}
-                  <div className="flex-1">
-                    <h3 className="text-2xl font-bold text-gray-900">{invoice.companyName}</h3>
-                    {companyData?.email && (
-                      <p className="text-gray-600 text-lg">{companyData.email}</p>
-                    )}
-                    {(companyData?.phone || invoice.companyPhone) && (
-                      <p className="text-gray-600 flex items-center gap-2 text-lg">
-                        <Phone className="w-4 h-4" />
-                        {companyData?.phone || invoice.companyPhone}
-                      </p>
-                    )}
+          <div className="modal-body p-4">
+            {/* Invoice Header */}
+            <div className="card mb-4 border-primary">
+              <div className="card-header bg-primary text-white">
+                <div className="d-flex justify-content-between align-items-start">
+                  <div>
+                    <h1 className="h2 mb-2">Invoice #{invoice.invoiceNumber}</h1>
+                    <Badge className={`badge bg-${getStatusColor(invoice.status || 'draft')}`}>
+                      {(invoice.status || 'draft').charAt(0).toUpperCase() + (invoice.status || 'draft').slice(1)}
+                    </Badge>
                   </div>
-                </div>
-                
-                <Separator className="my-4" />
-                
-                <div>
-                  <h4 className="font-bold mb-3 flex items-center gap-2 text-lg text-gray-900">
-                    <MapPin className="w-5 h-5 text-blue-600" />
-                    Address
-                  </h4>
-                  <div className="bg-gray-50 p-4 rounded-lg border">
-                    <p className="text-gray-700 leading-relaxed">
-                      {invoice.companyAddress || companyData?.streetAddress}<br />
-                      {invoice.companyCity || companyData?.city}<br />
-                      {companyCountry === 'IN' ? 'India' : companyCountry}
-                    </p>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="font-bold mb-3 flex items-center gap-2 text-lg text-gray-900">
-                    <FileText className="w-5 h-5 text-blue-600" />
-                    Tax Information
-                  </h4>
-                  <div className="bg-gray-50 p-4 rounded-lg border space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="font-semibold text-gray-700">GSTIN:</span>
-                      <span className="text-gray-800 font-mono bg-white px-3 py-1 rounded border">
-                        {invoice.GSTIN || 'Not Available'}
-                      </span>
-                    </div>
-                    {companyData?.taxInfo?.secondaryId && (
-                      <div className="flex justify-between items-center">
-                        <span className="font-semibold text-gray-700">Secondary ID:</span>
-                        <span className="text-gray-800 font-mono bg-white px-3 py-1 rounded border">
-                          {companyData.taxInfo.secondaryId}
-                        </span>
+                  <div className="text-end">
+                    {showDualCurrency ? (
+                      <div>
+                        <p className="h2 mb-1">
+                          {formatCurrency(invoice.companyAmount || invoice.totalAmount || 0, companyCountry)}
+                        </p>
+                        <p className="h5 mb-1 opacity-75">
+                          {formatCurrency(invoice.clientAmount || 0, clientCountry)}
+                        </p>
+                        <small className="opacity-75">
+                          Company ({companyCurrency.code}) / Client ({clientCurrency.code})
+                        </small>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="h2 mb-1">
+                          {formatCurrency(invoice.totalAmount || 0, companyCountry)}
+                        </p>
+                        <small className="opacity-75">Total Amount</small>
                       </div>
                     )}
                   </div>
                 </div>
+              </div>
+            </div>
 
-                {(companyData?.bankInfo || invoice.bankInfo) && (
-                  <div>
-                    <h4 className="font-bold mb-3 flex items-center gap-2 text-lg text-gray-900">
-                      <CreditCard className="w-5 h-5 text-blue-600" />
-                      Bank Information
-                    </h4>
-                    <div className="bg-gray-50 rounded-lg border overflow-hidden">
-                      <Table>
-                        <TableBody>
-                          {(() => {
-                            const bankDetails = formatBankInfo(companyData?.bankInfo || invoice.bankInfo);
-                            if (!bankDetails) return (
-                              <TableRow>
-                                <TableCell colSpan={2} className="text-center text-gray-500 py-4">
-                                  No bank information available
-                                </TableCell>
-                              </TableRow>
-                            );
-                            
-                            return (
-                              <>
-                                <TableRow className="border-gray-200 hover:bg-gray-100">
-                                  <TableCell className="font-semibold text-gray-700 py-3 w-1/3">Bank Name</TableCell>
-                                  <TableCell className="text-gray-800 py-3 font-medium">{bankDetails.bankName}</TableCell>
-                                </TableRow>
-                                <TableRow className="border-gray-200 hover:bg-gray-100">
-                                  <TableCell className="font-semibold text-gray-700 py-3">Account Number</TableCell>
-                                  <TableCell className="text-gray-800 py-3 font-mono">{bankDetails.accountNumber}</TableCell>
-                                </TableRow>
-                                <TableRow className="border-gray-200 hover:bg-gray-100">
-                                  <TableCell className="font-semibold text-gray-700 py-3">{bankDetails.routingType}</TableCell>
-                                  <TableCell className="text-gray-800 py-3 font-mono">{bankDetails.routingCode}</TableCell>
-                                </TableRow>
-                              </>
-                            );
-                          })()}
-                        </TableBody>
-                      </Table>
+            <div className="row">
+              {/* Company Information */}
+              <div className="col-lg-6 mb-4">
+                <div className="card h-100 border-info">
+                  <div className="card-header bg-info text-white">
+                    <h5 className="card-title mb-0 d-flex align-items-center">
+                      <Building className="me-2" style={{ width: '20px', height: '20px' }} />
+                      Company Information
+                    </h5>
+                  </div>
+                  <div className="card-body">
+                    <div className="d-flex align-items-center mb-3">
+                      {(companyData?.logoUrl || invoice.logoUrl) && (
+                        <img 
+                          src={companyData?.logoUrl || invoice.logoUrl} 
+                          alt="Company Logo" 
+                          className="me-3 border rounded"
+                          style={{ width: '80px', height: '80px', objectFit: 'contain' }}
+                        />
+                      )}
+                      <div>
+                        <h4 className="mb-1">{invoice.companyName}</h4>
+                        {companyData?.email && (
+                          <p className="text-muted mb-1">{companyData.email}</p>
+                        )}
+                        {(companyData?.phone || invoice.companyPhone) && (
+                          <p className="text-muted mb-0 d-flex align-items-center">
+                            <Phone className="me-1" style={{ width: '16px', height: '16px' }} />
+                            {companyData?.phone || invoice.companyPhone}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
-
-                {(companyData?.signatureUrl || invoice.signatureUrl) && (
-                  <div>
-                    <h4 className="font-bold mb-3 text-lg text-gray-900">Digital Signature</h4>
-                    <div className="bg-gray-50 p-4 rounded-lg border">
-                      <img 
-                        src={companyData?.signatureUrl || invoice.signatureUrl} 
-                        alt="Digital Signature" 
-                        className="max-w-40 h-20 object-contain border-2 border-gray-200 rounded bg-white p-2"
-                      />
+                    
+                    <hr />
+                    
+                    <div className="mb-3">
+                      <h6 className="d-flex align-items-center mb-2">
+                        <MapPin className="me-2 text-info" style={{ width: '18px', height: '18px' }} />
+                        Address
+                      </h6>
+                      <div className="bg-light p-3 rounded border">
+                        <address className="mb-0">
+                          {invoice.companyAddress || companyData?.streetAddress}<br />
+                          {invoice.companyCity || companyData?.city}<br />
+                          {companyCountry === 'IN' ? 'India' : companyCountry}
+                        </address>
+                      </div>
                     </div>
+
+                    <div className="mb-3">
+                      <h6 className="d-flex align-items-center mb-2">
+                        <FileText className="me-2 text-info" style={{ width: '18px', height: '18px' }} />
+                        Tax Information
+                      </h6>
+                      <div className="bg-light p-3 rounded border">
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <strong>GSTIN:</strong>
+                          <span className="badge bg-secondary font-monospace fs-6">
+                            {invoice.GSTIN || 'Not Available'}
+                          </span>
+                        </div>
+                        {companyData?.taxInfo?.secondaryId && (
+                          <div className="d-flex justify-content-between align-items-center">
+                            <strong>Secondary ID:</strong>
+                            <span className="badge bg-secondary font-monospace fs-6">
+                              {companyData.taxInfo.secondaryId}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {(companyData?.bankInfo || invoice.bankInfo) && (
+                      <div className="mb-3">
+                        <h6 className="d-flex align-items-center mb-2">
+                          <CreditCard className="me-2 text-info" style={{ width: '18px', height: '18px' }} />
+                          Bank Information
+                        </h6>
+                        <div className="table-responsive">
+                          <table className="table table-sm table-bordered">
+                            <tbody>
+                              {(() => {
+                                const bankDetails = formatBankInfo(companyData?.bankInfo || invoice.bankInfo);
+                                if (!bankDetails) return (
+                                  <tr>
+                                    <td colSpan={2} className="text-center text-muted">
+                                      No bank information available
+                                    </td>
+                                  </tr>
+                                );
+                                
+                                return (
+                                  <>
+                                    <tr>
+                                      <td className="fw-bold bg-light" style={{ width: '40%' }}>Bank Name</td>
+                                      <td>{bankDetails.bankName}</td>
+                                    </tr>
+                                    <tr>
+                                      <td className="fw-bold bg-light">Account Number</td>
+                                      <td className="font-monospace">{bankDetails.accountNumber}</td>
+                                    </tr>
+                                    <tr>
+                                      <td className="fw-bold bg-light">{bankDetails.routingType}</td>
+                                      <td className="font-monospace">{bankDetails.routingCode}</td>
+                                    </tr>
+                                  </>
+                                );
+                              })()}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {(companyData?.signatureUrl || invoice.signatureUrl) && (
+                      <div>
+                        <h6 className="mb-2">Digital Signature</h6>
+                        <div className="bg-light p-3 rounded border">
+                          <img 
+                            src={companyData?.signatureUrl || invoice.signatureUrl} 
+                            alt="Digital Signature" 
+                            className="border rounded bg-white p-2"
+                            style={{ maxWidth: '160px', height: '80px', objectFit: 'contain' }}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Client Information */}
-            <Card className="border-2 border-green-100 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-green-50 to-green-100 border-b-2 border-green-200">
-                <CardTitle className="text-xl font-bold text-gray-900">Client Information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6 p-6">
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900">{invoice.clientName}</h3>
-                  <p className="text-gray-600 text-lg">{invoice.clientEmail}</p>
-                  {(clientData?.phone || invoice.clientPhone) && (
-                    <p className="text-gray-600 flex items-center gap-2 text-lg">
-                      <Phone className="w-4 h-4" />
-                      {clientData?.phone || invoice.clientPhone}
-                    </p>
-                  )}
                 </div>
+              </div>
 
-                <Separator className="my-4" />
-                
-                <div>
-                  <h4 className="font-bold mb-3 flex items-center gap-2 text-lg text-gray-900">
-                    <MapPin className="w-5 h-5 text-green-600" />
-                    Address
-                  </h4>
-                  <div className="bg-gray-50 p-4 rounded-lg border">
-                    <p className="text-gray-700 leading-relaxed">
-                      {invoice.clientAddress || clientData?.address}<br />
-                      {invoice.clientState || clientData?.state} {invoice.clientPincode || clientData?.pincode}<br />
-                      {clientCountry === 'GB' ? 'United Kingdom' : clientCountry}
-                    </p>
+              {/* Client Information */}
+              <div className="col-lg-6 mb-4">
+                <div className="card h-100 border-success">
+                  <div className="card-header bg-success text-white">
+                    <h5 className="card-title mb-0">Client Information</h5>
                   </div>
-                </div>
+                  <div className="card-body">
+                    <div className="mb-3">
+                      <h4 className="mb-1">{invoice.clientName}</h4>
+                      <p className="text-muted mb-1">{invoice.clientEmail}</p>
+                      {(clientData?.phone || invoice.clientPhone) && (
+                        <p className="text-muted mb-0 d-flex align-items-center">
+                          <Phone className="me-1" style={{ width: '16px', height: '16px' }} />
+                          {clientData?.phone || invoice.clientPhone}
+                        </p>
+                      )}
+                    </div>
 
-                <div>
-                  <h4 className="font-bold mb-3 flex items-center gap-2 text-lg text-gray-900">
-                    <Globe className="w-5 h-5 text-green-600" />
-                    Country & Currency
-                  </h4>
-                  <div className="bg-gray-50 p-4 rounded-lg border">
-                    <p className="text-gray-700">
-                      <span className="font-semibold">Country:</span> {clientCountry === 'GB' ? 'United Kingdom' : clientCountry} ({clientCurrency.code})
-                    </p>
-                  </div>
-                </div>
+                    <hr />
+                    
+                    <div className="mb-3">
+                      <h6 className="d-flex align-items-center mb-2">
+                        <MapPin className="me-2 text-success" style={{ width: '18px', height: '18px' }} />
+                        Address
+                      </h6>
+                      <div className="bg-light p-3 rounded border">
+                        <address className="mb-0">
+                          {invoice.clientAddress || clientData?.address}<br />
+                          {invoice.clientState || clientData?.state} {invoice.clientPincode || clientData?.pincode}<br />
+                          {clientCountry === 'GB' ? 'United Kingdom' : clientCountry}
+                        </address>
+                      </div>
+                    </div>
 
-                {(invoice.clientTaxInfo?.id || clientData?.taxInfo?.id) && (
-                  <div>
-                    <h4 className="font-bold mb-3 flex items-center gap-2 text-lg text-gray-900">
-                      <FileText className="w-5 h-5 text-green-600" />
-                      Tax Information
-                    </h4>
-                    <div className="bg-gray-50 p-4 rounded-lg border">
-                      <div className="flex justify-between items-center">
-                        <span className="font-semibold text-gray-700">
-                          {invoice.clientTaxInfo?.type || clientData?.taxInfo?.type || 'Tax ID'}:
-                        </span>
-                        <span className="text-gray-800 font-mono bg-white px-3 py-1 rounded border">
-                          {invoice.clientTaxInfo?.id || clientData?.taxInfo?.id}
-                        </span>
+                    <div className="mb-3">
+                      <h6 className="d-flex align-items-center mb-2">
+                        <Globe className="me-2 text-success" style={{ width: '18px', height: '18px' }} />
+                        Country & Currency
+                      </h6>
+                      <div className="bg-light p-3 rounded border">
+                        <p className="mb-0">
+                          <strong>Country:</strong> {clientCountry === 'GB' ? 'United Kingdom' : clientCountry} ({clientCurrency.code})
+                        </p>
+                      </div>
+                    </div>
+
+                    {(invoice.clientTaxInfo?.id || clientData?.taxInfo?.id) && (
+                      <div className="mb-3">
+                        <h6 className="d-flex align-items-center mb-2">
+                          <FileText className="me-2 text-success" style={{ width: '18px', height: '18px' }} />
+                          Tax Information
+                        </h6>
+                        <div className="bg-light p-3 rounded border">
+                          <div className="d-flex justify-content-between align-items-center">
+                            <strong>
+                              {invoice.clientTaxInfo?.type || clientData?.taxInfo?.type || 'Tax ID'}:
+                            </strong>
+                            <span className="badge bg-secondary font-monospace fs-6">
+                              {invoice.clientTaxInfo?.id || clientData?.taxInfo?.id}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <hr />
+
+                    <div className="row">
+                      <div className="col-sm-6 mb-3">
+                        <div className="d-flex align-items-center justify-content-between p-3 bg-primary bg-opacity-10 rounded border border-primary border-opacity-25">
+                          <div className="d-flex align-items-center">
+                            <Calendar className="me-2 text-primary" style={{ width: '18px', height: '18px' }} />
+                            <strong>Issue Date:</strong>
+                          </div>
+                          <span className="fw-bold">{invoice.issueDate?.toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                      <div className="col-sm-6 mb-3">
+                        <div className="d-flex align-items-center justify-content-between p-3 bg-warning bg-opacity-10 rounded border border-warning border-opacity-25">
+                          <div className="d-flex align-items-center">
+                            <Calendar className="me-2 text-warning" style={{ width: '18px', height: '18px' }} />
+                            <strong>Due Date:</strong>
+                          </div>
+                          <span className="fw-bold">{invoice.dueDate?.toLocaleDateString()}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                )}
+                </div>
+              </div>
+            </div>
 
-                <Separator className="my-4" />
+            {/* Invoice Items */}
+            <div className="card mb-4 border-warning">
+              <div className="card-header bg-warning text-dark">
+                <h5 className="card-title mb-0">Invoice Items</h5>
+              </div>
+              <div className="card-body">
+                <div className="mb-4">
+                  {invoice.items?.map((item, index) => (
+                    <div key={index} className="d-flex justify-content-between align-items-center p-3 mb-3 bg-light rounded border">
+                      <div className="flex-grow-1">
+                        <h6 className="mb-1">{item.description}</h6>
+                        <p className="text-muted mb-0">
+                          <strong>Qty:</strong> {item.quantity} × {formatCurrency(item.rate || 0, companyCountry)}
+                        </p>
+                      </div>
+                      <div className="text-end">
+                        <h5 className="mb-0">
+                          {formatCurrency(item.amount || 0, companyCountry)}
+                        </h5>
+                        <small className="text-muted">Line Total</small>
+                      </div>
+                    </div>
+                  ))}
+                </div>
 
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <div className="flex items-center gap-3">
-                      <Calendar className="w-5 h-5 text-blue-600" />
-                      <span className="font-semibold text-gray-700">Issue Date:</span>
-                    </div>
-                    <span className="font-bold text-gray-900 text-lg">{invoice.issueDate?.toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg border border-orange-200">
-                    <div className="flex items-center gap-3">
-                      <Calendar className="w-5 h-5 text-orange-600" />
-                      <span className="font-semibold text-gray-700">Due Date:</span>
-                    </div>
-                    <span className="font-bold text-gray-900 text-lg">{invoice.dueDate?.toLocaleDateString()}</span>
+                <hr />
+
+                <div className="row">
+                  <div className="col-md-6 offset-md-6">
+                    <table className="table table-borderless">
+                      <tbody>
+                        <tr>
+                          <td className="fw-bold">Subtotal:</td>
+                          <td className="text-end fw-bold">{formatCurrency(invoice.subtotal || 0, companyCountry)}</td>
+                        </tr>
+                        
+                        {(invoice.cgst || 0) > 0 && (
+                          <tr>
+                            <td className="fw-bold">CGST:</td>
+                            <td className="text-end fw-bold">{formatCurrency(invoice.cgst || 0, companyCountry)}</td>
+                          </tr>
+                        )}
+                        
+                        {(invoice.sgst || 0) > 0 && (
+                          <tr>
+                            <td className="fw-bold">SGST:</td>
+                            <td className="text-end fw-bold">{formatCurrency(invoice.sgst || 0, companyCountry)}</td>
+                          </tr>
+                        )}
+                        
+                        {(invoice.igst || 0) > 0 && (
+                          <tr>
+                            <td className="fw-bold">IGST:</td>
+                            <td className="text-end fw-bold">{formatCurrency(invoice.igst || 0, companyCountry)}</td>
+                          </tr>
+                        )}
+                        
+                        <tr>
+                          <td className="fw-bold">Total Tax:</td>
+                          <td className="text-end fw-bold">{formatCurrency(invoice.totalGst || 0, companyCountry)}</td>
+                        </tr>
+                        
+                        <tr className="table-primary">
+                          <td className="fw-bold h5">Total Amount:</td>
+                          <td className="text-end fw-bold h5">{formatCurrency(invoice.totalAmount || 0, companyCountry)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
+
+            {/* Notes and Terms */}
+            {(invoice.notes || invoice.terms) && (
+              <div className="card border-secondary">
+                <div className="card-body">
+                  {invoice.notes && (
+                    <div className="mb-4">
+                      <h5 className="card-title">Notes:</h5>
+                      <div className="bg-light p-3 rounded border">
+                        <p className="mb-0">{invoice.notes}</p>
+                      </div>
+                    </div>
+                  )}
+                  {invoice.terms && (
+                    <div>
+                      <h5 className="card-title">Terms & Conditions:</h5>
+                      <div className="bg-light p-3 rounded border">
+                        <p className="mb-0">{invoice.terms}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-
-          {/* Invoice Items */}
-          <Card className="border-2 border-yellow-100 shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-yellow-50 to-yellow-100 border-b-2 border-yellow-200">
-              <CardTitle className="text-xl font-bold text-gray-900">Invoice Items</CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="space-y-4">
-                {invoice.items?.map((item, index) => (
-                  <div key={index} className="flex justify-between items-center p-5 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border-2 border-gray-200 hover:shadow-md transition-shadow">
-                    <div className="flex-1">
-                      <p className="font-bold text-gray-900 text-lg">{item.description}</p>
-                      <p className="text-gray-600 mt-2">
-                        <span className="font-semibold">Qty:</span> {item.quantity} × {formatCurrency(item.rate || 0, companyCountry)}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-2xl text-gray-900">
-                        {formatCurrency(item.amount || 0, companyCountry)}
-                      </p>
-                      <p className="text-sm text-gray-500 font-medium">Line Total</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <Separator className="my-8" />
-
-              <div className="space-y-4">
-                <div className="flex justify-between text-lg">
-                  <span className="font-semibold text-gray-700">Subtotal:</span>
-                  <span className="font-bold text-gray-900">{formatCurrency(invoice.subtotal || 0, companyCountry)}</span>
-                </div>
-                
-                {(invoice.cgst || 0) > 0 && (
-                  <div className="flex justify-between text-lg">
-                    <span className="font-semibold text-gray-700">CGST:</span>
-                    <span className="font-bold text-gray-900">{formatCurrency(invoice.cgst || 0, companyCountry)}</span>
-                  </div>
-                )}
-                
-                {(invoice.sgst || 0) > 0 && (
-                  <div className="flex justify-between text-lg">
-                    <span className="font-semibold text-gray-700">SGST:</span>
-                    <span className="font-bold text-gray-900">{formatCurrency(invoice.sgst || 0, companyCountry)}</span>
-                  </div>
-                )}
-                
-                {(invoice.igst || 0) > 0 && (
-                  <div className="flex justify-between text-lg">
-                    <span className="font-semibold text-gray-700">IGST:</span>
-                    <span className="font-bold text-gray-900">{formatCurrency(invoice.igst || 0, companyCountry)}</span>
-                  </div>
-                )}
-                
-                <div className="flex justify-between text-lg">
-                  <span className="font-semibold text-gray-700">Total Tax:</span>
-                  <span className="font-bold text-gray-900">{formatCurrency(invoice.totalGst || 0, companyCountry)}</span>
-                </div>
-                
-                <Separator className="border-2" />
-                
-                <div className="flex justify-between font-bold text-2xl text-white bg-gradient-to-r from-blue-600 to-indigo-600 p-4 rounded-lg shadow-lg">
-                  <span>Total Amount:</span>
-                  <span>{formatCurrency(invoice.totalAmount || 0, companyCountry)}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Notes and Terms */}
-          {(invoice.notes || invoice.terms) && (
-            <Card className="border-2 border-purple-100 shadow-lg">
-              <CardContent className="p-6">
-                {invoice.notes && (
-                  <div className="mb-6">
-                    <h4 className="font-bold mb-3 text-xl text-gray-900">Notes:</h4>
-                    <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                      <p className="text-gray-700 leading-relaxed text-lg">{invoice.notes}</p>
-                    </div>
-                  </div>
-                )}
-                {invoice.terms && (
-                  <div>
-                    <h4 className="font-bold mb-3 text-xl text-gray-900">Terms & Conditions:</h4>
-                    <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                      <p className="text-gray-700 leading-relaxed text-lg">{invoice.terms}</p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
         </div>
       </DialogContent>
     </Dialog>
