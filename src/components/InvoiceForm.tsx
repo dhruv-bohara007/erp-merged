@@ -232,6 +232,7 @@ const InvoiceForm = () => {
           INRToClient: currencyAmounts.INRToClientRate,
           timestamp: new Date()
         },
+        // Note: companyCountry and clientCountry will be automatically populated by the addInvoice function
         status,
         issueDate: new Date(invoiceData.issueDate),
         dueDate: new Date(invoiceData.dueDate),
@@ -239,6 +240,7 @@ const InvoiceForm = () => {
         terms: invoiceData.terms,
       };
 
+      console.log('Creating invoice with automatic country population...');
       await addInvoice(invoice);
       
       toast({

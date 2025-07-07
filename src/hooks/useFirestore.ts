@@ -11,7 +11,8 @@ import {
   where, 
   orderBy,
   onSnapshot,
-  Timestamp 
+  Timestamp,
+  getDoc
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -41,6 +42,9 @@ export interface Invoice {
     INRToClient: number;
     timestamp: Date;
   };
+  // New country fields
+  companyCountry: string;
+  clientCountry: string;
   status: 'draft' | 'sent' | 'paid' | 'overdue';
   issueDate: Date;
   dueDate: Date;
@@ -162,6 +166,9 @@ export const useInvoices = () => {
             companyAmount: data.companyAmount || data.totalAmount || 0,
             clientCurrency: data.clientCurrency || 'INR',
             clientAmount: data.clientAmount || data.totalAmount || 0,
+            // Handle new country fields with fallbacks
+            companyCountry: data.companyCountry || 'IN',
+            clientCountry: data.clientCountry || 'IN',
             conversionRate: data.conversionRate ? {
               ...data.conversionRate,
               timestamp: data.conversionRate.timestamp?.toDate?.() || new Date()
@@ -190,15 +197,29 @@ export const useInvoices = () => {
     return () => unsubscribe();
   }, [currentUser?.companyId]);
 
-  const addInvoice = async (invoice: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const addInvoice = async (invoice: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt' | 'companyCountry' | 'clientCountry'>) => {
     if (!currentUser?.companyId) {
       throw new Error('User company ID not found');
     }
 
     try {
+      console.log('Fetching company and client data for invoice creation...');
+      
+      // Fetch company document to get companyCountry
+      const companyDoc = await getDoc(doc(db, 'companies', currentUser.companyId));
+      const companyCountry = companyDoc.exists() ? companyDoc.data()?.country || 'IN' : 'IN';
+      
+      // Fetch client document to get clientCountry
+      const clientDoc = await getDoc(doc(db, 'clients', invoice.clientId));
+      const clientCountry = clientDoc.exists() ? clientDoc.data()?.country || 'IN' : 'IN';
+      
+      console.log('Country data fetched:', { companyCountry, clientCountry });
+
       const docRef = await addDoc(collection(db, 'invoices'), {
         ...invoice,
         companyId: currentUser.companyId,
+        companyCountry,
+        clientCountry,
         issueDate: Timestamp.fromDate(invoice.issueDate),
         dueDate: Timestamp.fromDate(invoice.dueDate),
         conversionRate: invoice.conversionRate ? {
@@ -208,6 +229,8 @@ export const useInvoices = () => {
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       });
+      
+      console.log('Invoice created with country fields:', { companyCountry, clientCountry });
       return docRef.id;
     } catch (err) {
       console.error('Error adding invoice:', err);

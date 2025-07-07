@@ -93,6 +93,9 @@ export interface Invoice {
     INRToClient: number; // Rate used for INR → client currency
     timestamp: Timestamp; // When the conversion was done
   };
+  // New country fields for automatic population
+  companyCountry: string; // Automatically fetched from company document
+  clientCountry: string; // Automatically fetched from client document
   notes?: string;
   terms?: string;
   paidDate?: Timestamp;
