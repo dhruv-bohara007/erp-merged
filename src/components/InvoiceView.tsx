@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Calendar, Download, MapPin, Globe } from 'lucide-react';
 import { Invoice } from '@/hooks/useFirestore';
-import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
+import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 
 interface InvoiceViewProps {
   invoice: Invoice | null;
@@ -16,8 +16,6 @@ interface InvoiceViewProps {
 }
 
 const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
-  const { getCurrencyInfo } = useCurrencyConverter();
-
   if (!invoice) return null;
 
   const getStatusColor = (status: string) => {
@@ -71,13 +69,17 @@ Terms: ${invoice.terms || 'N/A'}
     URL.revokeObjectURL(url);
   };
 
-  // Get currency information from invoice data
-  const companyCurrency = invoice.companyCurrency ? getCurrencyInfo(invoice.companyCurrency) : getCurrencyInfo('IN');
-  const clientCurrency = invoice.clientCurrency ? getCurrencyInfo(invoice.clientCurrency) : companyCurrency;
+  // Get currency information from invoice data with proper fallbacks
+  const companyCurrency = invoice.companyCurrency ? 
+    getCurrencyByCountry(invoice.companyCurrency) : 
+    getCurrencyByCountry('IN'); // Default to India
+
+  const clientCurrency = invoice.clientCurrency ? 
+    getCurrencyByCountry(invoice.clientCurrency) : 
+    companyCurrency; // Use company currency as fallback
   
   // Format currency with proper symbols and locale
-  const formatCurrency = (amount: number, currencyCode: string) => {
-    const currencyInfo = getCurrencyInfo(currencyCode);
+  const formatCurrency = (amount: number, currencyInfo: typeof companyCurrency) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currencyInfo.code,
@@ -86,15 +88,7 @@ Terms: ${invoice.terms || 'N/A'}
     }).format(amount);
   };
 
-  // Convert amount using stored exchange rate
-  const convertToINR = (amount: number) => {
-    if (invoice.conversionRate?.companyToINR) {
-      return amount * invoice.conversionRate.companyToINR;
-    }
-    return amount;
-  };
-
-  // Get client's country name from country code
+  // Get country name from country code
   const getCountryName = (countryCode: string) => {
     const countryNames: Record<string, string> = {
       'US': 'United States',
@@ -116,12 +110,27 @@ Terms: ${invoice.terms || 'N/A'}
       'ZA': 'South Africa',
       'AE': 'United Arab Emirates',
       'SA': 'Saudi Arabia',
+      'DK': 'Denmark',
+      'NO': 'Norway',
+      'SE': 'Sweden',
+      'CH': 'Switzerland',
     };
     return countryNames[countryCode] || countryCode;
   };
 
   // Determine if we should show dual currency display
-  const showDualCurrency = invoice.companyCurrency && invoice.companyCurrency !== 'IN' && invoice.conversionRate?.companyToINR;
+  const showDualCurrency = invoice.companyCurrency && 
+                           invoice.clientCurrency && 
+                           invoice.companyCurrency !== invoice.clientCurrency &&
+                           invoice.conversionRate;
+
+  // Get conversion rates
+  const companyToINRRate = invoice.conversionRate?.companyToINR || 1;
+  const INRToClientRate = invoice.conversionRate?.INRToClient || 1;
+
+  // Convert amounts based on stored conversion rates
+  const convertCompanyToINR = (amount: number) => amount * companyToINRRate;
+  const convertINRToClient = (amountINR: number) => amountINR * INRToClientRate;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -155,17 +164,17 @@ Terms: ${invoice.terms || 'N/A'}
                   {showDualCurrency ? (
                     <div>
                       <p className="text-2xl font-bold">
-                        {formatCurrency(invoice.totalAmount || 0, invoice.companyCurrency || 'IN')}
+                        {formatCurrency(invoice.companyAmount || invoice.totalAmount || 0, companyCurrency)}
                       </p>
                       <p className="text-lg text-gray-600">
-                        {formatCurrency(convertToINR(invoice.totalAmount || 0), 'IN')}
+                        {formatCurrency(invoice.clientAmount || convertINRToClient(invoice.totalAmountINR || 0), clientCurrency)}
                       </p>
-                      <p className="text-sm text-gray-500">Company Currency / INR</p>
+                      <p className="text-sm text-gray-500">Company / Client Currency</p>
                     </div>
                   ) : (
                     <div>
                       <p className="text-2xl font-bold">
-                        {formatCurrency(invoice.totalAmountINR || invoice.totalAmount || 0, 'IN')}
+                        {formatCurrency(invoice.totalAmountINR || invoice.totalAmount || 0, companyCurrency)}
                       </p>
                       <p className="text-sm text-gray-500">Total Amount (incl. tax)</p>
                     </div>
@@ -188,7 +197,6 @@ Terms: ${invoice.terms || 'N/A'}
                     <p className="text-sm text-gray-600">{invoice.clientEmail}</p>
                   </div>
                   
-                  {/* Address Section - Using available fields from Invoice interface */}
                   <div className="space-y-2">
                     <div className="flex items-start gap-2">
                       <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
@@ -205,7 +213,7 @@ Terms: ${invoice.terms || 'N/A'}
                     <div className="flex items-start gap-2">
                       <Globe className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
                       <div className="text-sm text-gray-600">
-                        <p>Country: {invoice.clientCurrency ? getCountryName(invoice.clientCurrency.substring(0, 2)) : 'Not specified'}</p>
+                        <p>Country: {invoice.clientCurrency ? getCountryName(invoice.clientCurrency) : 'Not specified'}</p>
                       </div>
                     </div>
                   </div>
@@ -220,10 +228,11 @@ Terms: ${invoice.terms || 'N/A'}
                       <p className="text-xs text-blue-700">
                         Client: {clientCurrency.name} ({clientCurrency.code})
                       </p>
-                      {invoice.conversionRate?.companyToINR && (
-                        <p className="text-xs text-blue-700">
-                          Exchange Rate: 1 {companyCurrency.code} = ₹{invoice.conversionRate.companyToINR.toFixed(4)}
-                        </p>
+                      {invoice.conversionRate && (
+                        <div className="text-xs text-blue-700 mt-1">
+                          <p>Exchange Rate: 1 {companyCurrency.code} = ₹{companyToINRRate.toFixed(4)}</p>
+                          <p>Exchange Rate: ₹1 = {INRToClientRate.toFixed(4)} {clientCurrency.code}</p>
+                        </div>
                       )}
                     </div>
                   )}
@@ -255,24 +264,22 @@ Terms: ${invoice.terms || 'N/A'}
                     <div className="flex-1">
                       <p className="font-medium">{item.description}</p>
                       <p className="text-sm text-gray-600">
-                        Qty: {item.quantity} × {showDualCurrency ? 
-                          formatCurrency(item.rate || 0, invoice.companyCurrency || 'IN') : 
-                          formatCurrency(item.rate || 0, 'IN')
-                        }
+                        Qty: {item.quantity} × {formatCurrency(item.rate || 0, companyCurrency)}
+                        {showDualCurrency && (
+                          <span className="text-gray-500 ml-1">
+                            ({formatCurrency(convertINRToClient(convertCompanyToINR(item.rate || 0)), clientCurrency)})
+                          </span>
+                        )}
                       </p>
                     </div>
                     <div className="text-right">
-                      {showDualCurrency ? (
-                        <div>
-                          <p className="font-medium">
-                            {formatCurrency(item.amount || 0, invoice.companyCurrency || 'IN')}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            {formatCurrency(convertToINR(item.amount || 0), 'IN')}
-                          </p>
-                        </div>
-                      ) : (
-                        <p className="font-medium">{formatCurrency(item.amount || 0, 'IN')}</p>
+                      <p className="font-medium">
+                        {formatCurrency(item.amount || 0, companyCurrency)}
+                      </p>
+                      {showDualCurrency && (
+                        <p className="text-sm text-gray-600">
+                          {formatCurrency(convertINRToClient(convertCompanyToINR(item.amount || 0)), clientCurrency)}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -286,15 +293,11 @@ Terms: ${invoice.terms || 'N/A'}
                 <div className="flex justify-between">
                   <span>Subtotal:</span>
                   <div className="text-right">
-                    {showDualCurrency ? (
-                      <div>
-                        <span>{formatCurrency(invoice.subtotal || 0, invoice.companyCurrency || 'IN')}</span>
-                        <div className="text-sm text-gray-600">
-                          {formatCurrency(convertToINR(invoice.subtotal || 0), 'IN')}
-                        </div>
+                    <span>{formatCurrency(invoice.subtotal || 0, companyCurrency)}</span>
+                    {showDualCurrency && (
+                      <div className="text-sm text-gray-600">
+                        {formatCurrency(convertINRToClient(convertCompanyToINR(invoice.subtotal || 0)), clientCurrency)}
                       </div>
-                    ) : (
-                      <span>{formatCurrency(invoice.subtotal || 0, 'IN')}</span>
                     )}
                   </div>
                 </div>
@@ -304,15 +307,11 @@ Terms: ${invoice.terms || 'N/A'}
                   <div className="flex justify-between text-sm">
                     <span>CGST:</span>
                     <div className="text-right">
-                      {showDualCurrency ? (
-                        <div>
-                          <span>{formatCurrency(invoice.cgst || 0, invoice.companyCurrency || 'IN')}</span>
-                          <div className="text-xs text-gray-600">
-                            {formatCurrency(convertToINR(invoice.cgst || 0), 'IN')}
-                          </div>
+                      <span>{formatCurrency(invoice.cgst || 0, companyCurrency)}</span>
+                      {showDualCurrency && (
+                        <div className="text-xs text-gray-600">
+                          {formatCurrency(convertINRToClient(convertCompanyToINR(invoice.cgst || 0)), clientCurrency)}
                         </div>
-                      ) : (
-                        <span>{formatCurrency(invoice.cgst || 0, 'IN')}</span>
                       )}
                     </div>
                   </div>
@@ -322,15 +321,11 @@ Terms: ${invoice.terms || 'N/A'}
                   <div className="flex justify-between text-sm">
                     <span>SGST:</span>
                     <div className="text-right">
-                      {showDualCurrency ? (
-                        <div>
-                          <span>{formatCurrency(invoice.sgst || 0, invoice.companyCurrency || 'IN')}</span>
-                          <div className="text-xs text-gray-600">
-                            {formatCurrency(convertToINR(invoice.sgst || 0), 'IN')}
-                          </div>
+                      <span>{formatCurrency(invoice.sgst || 0, companyCurrency)}</span>
+                      {showDualCurrency && (
+                        <div className="text-xs text-gray-600">
+                          {formatCurrency(convertINRToClient(convertCompanyToINR(invoice.sgst || 0)), clientCurrency)}
                         </div>
-                      ) : (
-                        <span>{formatCurrency(invoice.sgst || 0, 'IN')}</span>
                       )}
                     </div>
                   </div>
@@ -340,15 +335,11 @@ Terms: ${invoice.terms || 'N/A'}
                   <div className="flex justify-between text-sm">
                     <span>IGST:</span>
                     <div className="text-right">
-                      {showDualCurrency ? (
-                        <div>
-                          <span>{formatCurrency(invoice.igst || 0, invoice.companyCurrency || 'IN')}</span>
-                          <div className="text-xs text-gray-600">
-                            {formatCurrency(convertToINR(invoice.igst || 0), 'IN')}
-                          </div>
+                      <span>{formatCurrency(invoice.igst || 0, companyCurrency)}</span>
+                      {showDualCurrency && (
+                        <div className="text-xs text-gray-600">
+                          {formatCurrency(convertINRToClient(convertCompanyToINR(invoice.igst || 0)), clientCurrency)}
                         </div>
-                      ) : (
-                        <span>{formatCurrency(invoice.igst || 0, 'IN')}</span>
                       )}
                     </div>
                   </div>
@@ -357,15 +348,11 @@ Terms: ${invoice.terms || 'N/A'}
                 <div className="flex justify-between">
                   <span>Total Tax:</span>
                   <div className="text-right">
-                    {showDualCurrency ? (
-                      <div>
-                        <span>{formatCurrency(invoice.totalGst || 0, invoice.companyCurrency || 'IN')}</span>
-                        <div className="text-sm text-gray-600">
-                          {formatCurrency(convertToINR(invoice.totalGst || 0), 'IN')}
-                        </div>
+                    <span>{formatCurrency(invoice.totalGst || 0, companyCurrency)}</span>
+                    {showDualCurrency && (
+                      <div className="text-sm text-gray-600">
+                        {formatCurrency(convertINRToClient(convertCompanyToINR(invoice.totalGst || 0)), clientCurrency)}
                       </div>
-                    ) : (
-                      <span>{formatCurrency(invoice.totalGst || 0, 'IN')}</span>
                     )}
                   </div>
                 </div>
@@ -375,37 +362,33 @@ Terms: ${invoice.terms || 'N/A'}
                 <div className="flex justify-between font-bold text-lg">
                   <span>Total Amount:</span>
                   <div className="text-right">
-                    {showDualCurrency ? (
-                      <div>
-                        <span>{formatCurrency(invoice.totalAmount || 0, invoice.companyCurrency || 'IN')}</span>
-                        <div className="text-base text-gray-700 font-semibold">
-                          {formatCurrency(convertToINR(invoice.totalAmount || 0), 'IN')}
-                        </div>
+                    <span>{formatCurrency(invoice.companyAmount || invoice.totalAmount || 0, companyCurrency)}</span>
+                    {showDualCurrency && (
+                      <div className="text-base text-gray-700 font-semibold">
+                        {formatCurrency(invoice.clientAmount || convertINRToClient(invoice.totalAmountINR || 0), clientCurrency)}
                       </div>
-                    ) : (
-                      <span>{formatCurrency(invoice.totalAmountINR || invoice.totalAmount || 0, 'IN')}</span>
                     )}
                   </div>
                 </div>
               </div>
 
               {/* Tax Information Summary */}
-              {(invoice.companyCurrency || invoice.cgst > 0 || invoice.igst > 0) && (
-                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                  <h4 className="font-medium text-sm text-gray-700 mb-1">Tax Information</h4>
-                  <p className="text-xs text-gray-600">
-                    {invoice.companyCurrency === 'IN' || (!invoice.companyCurrency && (invoice.cgst > 0 || invoice.igst > 0)) ? 
-                      `GST based on company location (${getCountryName('IN')})` :
-                      `Sales Tax based on company location (${getCountryName(invoice.companyCurrency || 'US')})`
-                    }
-                  </p>
-                  {invoice.conversionRate?.companyToINR && (
-                    <p className="text-xs text-gray-600 mt-1">
-                      Exchange rates: 1 {companyCurrency.code} = ₹{invoice.conversionRate.companyToINR.toFixed(4)}
-                    </p>
-                  )}
-                </div>
-              )}
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                <h4 className="font-medium text-sm text-gray-700 mb-1">Tax Information</h4>
+                <p className="text-xs text-gray-600">
+                  {invoice.companyCurrency === 'IN' || (!invoice.companyCurrency && (invoice.cgst > 0 || invoice.igst > 0)) ? 
+                    `GST based on company location (${getCountryName(invoice.companyCurrency || 'IN')})` :
+                    `Sales Tax based on company location (${getCountryName(invoice.companyCurrency || 'US')})`
+                  }
+                </p>
+                {showDualCurrency && invoice.conversionRate && (
+                  <div className="text-xs text-gray-600 mt-1">
+                    <p>Exchange rates captured at invoice creation:</p>
+                    <p>1 {companyCurrency.code} = ₹{companyToINRRate.toFixed(4)}</p>
+                    <p>₹1 = {INRToClientRate.toFixed(4)} {clientCurrency.code}</p>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
 
