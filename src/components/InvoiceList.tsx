@@ -306,7 +306,16 @@ Terms: ${invoice.terms || 'N/A'}
                       </TableCell>
                       <TableCell>
                         <div className="font-medium">{formatINR(invoice.totalAmountINR || invoice.totalAmount || 0)}</div>
-                        <div className="text-sm text-gray-500">GST: {formatINR(invoice.totalGst || 0)}</div>
+                        <div className="text-sm text-gray-500">
+                          GST: {formatINR(invoice.totalGst || 0)}
+                          {(invoice.cgst > 0 || invoice.sgst > 0 || invoice.igst > 0) && (
+                            <div className="text-xs text-gray-400">
+                              {invoice.cgst > 0 && `CGST: ${formatINR(invoice.cgst)} `}
+                              {invoice.sgst > 0 && `SGST: ${formatINR(invoice.sgst)} `}
+                              {invoice.igst > 0 && `IGST: ${formatINR(invoice.igst)}`}
+                            </div>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge className={getStatusColor(invoice.status || 'draft')}>

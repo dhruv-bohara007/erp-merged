@@ -208,6 +208,8 @@ const InvoiceForm = () => {
     setLoading(true);
 
     try {
+      console.log('Creating invoice with tax calculation:', taxCalculation);
+      
       const invoice = {
         invoiceNumber: invoiceData.invoiceNumber,
         clientId: invoiceData.clientId,
@@ -216,9 +218,9 @@ const InvoiceForm = () => {
         clientState: selectedClient?.state || '',
         items,
         subtotal,
-        cgst: taxCalculation.taxes.find(t => t.name === 'CGST')?.amount || 0,
-        sgst: taxCalculation.taxes.find(t => t.name === 'SGST')?.amount || 0,
-        igst: taxCalculation.taxes.find(t => t.name === 'IGST')?.amount || 0,
+        cgst: taxCalculation.cgstAmount,
+        sgst: taxCalculation.sgstAmount,
+        igst: taxCalculation.igstAmount,
         totalGst: taxCalculation.totalTaxAmount,
         totalAmount: currencyAmounts.companyAmount,
         // New currency fields
@@ -239,6 +241,7 @@ const InvoiceForm = () => {
         terms: invoiceData.terms,
       };
 
+      console.log('Invoice data being saved:', invoice);
       await addInvoice(invoice);
       
       toast({
@@ -248,6 +251,7 @@ const InvoiceForm = () => {
 
       navigate('/invoices');
     } catch (error) {
+      console.error('Error creating invoice:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to create invoice",
@@ -436,6 +440,13 @@ const InvoiceForm = () => {
                     : `${getTaxDisplayName(companyCountry, clientCountry)} based on company location (${companyCountry})`
                   }
                 </p>
+                {/* Debug info for tax calculation */}
+                <div className="text-xs text-gray-500 mt-2">
+                  <p>CGST: ₹{taxCalculation.cgstAmount.toFixed(2)}</p>
+                  <p>SGST: ₹{taxCalculation.sgstAmount.toFixed(2)}</p>
+                  <p>IGST: ₹{taxCalculation.igstAmount.toFixed(2)}</p>
+                  <p>Total GST: ₹{taxCalculation.totalTaxAmount.toFixed(2)}</p>
+                </div>
               </div>
             )}
           </CardContent>
