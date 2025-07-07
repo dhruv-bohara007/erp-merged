@@ -88,18 +88,16 @@ export const initializeCollections = async () => {
       console.log('Client added with ID:', clientRef.id);
     }
 
-    // Sample Invoice Data - now includes the required companyCountry and clientCountry fields
+    // Sample Invoice Data - now includes ALL required fields
     const sampleInvoice: Omit<Invoice, 'id'> = {
+      companyId: companyRef.id,
       invoiceNumber: 'INV-2024-001',
       clientId: clientRefs[0].id,
       clientName: 'ABC Corporation',
       clientEmail: 'contact@abccorp.com',
-      issueDate: Timestamp.now(),
-      dueDate: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)), // 30 days from now
-      status: 'sent',
+      clientState: 'Delhi',
       items: [
         {
-          id: '1',
           description: 'Software Development Services',
           quantity: 1,
           rate: 100000,
@@ -107,31 +105,49 @@ export const initializeCollections = async () => {
         }
       ],
       subtotal: 100000,
-      discount: 0,
-      discountAmount: 0,
-      isInterState: true,
-      cgstRate: 9,
-      sgstRate: 9,
-      igstRate: 0,
-      cgstAmount: 9000,
-      sgstAmount: 9000,
-      igstAmount: 0,
-      totalGST: 18000,
-      total: 118000,
-      currency: 'INR',
+      cgst: 9000,
+      sgst: 9000,
+      igst: 0,
+      totalGst: 18000,
+      totalAmount: 118000,
+      // Currency fields
       totalAmountINR: 118000,
       companyCurrency: 'INR',
       companyAmount: 118000,
       clientCurrency: 'INR',
       clientAmount: 118000,
-      // Add the required country fields
-      companyCountry: 'IN',
-      clientCountry: 'IN',
       conversionRate: {
         companyToINR: 1,
         INRToClient: 1,
         timestamp: Timestamp.now()
       },
+      // Country fields
+      companyCountry: 'IN',
+      clientCountry: 'IN',
+      // Company snapshot fields
+      companyName: 'TechSolutions Pvt Ltd',
+      companyLogoUrl: undefined,
+      companyTaxInfo: {
+        gstin: '27AABCT1234M1Z5',
+        pan: 'AABCT1234M'
+      },
+      companyBankDetails: {
+        accountNumber: '123456789012',
+        ifscCode: 'HDFC0001234',
+        bankName: 'HDFC Bank',
+        accountHolderName: 'TechSolutions PvLtd'
+      },
+      companyAddress: '123 Business Park, Mumbai, Maharashtra - 400001',
+      ownerSignatureUrl: undefined,
+      // Client snapshot fields
+      clientAddress: '456 Corporate Avenue, Delhi - 110001',
+      clientTaxInfo: {
+        id: '07AABCA1234N1Z9',
+        type: 'GSTIN'
+      },
+      status: 'sent',
+      issueDate: Timestamp.now(),
+      dueDate: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)), // 30 days from now
       notes: 'Payment due within 30 days',
       terms: 'Net 30 days payment terms',
       createdAt: Timestamp.now(),
