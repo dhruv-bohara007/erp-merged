@@ -42,10 +42,10 @@ service cloud.firestore {
       // Super admin can access all companies
       allow read, write: if isSuperAdmin();
       
-      // Allow company creation during signup - company ID must match user ID and user must be authenticated
+      // Allow company creation during signup - company ID must match user ID
       allow create: if request.auth != null &&
-        companyId == request.auth.uid &&
-        request.resource.data.adminUserId == request.auth.uid;
+        getUserData().role == 'company_admin' &&
+        companyId == request.auth.uid;
     }
 
     // CLIENTS: only accessible by users from the same company
