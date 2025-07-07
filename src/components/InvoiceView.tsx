@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, Download } from 'lucide-react';
+import { Calendar, Download, MapPin, Globe } from 'lucide-react';
 import { Invoice } from '@/hooks/useFirestore';
+import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
 
 interface InvoiceViewProps {
   invoice: Invoice | null;
@@ -15,6 +16,8 @@ interface InvoiceViewProps {
 }
 
 const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
+  const { getCurrencyInfo } = useCurrencyConverter();
+
   if (!invoice) return null;
 
   const getStatusColor = (status: string) => {
@@ -68,9 +71,38 @@ Terms: ${invoice.terms || 'N/A'}
     URL.revokeObjectURL(url);
   };
 
-  // Format currency
-  const formatCurrency = (amount: number) => {
-    return `₹${amount.toFixed(2)}`;
+  // Format currency with proper symbols
+  const formatCurrency = (amount: number, currencyCode?: string) => {
+    if (!currencyCode) return `₹${amount.toFixed(2)}`;
+    
+    const currencyInfo = getCurrencyInfo(currencyCode);
+    return `${currencyInfo.symbol}${amount.toFixed(2)}`;
+  };
+
+  // Get client's country name from country code
+  const getCountryName = (countryCode: string) => {
+    const countryNames: Record<string, string> = {
+      'US': 'United States',
+      'IN': 'India',
+      'GB': 'United Kingdom',
+      'DE': 'Germany',
+      'FR': 'France',
+      'IT': 'Italy',
+      'ES': 'Spain',
+      'NL': 'Netherlands',
+      'CA': 'Canada',
+      'AU': 'Australia',
+      'JP': 'Japan',
+      'CN': 'China',
+      'SG': 'Singapore',
+      'HK': 'Hong Kong',
+      'MX': 'Mexico',
+      'BR': 'Brazil',
+      'ZA': 'South Africa',
+      'AE': 'United Arab Emirates',
+      'SA': 'Saudi Arabia',
+    };
+    return countryNames[countryCode] || countryCode;
   };
 
   return (
@@ -102,8 +134,15 @@ Terms: ${invoice.terms || 'N/A'}
                   </Badge>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-bold">{formatCurrency(invoice.totalAmountINR || invoice.totalAmount || 0)}</p>
+                  <p className="text-2xl font-bold">
+                    {formatCurrency(invoice.totalAmountINR || invoice.totalAmount || 0, 'IN')}
+                  </p>
                   <p className="text-sm text-gray-500">Total Amount (incl. tax)</p>
+                  {invoice.clientCurrency && invoice.clientCurrency !== 'INR' && (
+                    <p className="text-lg text-gray-600 mt-1">
+                      {formatCurrency(invoice.clientAmount || 0, invoice.clientCurrency)}
+                    </p>
+                  )}
                 </div>
               </div>
             </CardHeader>
@@ -115,16 +154,48 @@ Terms: ${invoice.terms || 'N/A'}
               <CardTitle>Client Information</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="font-medium">{invoice.clientName}</p>
-                  <p className="text-sm text-gray-600">{invoice.clientEmail}</p>
-                  {invoice.clientState && (
-                    <p className="text-sm text-gray-600">State: {invoice.clientState}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <div>
+                    <h4 className="font-semibold text-lg">{invoice.clientName}</h4>
+                    <p className="text-sm text-gray-600">{invoice.clientEmail}</p>
+                  </div>
+                  
+                  {/* Full Address Section */}
+                  <div className="space-y-2">
+                    <div className="flex items-start gap-2">
+                      <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                      <div className="text-sm text-gray-600">
+                        <p>State: {invoice.clientState || 'Not specified'}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start gap-2">
+                      <Globe className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                      <div className="text-sm text-gray-600">
+                        <p>Country: {invoice.clientState ? getCountryName('IN') : 'Not specified'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Currency Information */}
+                  {invoice.clientCurrency && (
+                    <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                      <p className="text-sm font-medium text-blue-900">Currency Information</p>
+                      <p className="text-xs text-blue-700">
+                        Client Currency: {getCurrencyInfo(invoice.clientCurrency).name} ({invoice.clientCurrency})
+                      </p>
+                      {invoice.conversionRate && (
+                        <p className="text-xs text-blue-700">
+                          Exchange Rate: 1 INR = {(1 / invoice.conversionRate.INRToClient).toFixed(4)} {invoice.clientCurrency}
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
-                <div className="text-right">
-                  <div className="flex items-center justify-end gap-2 mb-2">
+
+                <div className="text-right space-y-2">
+                  <div className="flex items-center justify-end gap-2">
                     <Calendar className="w-4 h-4 text-gray-400" />
                     <span className="text-sm">Issue Date: {invoice.issueDate?.toLocaleDateString()}</span>
                   </div>
@@ -145,13 +216,20 @@ Terms: ${invoice.terms || 'N/A'}
             <CardContent>
               <div className="space-y-4">
                 {invoice.items?.map((item, index) => (
-                  <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                  <div key={index} className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
                     <div className="flex-1">
                       <p className="font-medium">{item.description}</p>
-                      <p className="text-sm text-gray-600">Qty: {item.quantity} × {formatCurrency(item.rate)}</p>
+                      <p className="text-sm text-gray-600">
+                        Qty: {item.quantity} × {formatCurrency(item.rate, 'IN')}
+                      </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-medium">{formatCurrency(item.amount || 0)}</p>
+                      <p className="font-medium">{formatCurrency(item.amount || 0, 'IN')}</p>
+                      {invoice.clientCurrency && invoice.clientCurrency !== 'INR' && invoice.conversionRate && (
+                        <p className="text-sm text-gray-600">
+                          {formatCurrency((item.amount || 0) / invoice.conversionRate.INRToClient, invoice.clientCurrency)}
+                        </p>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -163,41 +241,83 @@ Terms: ${invoice.terms || 'N/A'}
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span>Subtotal:</span>
-                  <span>{formatCurrency(invoice.subtotal || 0)}</span>
+                  <div className="text-right">
+                    <span>{formatCurrency(invoice.subtotal || 0, 'IN')}</span>
+                    {invoice.clientCurrency && invoice.clientCurrency !== 'INR' && invoice.conversionRate && (
+                      <div className="text-sm text-gray-600">
+                        {formatCurrency((invoice.subtotal || 0) / invoice.conversionRate.INRToClient, invoice.clientCurrency)}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 
                 {/* Tax Breakdown - only show non-zero tax amounts */}
                 {invoice.cgst > 0 && (
                   <div className="flex justify-between text-sm">
                     <span>CGST:</span>
-                    <span>{formatCurrency(invoice.cgst || 0)}</span>
+                    <div className="text-right">
+                      <span>{formatCurrency(invoice.cgst || 0, 'IN')}</span>
+                      {invoice.clientCurrency && invoice.clientCurrency !== 'INR' && invoice.conversionRate && (
+                        <div className="text-xs text-gray-600">
+                          {formatCurrency((invoice.cgst || 0) / invoice.conversionRate.INRToClient, invoice.clientCurrency)}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
                 
                 {invoice.sgst > 0 && (
                   <div className="flex justify-between text-sm">
                     <span>SGST:</span>
-                    <span>{formatCurrency(invoice.sgst || 0)}</span>
+                    <div className="text-right">
+                      <span>{formatCurrency(invoice.sgst || 0, 'IN')}</span>
+                      {invoice.clientCurrency && invoice.clientCurrency !== 'INR' && invoice.conversionRate && (
+                        <div className="text-xs text-gray-600">
+                          {formatCurrency((invoice.sgst || 0) / invoice.conversionRate.INRToClient, invoice.clientCurrency)}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
                 
                 {invoice.igst > 0 && (
                   <div className="flex justify-between text-sm">
                     <span>IGST:</span>
-                    <span>{formatCurrency(invoice.igst || 0)}</span>
+                    <div className="text-right">
+                      <span>{formatCurrency(invoice.igst || 0, 'IN')}</span>
+                      {invoice.clientCurrency && invoice.clientCurrency !== 'INR' && invoice.conversionRate && (
+                        <div className="text-xs text-gray-600">
+                          {formatCurrency((invoice.igst || 0) / invoice.conversionRate.INRToClient, invoice.clientCurrency)}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
                 
                 <div className="flex justify-between">
                   <span>Total Tax:</span>
-                  <span>{formatCurrency(invoice.totalGst || 0)}</span>
+                  <div className="text-right">
+                    <span>{formatCurrency(invoice.totalGst || 0, 'IN')}</span>
+                    {invoice.clientCurrency && invoice.clientCurrency !== 'INR' && invoice.conversionRate && (
+                      <div className="text-sm text-gray-600">
+                        {formatCurrency((invoice.totalGst || 0) / invoice.conversionRate.INRToClient, invoice.clientCurrency)}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 
                 <Separator />
                 
                 <div className="flex justify-between font-bold text-lg">
                   <span>Total Amount:</span>
-                  <span>{formatCurrency(invoice.totalAmountINR || invoice.totalAmount || 0)}</span>
+                  <div className="text-right">
+                    <span>{formatCurrency(invoice.totalAmountINR || invoice.totalAmount || 0, 'IN')}</span>
+                    {invoice.clientCurrency && invoice.clientCurrency !== 'INR' && (
+                      <div className="text-base text-gray-700 font-semibold">
+                        {formatCurrency(invoice.clientAmount || 0, invoice.clientCurrency)}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </CardContent>
