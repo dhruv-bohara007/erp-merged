@@ -28,6 +28,9 @@ const queryClient = new QueryClient();
 const AuthenticatedApp = () => {
   const { currentUser } = useAuth();
 
+  console.log('Current user:', currentUser);
+  console.log('Has completed setup:', currentUser?.hasCompletedSetup);
+
   // If user is authenticated but on login/register page, redirect to their dashboard
   const getDefaultRedirect = () => {
     if (!currentUser) return '/login';
@@ -56,10 +59,14 @@ const AuthenticatedApp = () => {
           currentUser ? <Navigate to={getDefaultRedirect()} replace /> : <RegisterForm />
         } />
 
-        {/* Company Setup Route */}
+        {/* Company Setup Route - only for authenticated company admins who haven't completed setup */}
         <Route path="/company-setup" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
-            <CompanySignupForm />
+            {currentUser && !currentUser.hasCompletedSetup ? (
+              <CompanySignupForm />
+            ) : (
+              <Navigate to="/admin-dashboard" replace />
+            )}
           </ProtectedRoute>
         } />
 
@@ -236,13 +243,9 @@ const AuthenticatedApp = () => {
           </ProtectedRoute>
         } />
 
-        {/* Root redirect */}
+        {/* Root redirect - Always redirect to login if no user */}
         <Route path="/" element={
-          currentUser ? (
-            <Navigate to={getDefaultRedirect()} replace />
-          ) : (
-            <Navigate to="/login" replace />
-          )
+          <Navigate to={currentUser ? getDefaultRedirect() : "/login"} replace />
         } />
 
         {/* 404 page */}

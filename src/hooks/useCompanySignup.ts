@@ -46,6 +46,7 @@ export const useCompanySignup = () => {
         description: 'You must be logged in to complete company setup',
         variant: 'destructive',
       });
+      navigate('/login');
       return;
     }
     
@@ -72,7 +73,7 @@ export const useCompanySignup = () => {
       // Create company document with user ID as the document ID
       const companyData = {
         ...formData,
-        companyCurrency: currencyInfo.code, // Add currency field
+        companyCurrency: currencyInfo.code,
         adminUserId: currentUser.uid,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -83,7 +84,7 @@ export const useCompanySignup = () => {
       console.log('User ID:', currentUser.uid);
       console.log('User role:', currentUser.role);
 
-      // Save company data to Firestore
+      // Save company data to Firestore using the user's UID as document ID
       await setDoc(doc(db, 'companies', currentUser.uid), companyData);
       
       // Update user document to include company association
@@ -108,7 +109,7 @@ export const useCompanySignup = () => {
       console.error('Company setup error:', error);
       toast({
         title: 'Setup Failed',
-        description: 'Failed to save company information. Please try again.',
+        description: 'Failed to save company information. Please try again. Make sure you are authenticated.',
         variant: 'destructive',
       });
     } finally {
