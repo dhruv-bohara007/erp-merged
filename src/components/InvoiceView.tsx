@@ -146,7 +146,7 @@ Terms: ${invoice.terms || 'N/A'}
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div>
-                  <CardTitle className="text-xl">Invoice #{invoke.invoiceNumber}</CardTitle>
+                  <CardTitle className="text-xl">Invoice #{invoice.invoiceNumber}</CardTitle>
                   <Badge className={getStatusColor(invoice.status || 'draft')}>
                     {(invoice.status || 'draft').charAt(0).toUpperCase() + (invoice.status || 'draft').slice(1)}
                   </Badge>
@@ -188,23 +188,16 @@ Terms: ${invoice.terms || 'N/A'}
                     <p className="text-sm text-gray-600">{invoice.clientEmail}</p>
                   </div>
                   
-                  {/* Full Address Section */}
+                  {/* Address Section - Using available fields from Invoice interface */}
                   <div className="space-y-2">
                     <div className="flex items-start gap-2">
                       <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
                       <div className="text-sm text-gray-600">
-                        {invoice.clientAddress && (
-                          <>
-                            <p>{invoice.clientAddress}</p>
-                            <p>
-                              {invoice.clientCity && `${invoice.clientCity}, `}
-                              {invoice.clientState && `${invoice.clientState} `}
-                              {invoice.clientPincode}
-                            </p>
-                          </>
-                        )}
-                        {!invoice.clientAddress && invoice.clientState && (
+                        {invoice.clientState && (
                           <p>State: {invoice.clientState}</p>
+                        )}
+                        {!invoice.clientState && (
+                          <p>Address information not available</p>
                         )}
                       </div>
                     </div>
@@ -212,7 +205,7 @@ Terms: ${invoice.terms || 'N/A'}
                     <div className="flex items-start gap-2">
                       <Globe className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
                       <div className="text-sm text-gray-600">
-                        <p>Country: {invoice.clientCountry ? getCountryName(invoice.clientCountry) : 'Not specified'}</p>
+                        <p>Country: {invoice.clientCurrency ? getCountryName(invoice.clientCurrency.substring(0, 2)) : 'Not specified'}</p>
                       </div>
                     </div>
                   </div>
@@ -360,38 +353,19 @@ Terms: ${invoice.terms || 'N/A'}
                     </div>
                   </div>
                 )}
-
-                {/* Sales Tax for non-Indian companies */}
-                {invoice.salesTax > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span>Sales Tax:</span>
-                    <div className="text-right">
-                      {showDualCurrency ? (
-                        <div>
-                          <span>{formatCurrency(invoice.salesTax || 0, invoice.companyCurrency || 'IN')}</span>
-                          <div className="text-xs text-gray-600">
-                            {formatCurrency(convertToINR(invoice.salesTax || 0), 'IN')}
-                          </div>
-                        </div>
-                      ) : (
-                        <span>{formatCurrency(invoice.salesTax || 0, 'IN')}</span>
-                      )}
-                    </div>
-                  </div>
-                )}
                 
                 <div className="flex justify-between">
                   <span>Total Tax:</span>
                   <div className="text-right">
                     {showDualCurrency ? (
                       <div>
-                        <span>{formatCurrency(invoice.totalGst || invoice.salesTax || 0, invoice.companyCurrency || 'IN')}</span>
+                        <span>{formatCurrency(invoice.totalGst || 0, invoice.companyCurrency || 'IN')}</span>
                         <div className="text-sm text-gray-600">
-                          {formatCurrency(convertToINR(invoice.totalGst || invoice.salesTax || 0), 'IN')}
+                          {formatCurrency(convertToINR(invoice.totalGst || 0), 'IN')}
                         </div>
                       </div>
                     ) : (
-                      <span>{formatCurrency(invoice.totalGst || invoice.salesTax || 0, 'IN')}</span>
+                      <span>{formatCurrency(invoice.totalGst || 0, 'IN')}</span>
                     )}
                   </div>
                 </div>
@@ -416,7 +390,7 @@ Terms: ${invoice.terms || 'N/A'}
               </div>
 
               {/* Tax Information Summary */}
-              {(invoice.companyCurrency || invoice.cgst > 0 || invoice.igst > 0 || invoice.salesTax > 0) && (
+              {(invoice.companyCurrency || invoice.cgst > 0 || invoice.igst > 0) && (
                 <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                   <h4 className="font-medium text-sm text-gray-700 mb-1">Tax Information</h4>
                   <p className="text-xs text-gray-600">
