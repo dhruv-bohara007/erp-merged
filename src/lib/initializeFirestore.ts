@@ -88,7 +88,7 @@ export const initializeCollections = async () => {
       console.log('Client added with ID:', clientRef.id);
     }
 
-    // Sample Invoice Data - using correct property names from Invoice interface
+    // Sample Invoice Data - now includes the required companyCountry and clientCountry fields
     const sampleInvoice: Omit<Invoice, 'id'> = {
       invoiceNumber: 'INV-2024-001',
       clientId: clientRefs[0].id,
@@ -124,6 +124,9 @@ export const initializeCollections = async () => {
       companyAmount: 118000,
       clientCurrency: 'INR',
       clientAmount: 118000,
+      // Add the required country fields
+      companyCountry: 'IN',
+      clientCountry: 'IN',
       conversionRate: {
         companyToINR: 1,
         INRToClient: 1,
