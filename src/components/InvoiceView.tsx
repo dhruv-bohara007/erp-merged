@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,6 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { Calendar, Download, MapPin, Globe, Phone, Building, FileText, CreditCard } from 'lucide-react';
 import { Invoice } from '@/hooks/useFirestore';
 import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
+import jsPDF from 'jspdf';
 
 interface InvoiceViewProps {
   invoice: Invoice | null;
@@ -19,52 +21,151 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'paid': return 'bg-green-100 text-green-800';
-      case 'sent': return 'bg-blue-100 text-blue-800';
-      case 'draft': return 'bg-gray-100 text-gray-800';
-      case 'overdue': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'paid': return 'bg-green-100 text-green-800 border-green-200';
+      case 'sent': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'draft': return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'overdue': return 'bg-red-100 text-red-800 border-red-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
   const handleDownloadPDF = () => {
-    const content = `
-INVOICE
+    const pdf = new jsPDF();
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const margin = 20;
+    let yPosition = 30;
 
-Invoice Number: ${invoice.invoiceNumber}
-Client: ${invoice.clientName}
-Email: ${invoice.clientEmail}
-State: ${invoice.clientState || 'N/A'}
+    // Header
+    pdf.setFontSize(24);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('INVOICE', margin, yPosition);
+    
+    // Invoice number and status
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`Invoice #${invoice.invoiceNumber}`, pageWidth - margin - 50, yPosition);
+    pdf.text(`Status: ${invoice.status?.toUpperCase() || 'DRAFT'}`, pageWidth - margin - 50, yPosition + 10);
+    
+    yPosition += 30;
 
-Issue Date: ${invoice.issueDate?.toLocaleDateString()}
-Due Date: ${invoice.dueDate?.toLocaleDateString()}
+    // Company Information
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('From:', margin, yPosition);
+    yPosition += 10;
+    
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(invoice.companyName || '', margin, yPosition);
+    yPosition += 8;
+    if (invoice.companyAddress) {
+      pdf.text(invoice.companyAddress, margin, yPosition);
+      yPosition += 8;
+    }
+    if (invoice.companyPhone) {
+      pdf.text(`Phone: ${invoice.companyPhone}`, margin, yPosition);
+      yPosition += 8;
+    }
 
-Items:
-${invoice.items?.map(item => 
-  `${item.description} - Qty: ${item.quantity} - Rate: ₹${item.rate} - Amount: ₹${item.amount}`
-).join('\n')}
+    // Client Information
+    yPosition += 10;
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Bill To:', margin, yPosition);
+    yPosition += 10;
+    
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(invoice.clientName, margin, yPosition);
+    yPosition += 8;
+    pdf.text(invoice.clientEmail, margin, yPosition);
+    yPosition += 8;
+    if (invoice.clientAddress) {
+      pdf.text(invoice.clientAddress, margin, yPosition);
+      yPosition += 8;
+    }
 
-Subtotal: ₹${(invoice.subtotal || 0).toLocaleString()}
-${invoice.cgst > 0 ? `CGST: ₹${(invoice.cgst || 0).toLocaleString()}` : ''}
-${invoice.sgst > 0 ? `SGST: ₹${(invoice.sgst || 0).toLocaleString()}` : ''}
-${invoice.igst > 0 ? `IGST: ₹${(invoice.igst || 0).toLocaleString()}` : ''}
-Total Tax: ₹${(invoice.totalGst || 0).toLocaleString()}
+    // Dates
+    yPosition += 10;
+    pdf.text(`Issue Date: ${invoice.issueDate?.toLocaleDateString()}`, margin, yPosition);
+    pdf.text(`Due Date: ${invoice.dueDate?.toLocaleDateString()}`, pageWidth - margin - 80, yPosition);
+    yPosition += 20;
 
-TOTAL AMOUNT: ₹${(invoice.totalAmountINR || invoice.totalAmount || 0).toLocaleString()}
+    // Items table header
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Description', margin, yPosition);
+    pdf.text('Qty', pageWidth - 120, yPosition);
+    pdf.text('Rate', pageWidth - 80, yPosition);
+    pdf.text('Amount', pageWidth - 40, yPosition);
+    yPosition += 5;
+    
+    // Line under header
+    pdf.line(margin, yPosition, pageWidth - margin, yPosition);
+    yPosition += 10;
 
-Notes: ${invoice.notes || 'N/A'}
-Terms: ${invoice.terms || 'N/A'}
-    `;
+    // Items
+    pdf.setFont('helvetica', 'normal');
+    invoice.items?.forEach((item) => {
+      pdf.text(item.description, margin, yPosition);
+      pdf.text(item.quantity.toString(), pageWidth - 120, yPosition);
+      pdf.text(`₹${item.rate?.toFixed(2)}`, pageWidth - 80, yPosition);
+      pdf.text(`₹${item.amount?.toFixed(2)}`, pageWidth - 40, yPosition);
+      yPosition += 12;
+    });
 
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Invoice-${invoice.invoiceNumber}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    yPosition += 10;
+    pdf.line(margin, yPosition, pageWidth - margin, yPosition);
+    yPosition += 15;
+
+    // Totals
+    const totalsX = pageWidth - 100;
+    pdf.text(`Subtotal: ₹${(invoice.subtotal || 0).toFixed(2)}`, totalsX, yPosition);
+    yPosition += 10;
+    
+    if (invoice.cgst > 0) {
+      pdf.text(`CGST: ₹${(invoice.cgst || 0).toFixed(2)}`, totalsX, yPosition);
+      yPosition += 10;
+    }
+    if (invoice.sgst > 0) {
+      pdf.text(`SGST: ₹${(invoice.sgst || 0).toFixed(2)}`, totalsX, yPosition);
+      yPosition += 10;
+    }
+    if (invoice.igst > 0) {
+      pdf.text(`IGST: ₹${(invoice.igst || 0).toFixed(2)}`, totalsX, yPosition);
+      yPosition += 10;
+    }
+    
+    pdf.text(`Total Tax: ₹${(invoice.totalGst || 0).toFixed(2)}`, totalsX, yPosition);
+    yPosition += 15;
+
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(12);
+    pdf.text(`TOTAL: ₹${(invoice.totalAmountINR || invoice.totalAmount || 0).toFixed(2)}`, totalsX, yPosition);
+
+    // Notes and Terms
+    if (invoice.notes || invoice.terms) {
+      yPosition += 30;
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'bold');
+      
+      if (invoice.notes) {
+        pdf.text('Notes:', margin, yPosition);
+        yPosition += 8;
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(invoice.notes, margin, yPosition);
+        yPosition += 15;
+      }
+      
+      if (invoice.terms) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Terms & Conditions:', margin, yPosition);
+        yPosition += 8;
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(invoice.terms, margin, yPosition);
+      }
+    }
+
+    pdf.save(`Invoice-${invoice.invoiceNumber}.pdf`);
   };
 
   // Use the stored country fields from the invoice with fallbacks
@@ -119,79 +220,60 @@ Terms: ${invoice.terms || 'N/A'}
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto p-0">
+        {/* Header */}
+        <div className="bg-white border-b px-6 py-4 sticky top-0 z-10">
           <div className="flex items-center justify-between">
-            <DialogTitle>Invoice Details</DialogTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDownloadPDF}
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Download PDF
-            </Button>
-          </div>
-        </DialogHeader>
-
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="text-xl">Invoice #{invoice.invoiceNumber}</CardTitle>
-                  <Badge className={getStatusColor(invoice.status || 'draft')}>
-                    {(invoice.status || 'draft').charAt(0).toUpperCase() + (invoice.status || 'draft').slice(1)}
-                  </Badge>
-                </div>
-                <div className="text-right">
-                  {showDualCurrency ? (
-                    <div>
-                      <p className="text-2xl font-bold">
-                        {formatCurrency(invoice.companyAmount || invoice.totalAmount || 0, companyCountry)}
-                      </p>
-                      <p className="text-lg text-gray-600">
-                        {formatCurrency(invoice.clientAmount || convertINRToClient(invoice.totalAmountINR || 0), clientCountry)}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        Company ({companyCurrency.code}) / Client ({clientCurrency.code})
-                      </p>
-                    </div>
-                  ) : (
-                    <div>
-                      <p className="text-2xl font-bold">
-                        {formatCurrency(invoice.totalAmountINR || invoice.totalAmount || 0, companyCountry)}
-                      </p>
-                      <p className="text-sm text-gray-500">Total Amount (incl. tax)</p>
-                    </div>
-                  )}
-                </div>
+            <div className="flex items-center gap-4">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">INVOICE</h1>
+                <p className="text-sm text-gray-500 mt-1">#{invoice.invoiceNumber}</p>
               </div>
-            </CardHeader>
-          </Card>
+              <Badge className={`${getStatusColor(invoice.status || 'draft')} border font-medium px-3 py-1`}>
+                {(invoice.status || 'draft').charAt(0).toUpperCase() + (invoice.status || 'draft').slice(1)}
+              </Badge>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold text-gray-900">
+                {formatCurrency(invoice.totalAmountINR || invoice.totalAmount || 0, companyCountry)}
+              </div>
+              <p className="text-sm text-gray-500">Total Amount</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadPDF}
+                className="mt-2"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download PDF
+              </Button>
+            </div>
+          </div>
+        </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Company Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building className="w-5 h-5" />
-                  Company Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-4">
+        <div className="p-6 space-y-8">
+          {/* Company and Client Info */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* From - Company Information */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Building className="w-5 h-5 text-gray-600" />
+                <h3 className="text-lg font-semibold text-gray-900">From</h3>
+              </div>
+              
+              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                <div className="flex items-start gap-3">
                   {invoice.logoUrl && (
                     <img 
                       src={invoice.logoUrl} 
                       alt="Company Logo" 
-                      className="w-16 h-16 object-contain rounded"
+                      className="w-12 h-12 object-contain rounded border bg-white p-1"
                     />
                   )}
-                  <div>
-                    <h3 className="text-lg font-semibold">{invoice.companyName}</h3>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-gray-900">{invoice.companyName}</h4>
                     {invoice.companyPhone && (
-                      <p className="text-sm text-gray-600 flex items-center gap-1">
+                      <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
                         <Phone className="w-3 h-3" />
                         {invoice.companyPhone}
                       </p>
@@ -199,227 +281,218 @@ Terms: ${invoice.terms || 'N/A'}
                   </div>
                 </div>
                 
-                <div>
-                  <h4 className="font-medium mb-2 flex items-center gap-2">
-                    <MapPin className="w-4 h-4" />
-                    Address
-                  </h4>
-                  <p className="text-sm text-gray-600">
-                    {invoice.companyAddress}
-                    {invoice.companyCity && <><br />{invoice.companyCity}</>}
-                    <br />
-                    {getCountryName(companyCountry)}
-                  </p>
-                </div>
-
-                {invoice.companyTaxInfo && (
-                  <div>
-                    <h4 className="font-medium mb-2 flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
-                      Tax Information
-                    </h4>
-                    <p className="text-sm text-gray-600">
-                      GSTIN: {invoice.companyTaxInfo.gstin}
-                      {invoice.companyTaxInfo.pan && (
-                        <><br />PAN: {invoice.companyTaxInfo.pan}</>
-                      )}
-                    </p>
-                  </div>
-                )}
-
-                {invoice.bankInfo && (
-                  <div>
-                    <h4 className="font-medium mb-2 flex items-center gap-2">
-                      <CreditCard className="w-4 h-4" />
-                      Bank Information
-                    </h4>
-                    <p className="text-sm text-gray-600">
-                      {JSON.stringify(invoice.bankInfo)}
-                    </p>
-                  </div>
-                )}
-
-                {invoice.signatureUrl && (
-                  <div>
-                    <h4 className="font-medium mb-2">Digital Signature</h4>
-                    <img 
-                      src={invoice.signatureUrl} 
-                      alt="Digital Signature" 
-                      className="max-w-32 h-16 object-contain border rounded"
-                    />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Client Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Client Information</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="font-semibold text-lg">{invoice.clientName}</h4>
-                    <p className="text-sm text-gray-600">{invoice.clientEmail}</p>
-                    {invoice.clientPhone && (
-                      <p className="text-sm text-gray-600 flex items-center gap-1">
-                        <Phone className="w-3 h-3" />
-                        {invoice.clientPhone}
-                      </p>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-2">
+                {invoice.companyAddress && (
+                  <div className="text-sm text-gray-600">
                     <div className="flex items-start gap-2">
                       <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                      <div className="text-sm text-gray-600">
-                        {invoice.clientAddress && (
-                          <p>{invoice.clientAddress}</p>
-                        )}
-                        {invoice.clientState && (
-                          <p>State: {invoice.clientState}</p>
-                        )}
-                        {invoice.clientPincode && (
-                          <p>Pincode: {invoice.clientPincode}</p>
-                        )}
-                        {!invoice.clientAddress && !invoice.clientState && !invoice.clientPincode && (
-                          <p>Address information not available</p>
-                        )}
+                      <div>
+                        <p>{invoice.companyAddress}</p>
+                        {invoice.companyCity && <p>{invoice.companyCity}</p>}
+                        <p>{getCountryName(companyCountry)}</p>
                       </div>
                     </div>
-                    
-                    <div className="flex items-start gap-2">
-                      <Globe className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                      <div className="text-sm text-gray-600">
-                        <p>Country: {getCountryName(clientCountry)} ({clientCurrency.code})</p>
-                      </div>
-                    </div>
-
-                    {invoice.clientTaxInfo && (
-                      <div className="flex items-start gap-2">
-                        <FileText className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                        <div className="text-sm text-gray-600">
-                          <p>{invoice.clientTaxInfo.type}: {invoice.clientTaxInfo.id}</p>
-                        </div>
-                      </div>
-                    )}
                   </div>
+                )}
 
-                  <div className="text-right space-y-2">
-                    <div className="flex items-center justify-end gap-2">
-                      <Calendar className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm">Issue Date: {invoice.issueDate?.toLocaleDateString()}</span>
+                {invoice.companyTaxInfo && (
+                  <div className="text-sm text-gray-600">
+                    <div className="flex items-start gap-2">
+                      <FileText className="w-4 h-4 text-gray-400 mt-0.5" />
+                      <div>
+                        <p>GSTIN: {invoice.companyTaxInfo.gstin}</p>
+                        {invoice.companyTaxInfo.pan && <p>PAN: {invoice.companyTaxInfo.pan}</p>}
+                      </div>
                     </div>
-                    <div className="flex items-center justify-end gap-2">
-                      <Calendar className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm">Due Date: {invoice.dueDate?.toLocaleDateString()}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* To - Client Information */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">T</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">Bill To</h3>
+              </div>
+              
+              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                <div>
+                  <h4 className="font-semibold text-gray-900">{invoice.clientName}</h4>
+                  <p className="text-sm text-gray-600">{invoice.clientEmail}</p>
+                  {invoice.clientPhone && (
+                    <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                      <Phone className="w-3 h-3" />
+                      {invoice.clientPhone}
+                    </p>
+                  )}
+                </div>
+                
+                <div className="text-sm text-gray-600">
+                  <div className="flex items-start gap-2">
+                    <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      {invoice.clientAddress && <p>{invoice.clientAddress}</p>}
+                      {invoice.clientState && <p>State: {invoice.clientState}</p>}
+                      {invoice.clientPincode && <p>Pincode: {invoice.clientPincode}</p>}
+                      <p>Country: {getCountryName(clientCountry)}</p>
                     </div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+
+                {invoice.clientTaxInfo && (
+                  <div className="text-sm text-gray-600">
+                    <div className="flex items-start gap-2">
+                      <FileText className="w-4 h-4 text-gray-400 mt-0.5" />
+                      <div>
+                        <p>{invoice.clientTaxInfo.type}: {invoice.clientTaxInfo.id}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Invoice Items</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
+          {/* Invoice Details */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 bg-gray-50 rounded-lg p-4">
+            <div>
+              <p className="text-sm font-medium text-gray-500">Issue Date</p>
+              <p className="text-sm font-semibold text-gray-900 mt-1">
+                {invoice.issueDate?.toLocaleDateString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-500">Due Date</p>
+              <p className="text-sm font-semibold text-gray-900 mt-1">
+                {invoice.dueDate?.toLocaleDateString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-500">Currency</p>
+              <p className="text-sm font-semibold text-gray-900 mt-1">
+                {companyCurrency.code} ({companyCurrency.symbol})
+              </p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-500">Status</p>
+              <Badge className={`${getStatusColor(invoice.status || 'draft')} border text-xs mt-1`}>
+                {(invoice.status || 'draft').charAt(0).toUpperCase() + (invoice.status || 'draft').slice(1)}
+              </Badge>
+            </div>
+          </div>
+
+          {/* Invoice Items */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900">Items</h3>
+            
+            <div className="border rounded-lg overflow-hidden">
+              {/* Table Header */}
+              <div className="bg-gray-50 px-4 py-3 grid grid-cols-12 gap-4 font-medium text-sm text-gray-700">
+                <div className="col-span-6">Description</div>
+                <div className="col-span-2 text-center">Quantity</div>
+                <div className="col-span-2 text-right">Rate</div>
+                <div className="col-span-2 text-right">Amount</div>
+              </div>
+              
+              {/* Table Body */}
+              <div className="divide-y">
                 {invoice.items?.map((item, index) => (
-                  <div key={index} className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
-                    <div className="flex-1">
-                      <p className="font-medium">{item.description}</p>
-                      <p className="text-sm text-gray-600">
-                        Qty: {item.quantity} × {formatCurrency(item.rate || 0, companyCountry)} (Item Price)
-                        {showDualCurrency && (
-                          <span className="text-gray-500 ml-1">
-                            ({formatCurrency(convertINRToClient(convertCompanyToINR(item.rate || 0)), clientCountry)})
-                          </span>
-                        )}
-                      </p>
+                  <div key={index} className="px-4 py-4 grid grid-cols-12 gap-4 items-center">
+                    <div className="col-span-6">
+                      <p className="font-medium text-gray-900">{item.description}</p>
                     </div>
-                    <div className="text-right">
-                      <p className="font-medium">
-                        {formatCurrency(item.amount || 0, companyCountry)}
-                      </p>
-                      {showDualCurrency && (
-                        <p className="text-sm text-gray-600">
-                          {formatCurrency(convertINRToClient(convertCompanyToINR(item.amount || 0)), clientCountry)}
-                        </p>
-                      )}
-                      <p className="text-xs text-gray-500">Line Total</p>
+                    <div className="col-span-2 text-center text-gray-600">
+                      {item.quantity}
+                    </div>
+                    <div className="col-span-2 text-right text-gray-600">
+                      {formatCurrency(item.rate || 0, companyCountry)}
+                    </div>
+                    <div className="col-span-2 text-right font-medium text-gray-900">
+                      {formatCurrency(item.amount || 0, companyCountry)}
                     </div>
                   </div>
                 ))}
               </div>
+            </div>
 
-              <Separator className="my-4" />
-
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span>Subtotal (Company - {companyCurrency.code}):</span>
-                  <div className="text-right">
-                    <span>{formatCurrency(invoice.subtotal || 0, companyCountry)}</span>
-                  </div>
+            {/* Totals Section */}
+            <div className="flex justify-end">
+              <div className="w-full max-w-sm space-y-2">
+                <div className="flex justify-between py-2">
+                  <span className="text-gray-600">Subtotal:</span>
+                  <span className="font-medium">{formatCurrency(invoice.subtotal || 0, companyCountry)}</span>
                 </div>
                 
-                {showDualCurrency && (
-                  <div className="flex justify-between">
-                    <span>Subtotal (Client - {clientCurrency.code}):</span>
-                    <div className="text-right">
-                      <span>{formatCurrency(convertINRToClient(convertCompanyToINR(invoice.subtotal || 0)), clientCountry)}</span>
-                    </div>
+                {(invoice.cgst || 0) > 0 && (
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-600">CGST:</span>
+                    <span>{formatCurrency(invoice.cgst || 0, companyCountry)}</span>
                   </div>
                 )}
                 
-                <div className="flex justify-between">
-                  <span>Total Tax (Company - {companyCurrency.code}):</span>
-                  <span>{formatCurrency(invoice.totalGst || 0, companyCountry)}</span>
-                </div>
-                
-                {showDualCurrency && (
-                  <div className="flex justify-between">
-                    <span>Total Tax (Client - {clientCurrency.code}):</span>
-                    <span>{formatCurrency(convertINRToClient(convertCompanyToINR(invoice.totalGst || 0)), clientCountry)}</span>
+                {(invoice.sgst || 0) > 0 && (
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-600">SGST:</span>
+                    <span>{formatCurrency(invoice.sgst || 0, companyCountry)}</span>
                   </div>
                 )}
                 
-                <Separator />
-                
-                <div className="flex justify-between font-bold text-lg">
-                  <span>Total Amount (Company - {companyCurrency.code}):</span>
-                  <span>{formatCurrency(invoice.companyAmount || invoice.totalAmount || 0, companyCountry)}</span>
-                </div>
-                
-                {showDualCurrency && (
-                  <div className="flex justify-between font-bold text-lg">
-                    <span>Total Amount (Client - {clientCurrency.code}):</span>
-                    <span>{formatCurrency(invoice.clientAmount || convertINRToClient(invoice.totalAmountINR || 0), clientCountry)}</span>
+                {(invoice.igst || 0) > 0 && (
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-600">IGST:</span>
+                    <span>{formatCurrency(invoice.igst || 0, companyCountry)}</span>
                   </div>
                 )}
+                
+                <div className="flex justify-between py-2 border-t">
+                  <span className="text-gray-600">Total Tax:</span>
+                  <span className="font-medium">{formatCurrency(invoice.totalGst || 0, companyCountry)}</span>
+                </div>
+                
+                <div className="flex justify-between py-3 border-t-2 border-gray-900">
+                  <span className="text-lg font-bold text-gray-900">Total:</span>
+                  <span className="text-lg font-bold text-gray-900">
+                    {formatCurrency(invoice.totalAmountINR || invoice.totalAmount || 0, companyCountry)}
+                  </span>
+                </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
+          {/* Notes and Terms */}
           {(invoice.notes || invoice.terms) && (
-            <Card>
-              <CardContent className="pt-6">
-                {invoice.notes && (
-                  <div className="mb-4">
-                    <h4 className="font-medium mb-2">Notes:</h4>
-                    <p className="text-sm text-gray-600">{invoice.notes}</p>
-                  </div>
-                )}
-                {invoice.terms && (
-                  <div>
-                    <h4 className="font-medium mb-2">Terms & Conditions:</h4>
-                    <p className="text-sm text-gray-600">{invoice.terms}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <div className="space-y-4 border-t pt-6">
+              {invoice.notes && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-2">Notes</h4>
+                  <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">{invoice.notes}</p>
+                </div>
+              )}
+              {invoice.terms && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-2">Terms & Conditions</h4>
+                  <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">{invoice.terms}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Digital Signature */}
+          {invoice.signatureUrl && (
+            <div className="border-t pt-6">
+              <div className="flex justify-end">
+                <div className="text-center">
+                  <img 
+                    src={invoice.signatureUrl} 
+                    alt="Digital Signature" 
+                    className="max-w-32 h-16 object-contain border-b border-gray-300 mb-2"
+                  />
+                  <p className="text-xs text-gray-500">Authorized Signature</p>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </DialogContent>
