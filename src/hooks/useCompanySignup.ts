@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { doc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 
 interface CompanyFormData {
   companyName: string;
@@ -65,9 +66,13 @@ export const useCompanySignup = () => {
     setLoading(true);
 
     try {
+      // Get currency based on selected country
+      const currencyInfo = getCurrencyByCountry(formData.country);
+      
       // Create company document with user ID as the document ID
       const companyData = {
         ...formData,
+        companyCurrency: currencyInfo.code, // Add currency field
         adminUserId: currentUser.uid,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),

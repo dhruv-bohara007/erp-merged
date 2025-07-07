@@ -24,6 +24,7 @@ import { useInvoiceSettings, InvoiceSettings } from '@/hooks/useInvoiceSettings'
 import { countriesWithTaxInfo, CountryTaxInfo } from '@/data/countriesWithTax';
 import { countryTaxData, CountryTaxInfo as CountryTaxDataInfo } from '@/data/countryTaxData';
 import { countries } from '@/data/countries';
+import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 
 const Settings = () => {
   const { companyData, loading, saving, saveCompanyData } = useCompanyData();
@@ -112,11 +113,14 @@ const Settings = () => {
 
   const handleCountryChange = (countryValue: string) => {
     const countryInfo = countriesWithTaxInfo.find(c => c.value === countryValue);
+    const currencyInfo = getCurrencyByCountry(countryValue);
+    
     if (countryInfo && formData) {
       setSelectedCountryInfo(countryInfo);
       setFormData({
         ...formData,
         country: countryValue,
+        companyCurrency: currencyInfo.code,
         taxInfo: {
           ...formData.taxInfo,
           primaryType: countryInfo.primaryTaxLabel
@@ -290,7 +294,7 @@ const Settings = () => {
                           disabled={!isEditing}
                         />
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-3 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="city">City</Label>
                           <Input
@@ -318,6 +322,18 @@ const Settings = () => {
                               ))}
                             </SelectContent>
                           </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="currency">Currency</Label>
+                          <Input
+                            id="currency"
+                            value={formData.companyCurrency || 'USD'}
+                            disabled
+                            className="bg-gray-50"
+                          />
+                          <p className="text-xs text-gray-500">
+                            Automatically set based on country
+                          </p>
                         </div>
                       </div>
                     </div>

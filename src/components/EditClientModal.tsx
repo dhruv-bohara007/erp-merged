@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -10,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { useClients } from '@/hooks/useFirestore';
 import { useToast } from '@/hooks/use-toast';
 import { countries } from '@/data/countries';
+import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 import type { Client } from '@/hooks/useFirestore';
 
 interface EditClientModalProps {
@@ -111,6 +111,9 @@ const EditClientModal = ({ open, onOpenChange, client }: EditClientModalProps) =
     
     setLoading(true);
     try {
+      // Get currency based on selected country
+      const currencyInfo = getCurrencyByCountry(formData.country);
+      
       await updateClient(client.id, {
         name: formData.name,
         email: formData.email,
@@ -120,6 +123,7 @@ const EditClientModal = ({ open, onOpenChange, client }: EditClientModalProps) =
         state: formData.state,
         pincode: formData.pincode,
         country: formData.country,
+        clientCurrency: currencyInfo.code, // Add currency field
         taxInfo: formData.taxInfo.id ? formData.taxInfo : undefined,
         status: formData.status
       });
@@ -198,6 +202,18 @@ const EditClientModal = ({ open, onOpenChange, client }: EditClientModalProps) =
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="currency">Currency</Label>
+            <Input
+              id="currency"
+              value={getCurrencyByCountry(formData.country).code}
+              disabled
+              className="bg-gray-50"
+            />
+            <p className="text-xs text-gray-500">
+              Automatically set based on country
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="taxId">{taxIdLabel}</Label>

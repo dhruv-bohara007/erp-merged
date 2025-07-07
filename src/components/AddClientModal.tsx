@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,7 @@ import { useClients, Client } from '@/hooks/useFirestore';
 import { useToast } from '@/hooks/use-toast';
 import { countries } from '@/data/countries';
 import { countriesWithTaxInfo } from '@/data/countriesWithTax';
+import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 
 interface AddClientModalProps {
   open: boolean;
@@ -50,6 +52,9 @@ const AddClientModal = ({ open, onOpenChange }: AddClientModalProps) => {
     setLoading(true);
 
     try {
+      // Get currency based on selected country
+      const currencyInfo = getCurrencyByCountry(formData.country);
+      
       // Create client data in the format expected by Firestore
       const clientData = {
         name: formData.name,
@@ -60,6 +65,7 @@ const AddClientModal = ({ open, onOpenChange }: AddClientModalProps) => {
         state: formData.state,
         pincode: formData.pincode,
         country: formData.country,
+        clientCurrency: currencyInfo.code, // Add currency field
         taxInfo: {
           id: formData.taxInfo.id,
           type: formData.taxInfo.type

@@ -11,6 +11,7 @@ export interface CompanyData {
   streetAddress: string;
   city: string;
   country: string;
+  companyCurrency: string; // Added currency field
   email: string;
   phone: string;
   website?: string;
@@ -45,9 +46,10 @@ export const useCompanyData = () => {
       
       if (docSnap.exists()) {
         const data = docSnap.data() as CompanyData;
-        // Ensure taxInfo and bankInfo are properly initialized
+        // Ensure all fields are properly initialized
         const normalizedData: CompanyData = {
           ...data,
+          companyCurrency: data.companyCurrency || 'USD', // Default to USD if not set
           taxInfo: data.taxInfo || {
             primaryId: '',
             primaryType: 'Federal EIN',
@@ -69,6 +71,7 @@ export const useCompanyData = () => {
           streetAddress: '',
           city: '',
           country: 'US',
+          companyCurrency: 'USD', // Default currency
           email: currentUser.email || '',
           phone: '',
           website: '',
