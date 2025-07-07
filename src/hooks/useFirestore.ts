@@ -267,21 +267,17 @@ export const useInvoices = () => {
       
       console.log('Company and client data fetched successfully');
 
-      const docRef = await addDoc(collection(db, 'invoices'), {
+      // Prepare the invoice data, only including fields that have values
+      const invoiceData: any = {
         ...invoice,
         companyId: currentUser.companyId,
         companyCountry,
         clientCountry,
         // Company snapshot fields
         companyName,
-        companyLogoUrl,
-        companyTaxInfo,
-        companyBankDetails,
         companyAddress,
-        ownerSignatureUrl,
         // Client snapshot fields
         clientAddress,
-        clientTaxInfo,
         issueDate: Timestamp.fromDate(invoice.issueDate),
         dueDate: Timestamp.fromDate(invoice.dueDate),
         conversionRate: invoice.conversionRate ? {
@@ -290,7 +286,26 @@ export const useInvoices = () => {
         } : undefined,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
-      });
+      };
+
+      // Only add optional fields if they have values
+      if (companyLogoUrl) {
+        invoiceData.companyLogoUrl = companyLogoUrl;
+      }
+      if (companyTaxInfo) {
+        invoiceData.companyTaxInfo = companyTaxInfo;
+      }
+      if (companyBankDetails) {
+        invoiceData.companyBankDetails = companyBankDetails;
+      }
+      if (ownerSignatureUrl) {
+        invoiceData.ownerSignatureUrl = ownerSignatureUrl;
+      }
+      if (clientTaxInfo) {
+        invoiceData.clientTaxInfo = clientTaxInfo;
+      }
+
+      const docRef = await addDoc(collection(db, 'invoices'), invoiceData);
       
       console.log('Invoice created with company and client snapshot data');
       return docRef.id;
