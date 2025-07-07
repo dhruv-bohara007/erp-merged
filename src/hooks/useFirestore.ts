@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { 
   collection, 
@@ -75,6 +74,7 @@ export interface Invoice {
   bankInfo?: object;
   logoUrl?: string;
   signatureUrl?: string;
+  GSTIN?: string;
   status: 'draft' | 'sent' | 'paid' | 'overdue';
   issueDate: Date;
   dueDate: Date;
@@ -217,6 +217,7 @@ export const useInvoices = () => {
             bankInfo: data.bankInfo,
             logoUrl: data.logoUrl,
             signatureUrl: data.signatureUrl,
+            GSTIN: data.GSTIN,
             conversionRate: data.conversionRate ? {
               ...data.conversionRate,
               timestamp: data.conversionRate.timestamp?.toDate?.() || new Date()
@@ -245,7 +246,7 @@ export const useInvoices = () => {
     return () => unsubscribe();
   }, [currentUser?.companyId]);
 
-  const addInvoice = async (invoice: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt' | 'companyCountry' | 'clientCountry' | 'companyId' | 'companyName' | 'companyLogoUrl' | 'companyPhone' | 'companyCity' | 'companyTaxInfo' | 'companyBankDetails' | 'companyAddress' | 'ownerSignatureUrl' | 'clientAddress' | 'clientPhone' | 'clientPincode' | 'clientTaxInfo' | 'bankInfo' | 'logoUrl' | 'signatureUrl' | 'clientName' | 'clientEmail' | 'clientState'>) => {
+  const addInvoice = async (invoice: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt' | 'companyCountry' | 'clientCountry' | 'companyId' | 'companyName' | 'companyLogoUrl' | 'companyPhone' | 'companyCity' | 'companyTaxInfo' | 'companyBankDetails' | 'companyAddress' | 'ownerSignatureUrl' | 'clientAddress' | 'clientPhone' | 'clientPincode' | 'clientTaxInfo' | 'bankInfo' | 'logoUrl' | 'signatureUrl' | 'clientName' | 'clientEmail' | 'clientState' | 'GSTIN'>) => {
     if (!currentUser?.companyId) {
       throw new Error('User company ID not found');
     }
@@ -274,6 +275,10 @@ export const useInvoices = () => {
       const signatureUrl = companyData?.signatureUrl;
       const ownerSignatureUrl = companyData?.ownerSignatureUrl;
       const companyLogoUrl = companyData?.logo;
+      
+      // Extract GSTIN from company taxInfo
+      const GSTIN = companyData?.taxInfo?.primaryId || '';
+      console.log('Extracted GSTIN from company taxInfo:', GSTIN);
       
       // Fetch client document to get all required client fields
       const clientDoc = await getDoc(doc(db, 'clients', invoice.clientId));
@@ -304,6 +309,7 @@ export const useInvoices = () => {
         companyName,
         companyCurrency,
         companyAddress,
+        GSTIN,
         // Client fields
         clientCountry,
         clientAddress,
@@ -361,7 +367,7 @@ export const useInvoices = () => {
 
       const docRef = await addDoc(collection(db, 'invoices'), invoiceData);
       
-      console.log('Invoice created with complete company and client snapshot data including phone and location details');
+      console.log('Invoice created with GSTIN and complete company and client snapshot data');
       return docRef.id;
     } catch (err) {
       console.error('Error adding invoice:', err);
