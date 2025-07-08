@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,7 +30,26 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
 
   const handleDownloadPDF = async () => {
     try {
-      // Create a more comprehensive HTML content for PDF conversion
+      // Use the stored country fields from the invoice with fallbacks
+      const companyCountry = invoice.companyCountry || 'US';
+      const clientCountry = invoice.clientCountry || companyCountry;
+
+      const companyCurrency = getCurrencyByCountry(companyCountry);
+      const clientCurrency = getCurrencyByCountry(clientCountry);
+      
+      const formatCurrency = (amount: number, countryCode: string) => {
+        const currencyInfo = getCurrencyByCountry(countryCode);
+        return `${currencyInfo.symbol}${amount.toFixed(2)}`;
+      };
+
+      const showDualCurrency = companyCountry !== clientCountry && invoice.conversionRate;
+      const companyToINRRate = invoice.conversionRate?.companyToINR || 1;
+      const INRToClientRate = invoice.conversionRate?.INRToClient || 1;
+
+      const convertCompanyToINR = (amount: number) => amount * companyToINRRate;
+      const convertINRToClient = (amountINR: number) => amountINR * INRToClientRate;
+
+      // Create comprehensive HTML for professional PDF
       const htmlContent = `
         <!DOCTYPE html>
         <html>
@@ -39,97 +57,496 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
           <meta charset="utf-8">
           <title>Invoice ${invoice.invoiceNumber}</title>
           <style>
-            body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
-            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
-            .invoice-info { display: flex; justify-content: space-between; margin-bottom: 30px; }
-            .company-info, .client-info { width: 45%; }
-            .items-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-            .items-table th, .items-table td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-            .items-table th { background-color: #f5f5f5; font-weight: bold; }
-            .totals { text-align: right; margin-top: 20px; }
-            .total-row { font-weight: bold; font-size: 1.2em; }
-            h1, h2, h3 { color: #333; }
-            .status { padding: 5px 10px; border-radius: 5px; display: inline-block; }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+              line-height: 1.6; 
+              color: #1f2937;
+              background: #ffffff;
+              padding: 20px;
+            }
+            .container { max-width: 800px; margin: 0 auto; }
+            
+            /* Header Section */
+            .invoice-header { 
+              display: flex; 
+              justify-content: space-between; 
+              align-items: flex-start;
+              margin-bottom: 40px;
+              padding: 30px;
+              background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+              border-radius: 12px;
+              border: 2px solid #e2e8f0;
+            }
+            .logo-section {
+              display: flex;
+              align-items: center;
+              gap: 20px;
+            }
+            .company-logo { 
+              width: 80px; 
+              height: 80px; 
+              object-fit: contain;
+              border-radius: 8px;
+              border: 2px solid #e5e7eb;
+            }
+            .invoice-title {
+              font-size: 48px;
+              font-weight: bold;
+              color: #1f2937;
+              margin-bottom: 10px;
+            }
+            .invoice-number {
+              font-size: 24px;
+              font-weight: 600;
+              color: #374151;
+              margin-bottom: 15px;
+            }
+            .invoice-status {
+              display: inline-block;
+              padding: 8px 16px;
+              border-radius: 20px;
+              font-weight: 600;
+              text-transform: uppercase;
+              font-size: 14px;
+              border: 2px solid;
+            }
+            .status-paid { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+            .status-sent { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
+            .status-draft { background: #f3f4f6; color: #374151; border-color: #d1d5db; }
+            .status-overdue { background: #fee2e2; color: #dc2626; border-color: #fecaca; }
+            
+            .total-amount {
+              text-align: right;
+              background: white;
+              padding: 20px;
+              border-radius: 12px;
+              border: 2px solid #e5e7eb;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+            .amount-primary {
+              font-size: 32px;
+              font-weight: bold;
+              color: #059669;
+              margin-bottom: 8px;
+            }
+            .amount-secondary {
+              font-size: 18px;
+              color: #6b7280;
+            }
+
+            /* Dates Section */
+            .dates-section {
+              display: flex;
+              gap: 30px;
+              margin: 20px 0;
+              padding: 20px;
+              background: #f9fafb;
+              border-radius: 8px;
+            }
+            .date-item {
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              font-weight: 600;
+            }
+
+            /* Two Column Layout */
+            .two-column {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 40px;
+              margin: 40px 0;
+            }
+            
+            /* Card Styles */
+            .info-card {
+              background: white;
+              border: 2px solid #e5e7eb;
+              border-radius: 12px;
+              overflow: hidden;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+            .card-header {
+              padding: 20px;
+              font-size: 18px;
+              font-weight: bold;
+              color: #1f2937;
+              border-bottom: 2px solid #e5e7eb;
+            }
+            .company-header { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); }
+            .client-header { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); }
+            
+            .card-content { padding: 25px; }
+            .info-section {
+              margin-bottom: 25px;
+              padding: 20px;
+              background: #f9fafb;
+              border-radius: 8px;
+              border: 1px solid #e5e7eb;
+            }
+            .section-title {
+              font-weight: bold;
+              color: #374151;
+              margin-bottom: 12px;
+              font-size: 16px;
+              display: flex;
+              align-items: center;
+              gap: 8px;
+            }
+            
+            /* Table Styles */
+            .bank-table, .items-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 15px 0;
+              background: white;
+              border-radius: 8px;
+              overflow: hidden;
+              border: 1px solid #e5e7eb;
+            }
+            .bank-table th, .bank-table td,
+            .items-table th, .items-table td {
+              padding: 12px 16px;
+              text-align: left;
+              border-bottom: 1px solid #e5e7eb;
+            }
+            .bank-table th, .items-table th {
+              background: #f9fafb;
+              font-weight: 600;
+              color: #374151;
+            }
+            .bank-table tr:last-child td,
+            .items-table tr:last-child td {
+              border-bottom: none;
+            }
+            .items-table th:nth-child(2),
+            .items-table td:nth-child(2) { text-align: center; }
+            .items-table th:nth-child(3),
+            .items-table th:nth-child(4),
+            .items-table td:nth-child(3),
+            .items-table td:nth-child(4) { text-align: right; }
+            
+            /* Signature Section */
+            .signature-section {
+              margin-top: 25px;
+              padding: 20px;
+              background: linear-gradient(135deg, #faf5ff 0%, #e9d5ff 100%);
+              border-radius: 8px;
+              border: 1px solid #d8b4fe;
+            }
+            .signature-image {
+              max-width: 200px;
+              height: 80px;
+              object-contain;
+              border: 2px solid white;
+              border-radius: 8px;
+              background: white;
+              padding: 10px;
+              margin-top: 10px;
+            }
+            
+            /* Summary Section */
+            .summary-section {
+              margin-top: 40px;
+              padding: 30px;
+              background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+              border-radius: 12px;
+              border: 2px solid #bfdbfe;
+            }
+            .summary-row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 12px;
+              font-size: 16px;
+            }
+            .summary-total {
+              font-size: 20px;
+              font-weight: bold;
+              padding-top: 15px;
+              border-top: 2px solid #60a5fa;
+              color: #1e40af;
+            }
+            
+            /* Notes Section */
+            .notes-section {
+              margin-top: 30px;
+              padding: 25px;
+              background: #fefce8;
+              border-radius: 8px;
+              border: 1px solid #fde047;
+            }
+            
+            /* Footer */
+            .invoice-footer {
+              margin-top: 40px;
+              text-align: center;
+              color: #6b7280;
+              font-size: 14px;
+              padding: 20px;
+              border-top: 1px solid #e5e7eb;
+            }
+            
+            .dual-currency {
+              font-size: 14px;
+              color: #6b7280;
+              margin-top: 4px;
+            }
+            
+            @media print {
+              body { padding: 0; }
+              .container { max-width: none; }
+            }
           </style>
         </head>
         <body>
-          <div class="header">
-            <h1>INVOICE</h1>
-            <h2>Invoice #${invoice.invoiceNumber}</h2>
-            <span class="status">${(invoice.status || 'draft').toUpperCase()}</span>
-          </div>
-          
-          <div class="invoice-info">
-            <div class="company-info">
-              <h3>Company Information</h3>
-              <p><strong>${invoice.companyName}</strong></p>
-              <p>${invoice.companyAddress}</p>
-              ${invoice.companyPhone ? `<p>Phone: ${invoice.companyPhone}</p>` : ''}
-              ${invoice.companyTaxInfo?.gstin ? `<p>GSTIN: ${invoice.companyTaxInfo.gstin}</p>` : ''}
-              ${invoice.companyTaxInfo?.pan ? `<p>PAN: ${invoice.companyTaxInfo.pan}</p>` : ''}
+          <div class="container">
+            <!-- Header Section -->
+            <div class="invoice-header">
+              <div class="logo-section">
+                ${invoice.logoUrl ? `<img src="${invoice.logoUrl}" alt="Company Logo" class="company-logo">` : ''}
+                <div>
+                  <div class="invoice-title">INVOICE</div>
+                  <div class="invoice-number">#${invoice.invoiceNumber}</div>
+                  <span class="invoice-status status-${invoice.status || 'draft'}">
+                    ${(invoice.status || 'draft').toUpperCase()}
+                  </span>
+                </div>
+              </div>
+              
+              <div class="total-amount">
+                <div class="amount-primary">
+                  ${formatCurrency(invoice.companyAmount || invoice.totalAmount || 0, companyCountry)}
+                </div>
+                ${showDualCurrency ? `
+                  <div class="amount-secondary">
+                    ${formatCurrency(invoice.clientAmount || convertINRToClient(invoice.totalAmountINR || 0), clientCountry)}
+                  </div>
+                  <div style="font-size: 12px; color: #9ca3af; margin-top: 8px;">
+                    ${companyCurrency.code} / ${clientCurrency.code}
+                  </div>
+                ` : ''}
+              </div>
             </div>
-            
-            <div class="client-info">
-              <h3>Client Information</h3>
-              <p><strong>${invoice.clientName}</strong></p>
-              <p>${invoice.clientEmail}</p>
-              <p>${invoice.clientAddress}</p>
-              ${invoice.clientPhone ? `<p>Phone: ${invoice.clientPhone}</p>` : ''}
-              ${invoice.clientTaxInfo?.id ? `<p>${invoice.clientTaxInfo.type || 'Tax ID'}: ${invoice.clientTaxInfo.id}</p>` : ''}
+
+            <!-- Dates Section -->
+            <div class="dates-section">
+              <div class="date-item">
+                <strong>Issue Date:</strong> ${invoice.issueDate?.toLocaleDateString() || 'N/A'}
+              </div>
+              <div class="date-item">
+                <strong>Due Date:</strong> ${invoice.dueDate?.toLocaleDateString() || 'N/A'}
+              </div>
+            </div>
+
+            <!-- Two Column Layout -->
+            <div class="two-column">
+              <!-- Company Information -->
+              <div class="info-card">
+                <div class="card-header company-header">Company Information</div>
+                <div class="card-content">
+                  <div class="info-section">
+                    <div class="section-title">📍 Contact Details</div>
+                    <div><strong>${invoice.companyName}</strong></div>
+                    <div>${invoice.companyAddress}</div>
+                    ${invoice.companyCity ? `<div>${invoice.companyCity}</div>` : ''}
+                    ${invoice.companyPhone ? `<div>📞 ${invoice.companyPhone}</div>` : ''}
+                  </div>
+
+                  ${invoice.companyTaxInfo && (invoice.companyTaxInfo.gstin || invoice.companyTaxInfo.pan) ? `
+                    <div class="info-section">
+                      <div class="section-title">🏛️ Tax Information</div>
+                      ${invoice.companyTaxInfo.gstin ? `<div><strong>GSTIN:</strong> ${invoice.companyTaxInfo.gstin}</div>` : ''}
+                      ${invoice.companyTaxInfo.pan ? `<div><strong>PAN:</strong> ${invoice.companyTaxInfo.pan}</div>` : ''}
+                    </div>
+                  ` : ''}
+
+                  ${invoice.bankInfo ? `
+                    <div class="info-section">
+                      <div class="section-title">🏦 Bank Information</div>
+                      <table class="bank-table">
+                        <tbody>
+                          ${(invoice.bankInfo as any)?.bankName ? `
+                            <tr>
+                              <td><strong>Bank Name</strong></td>
+                              <td>${(invoice.bankInfo as any).bankName}</td>
+                            </tr>
+                          ` : ''}
+                          ${(invoice.bankInfo as any)?.accountNumber ? `
+                            <tr>
+                              <td><strong>Account Number</strong></td>
+                              <td>${(invoice.bankInfo as any).accountNumber}</td>
+                            </tr>
+                          ` : ''}
+                          ${((invoice.bankInfo as any)?.routingCode || (invoice.bankInfo as any)?.ifscCode) ? `
+                            <tr>
+                              <td><strong>Routing Code</strong></td>
+                              <td>${(invoice.bankInfo as any)?.routingCode || (invoice.bankInfo as any)?.ifscCode}</td>
+                            </tr>
+                          ` : ''}
+                        </tbody>
+                      </table>
+                    </div>
+                  ` : ''}
+
+                  ${invoice.signatureUrl ? `
+                    <div class="signature-section">
+                      <div class="section-title">✍️ Business Owner Signature</div>
+                      <img src="${invoice.signatureUrl}" alt="Business Owner Signature" class="signature-image">
+                    </div>
+                  ` : ''}
+                </div>
+              </div>
+
+              <!-- Client Information -->
+              <div class="info-card">
+                <div class="card-header client-header">Client Information</div>
+                <div class="card-content">
+                  <div class="info-section">
+                    <div class="section-title">👤 Contact Details</div>
+                    <div><strong>${invoice.clientName}</strong></div>
+                    <div>📧 ${invoice.clientEmail}</div>
+                    ${invoice.clientPhone ? `<div>📞 ${invoice.clientPhone}</div>` : ''}
+                  </div>
+
+                  <div class="info-section">
+                    <div class="section-title">📍 Address</div>
+                    ${invoice.clientAddress ? `<div>${invoice.clientAddress}</div>` : ''}
+                    ${invoice.clientState ? `<div>State: ${invoice.clientState}</div>` : ''}
+                    ${invoice.clientPincode ? `<div>Pincode: ${invoice.clientPincode}</div>` : ''}
+                  </div>
+
+                  ${invoice.clientTaxInfo?.id ? `
+                    <div class="info-section">
+                      <div class="section-title">🏛️ Tax Information</div>
+                      <div><strong>${invoice.clientTaxInfo.type || 'Tax ID'}:</strong> ${invoice.clientTaxInfo.id}</div>
+                    </div>
+                  ` : ''}
+                </div>
+              </div>
+            </div>
+
+            <!-- Invoice Items -->
+            <div class="info-card">
+              <div class="card-header" style="background: linear-gradient(135deg, #faf5ff 0%, #e9d5ff 100%);">Invoice Items</div>
+              <div class="card-content">
+                <table class="items-table">
+                  <thead>
+                    <tr>
+                      <th>Description</th>
+                      <th>Quantity</th>
+                      <th>Rate</th>
+                      <th>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${invoice.items?.map(item => `
+                      <tr>
+                        <td><strong>${item.description}</strong></td>
+                        <td>${item.quantity}</td>
+                        <td>
+                          ${formatCurrency(item.rate || 0, companyCountry)}
+                          ${showDualCurrency ? `
+                            <div class="dual-currency">
+                              (${formatCurrency(convertINRToClient(convertCompanyToINR(item.rate || 0)), clientCountry)})
+                            </div>
+                          ` : ''}
+                        </td>
+                        <td>
+                          <strong>${formatCurrency(item.amount || 0, companyCountry)}</strong>
+                          ${showDualCurrency ? `
+                            <div class="dual-currency">
+                              (${formatCurrency(convertINRToClient(convertCompanyToINR(item.amount || 0)), clientCountry)})
+                            </div>
+                          ` : ''}
+                        </td>
+                      </tr>
+                    `).join('') || '<tr><td colspan="4" style="text-align: center; color: #6b7280;">No items</td></tr>'}
+                  </tbody>
+                </table>
+
+                <!-- Summary Section -->
+                <div class="summary-section">
+                  <div class="summary-row">
+                    <span><strong>Subtotal (${companyCurrency.code}):</strong></span>
+                    <span><strong>${formatCurrency(invoice.subtotal || 0, companyCountry)}</strong></span>
+                  </div>
+                  ${showDualCurrency ? `
+                    <div class="summary-row">
+                      <span>Subtotal (${clientCurrency.code}):</span>
+                      <span>${formatCurrency(convertINRToClient(convertCompanyToINR(invoice.subtotal || 0)), clientCountry)}</span>
+                    </div>
+                  ` : ''}
+                  <div class="summary-row">
+                    <span><strong>Total Tax (${companyCurrency.code}):</strong></span>
+                    <span><strong>${formatCurrency(invoice.totalGst || 0, companyCountry)}</strong></span>
+                  </div>
+                  ${showDualCurrency ? `
+                    <div class="summary-row">
+                      <span>Total Tax (${clientCurrency.code}):</span>
+                      <span>${formatCurrency(convertINRToClient(convertCompanyToINR(invoice.totalGst || 0)), clientCountry)}</span>
+                    </div>
+                  ` : ''}
+                  <div class="summary-row summary-total">
+                    <span>Total Amount (${companyCurrency.code}):</span>
+                    <span>${formatCurrency(invoice.companyAmount || invoice.totalAmount || 0, companyCountry)}</span>
+                  </div>
+                  ${showDualCurrency ? `
+                    <div class="summary-row summary-total">
+                      <span>Total Amount (${clientCurrency.code}):</span>
+                      <span>${formatCurrency(invoice.clientAmount || convertINRToClient(invoice.totalAmountINR || 0), clientCountry)}</span>
+                    </div>
+                  ` : ''}
+                </div>
+              </div>
+            </div>
+
+            <!-- Notes and Terms -->
+            ${(invoice.notes || invoice.terms) ? `
+              <div class="notes-section">
+                ${invoice.notes ? `
+                  <div style="margin-bottom: 20px;">
+                    <div class="section-title">📝 Notes</div>
+                    <p>${invoice.notes}</p>
+                  </div>
+                ` : ''}
+                ${invoice.terms ? `
+                  <div>
+                    <div class="section-title">📋 Terms & Conditions</div>
+                    <p>${invoice.terms}</p>
+                  </div>
+                ` : ''}
+              </div>
+            ` : ''}
+
+            <!-- Footer -->
+            <div class="invoice-footer">
+              <p><em>Generated on: ${new Date().toLocaleString()}</em></p>
+              <p>Thank you for your business!</p>
             </div>
           </div>
-          
-          <p><strong>Issue Date:</strong> ${invoice.issueDate?.toLocaleDateString() || 'N/A'}</p>
-          <p><strong>Due Date:</strong> ${invoice.dueDate?.toLocaleDateString() || 'N/A'}</p>
-          
-          <table class="items-table">
-            <thead>
-              <tr>
-                <th>Description</th>
-                <th>Quantity</th>
-                <th>Rate</th>
-                <th>Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${invoice.items?.map(item => `
-                <tr>
-                  <td>${item.description}</td>
-                  <td>${item.quantity}</td>
-                  <td>${formatCurrency(item.rate || 0, companyCountry)}</td>
-                  <td>${formatCurrency(item.amount || 0, companyCountry)}</td>
-                </tr>
-              `).join('') || '<tr><td colspan="4">No items</td></tr>'}
-            </tbody>
-          </table>
-          
-          <div class="totals">
-            <p>Subtotal: ${formatCurrency(invoice.subtotal || 0, companyCountry)}</p>
-            <p>Total Tax: ${formatCurrency(invoice.totalGst || 0, companyCountry)}</p>
-            <p class="total-row">Total Amount: ${formatCurrency(invoice.companyAmount || invoice.totalAmount || 0, companyCountry)}</p>
-          </div>
-          
-          ${invoice.notes ? `<div><h3>Notes:</h3><p>${invoice.notes}</p></div>` : ''}
-          ${invoice.terms ? `<div><h3>Terms & Conditions:</h3><p>${invoice.terms}</p></div>` : ''}
-          
-          <p><em>Generated on: ${new Date().toLocaleString()}</em></p>
         </body>
         </html>
       `;
 
-      // Create a new window for printing/PDF generation
+      // Create a new window and trigger print dialog for PDF generation
       const printWindow = window.open('', '_blank');
       if (printWindow) {
         printWindow.document.write(htmlContent);
         printWindow.document.close();
         
-        // Wait a moment for content to load, then trigger print
+        // Wait for content to load, then trigger print dialog
         setTimeout(() => {
+          printWindow.focus();
           printWindow.print();
-          printWindow.close();
-        }, 250);
+          // Note: The print dialog allows users to save as PDF
+          // Close window after a delay to allow print dialog to open
+          setTimeout(() => {
+            printWindow.close();
+          }, 1000);
+        }, 500);
       } else {
-        // Fallback: create a blob and download as HTML
+        // Fallback: create downloadable HTML file if popup is blocked
         const blob = new Blob([htmlContent], { type: 'text/html' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -139,10 +556,17 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        
+        console.log('Print dialog blocked. Downloaded HTML file instead. Use browser print to save as PDF.');
       }
     } catch (error) {
       console.error('Error generating PDF:', error);
-      // Fallback to text download if PDF generation fails
+      // Simple fallback
+      const companyCountry = invoice.companyCountry || 'US';
+      const formatCurrency = (amount: number, countryCode: string) => {
+        const currencyInfo = getCurrencyByCountry(countryCode);
+        return `${currencyInfo.symbol}${amount.toFixed(2)}`;
+      };
       const content = `Invoice #${invoice.invoiceNumber}\nCompany: ${invoice.companyName}\nClient: ${invoice.clientName}\nTotal: ${formatCurrency(invoice.companyAmount || invoice.totalAmount || 0, companyCountry)}`;
       const blob = new Blob([content], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
@@ -156,7 +580,6 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
     }
   };
 
-  // Use the stored country fields from the invoice with fallbacks
   const companyCountry = invoice.companyCountry || 'US';
   const clientCountry = invoice.clientCountry || companyCountry;
 
