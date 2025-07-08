@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { 
   Search, 
   Download, 
@@ -375,11 +376,15 @@ Terms: ${invoice.terms || 'N/A'}
         </CardContent>
       </Card>
 
-      <InvoiceView 
-        invoice={selectedInvoice}
-        open={isViewModalOpen}
-        onOpenChange={setIsViewModalOpen}
-      />
+      {/* Invoice View Modal */}
+      <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
+        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Invoice Details</DialogTitle>
+          </DialogHeader>
+          {selectedInvoice && <InvoiceView invoice={selectedInvoice} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
