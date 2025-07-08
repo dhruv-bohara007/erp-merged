@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Calendar, Download, MapPin, Globe, Phone, Building, FileText, CreditCard } from 'lucide-react';
 import { Invoice } from '@/hooks/useFirestore';
 import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
@@ -28,76 +29,131 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
     }
   };
 
-  const handleDownloadPDF = () => {
-    const content = `
-═══════════════════════════════════════
-                INVOICE
-═══════════════════════════════════════
+  const handleDownloadPDF = async () => {
+    try {
+      // Create a more comprehensive HTML content for PDF conversion
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Invoice ${invoice.invoiceNumber}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+            .invoice-info { display: flex; justify-content: space-between; margin-bottom: 30px; }
+            .company-info, .client-info { width: 45%; }
+            .items-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+            .items-table th, .items-table td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+            .items-table th { background-color: #f5f5f5; font-weight: bold; }
+            .totals { text-align: right; margin-top: 20px; }
+            .total-row { font-weight: bold; font-size: 1.2em; }
+            h1, h2, h3 { color: #333; }
+            .status { padding: 5px 10px; border-radius: 5px; display: inline-block; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>INVOICE</h1>
+            <h2>Invoice #${invoice.invoiceNumber}</h2>
+            <span class="status">${(invoice.status || 'draft').toUpperCase()}</span>
+          </div>
+          
+          <div class="invoice-info">
+            <div class="company-info">
+              <h3>Company Information</h3>
+              <p><strong>${invoice.companyName}</strong></p>
+              <p>${invoice.companyAddress}</p>
+              ${invoice.companyPhone ? `<p>Phone: ${invoice.companyPhone}</p>` : ''}
+              ${invoice.companyTaxInfo?.gstin ? `<p>GSTIN: ${invoice.companyTaxInfo.gstin}</p>` : ''}
+              ${invoice.companyTaxInfo?.pan ? `<p>PAN: ${invoice.companyTaxInfo.pan}</p>` : ''}
+            </div>
+            
+            <div class="client-info">
+              <h3>Client Information</h3>
+              <p><strong>${invoice.clientName}</strong></p>
+              <p>${invoice.clientEmail}</p>
+              <p>${invoice.clientAddress}</p>
+              ${invoice.clientPhone ? `<p>Phone: ${invoice.clientPhone}</p>` : ''}
+              ${invoice.clientTaxInfo?.id ? `<p>${invoice.clientTaxInfo.type || 'Tax ID'}: ${invoice.clientTaxInfo.id}</p>` : ''}
+            </div>
+          </div>
+          
+          <p><strong>Issue Date:</strong> ${invoice.issueDate?.toLocaleDateString() || 'N/A'}</p>
+          <p><strong>Due Date:</strong> ${invoice.dueDate?.toLocaleDateString() || 'N/A'}</p>
+          
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th>Quantity</th>
+                <th>Rate</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${invoice.items?.map(item => `
+                <tr>
+                  <td>${item.description}</td>
+                  <td>${item.quantity}</td>
+                  <td>${formatCurrency(item.rate || 0, companyCountry)}</td>
+                  <td>${formatCurrency(item.amount || 0, companyCountry)}</td>
+                </tr>
+              `).join('') || '<tr><td colspan="4">No items</td></tr>'}
+            </tbody>
+          </table>
+          
+          <div class="totals">
+            <p>Subtotal: ${formatCurrency(invoice.subtotal || 0, companyCountry)}</p>
+            <p>Total Tax: ${formatCurrency(invoice.totalGst || 0, companyCountry)}</p>
+            <p class="total-row">Total Amount: ${formatCurrency(invoice.companyAmount || invoice.totalAmount || 0, companyCountry)}</p>
+          </div>
+          
+          ${invoice.notes ? `<div><h3>Notes:</h3><p>${invoice.notes}</p></div>` : ''}
+          ${invoice.terms ? `<div><h3>Terms & Conditions:</h3><p>${invoice.terms}</p></div>` : ''}
+          
+          <p><em>Generated on: ${new Date().toLocaleString()}</em></p>
+        </body>
+        </html>
+      `;
 
-Invoice Number: ${invoice.invoiceNumber}
-Status: ${(invoice.status || 'draft').toUpperCase()}
-
-Company: ${invoice.companyName}
-Address: ${invoice.companyAddress}
-${invoice.companyPhone ? `Phone: ${invoice.companyPhone}` : ''}
-
-Client Information:
-Name: ${invoice.clientName}
-Email: ${invoice.clientEmail}
-Address: ${invoice.clientAddress || 'N/A'}
-${invoice.clientPhone ? `Phone: ${invoice.clientPhone}` : ''}
-
-Dates:
-Issue Date: ${invoice.issueDate?.toLocaleDateString() || 'N/A'}
-Due Date: ${invoice.dueDate?.toLocaleDateString() || 'N/A'}
-
-═══════════════════════════════════════
-                ITEMS
-═══════════════════════════════════════
-
-${invoice.items?.map((item, index) => 
-  `${index + 1}. ${item.description}
-     Quantity: ${item.quantity}
-     Rate: ${(item.rate || 0).toLocaleString()}
-     Amount: ${(item.amount || 0).toLocaleString()}`
-).join('\n\n') || 'No items'}
-
-═══════════════════════════════════════
-              PAYMENT SUMMARY
-═══════════════════════════════════════
-
-Subtotal: ${(invoice.subtotal || 0).toLocaleString()}
-${(invoice.cgst || 0) > 0 ? `CGST: ${invoice.cgst?.toLocaleString()}` : ''}
-${(invoice.sgst || 0) > 0 ? `SGST: ${invoice.sgst?.toLocaleString()}` : ''}
-${(invoice.igst || 0) > 0 ? `IGST: ${invoice.igst?.toLocaleString()}` : ''}
-Total Tax: ${(invoice.totalGst || 0).toLocaleString()}
-
-TOTAL AMOUNT: ${(invoice.totalAmountINR || invoice.totalAmount || 0).toLocaleString()}
-
-${invoice.companyTaxInfo?.gstin ? `Company GSTIN: ${invoice.companyTaxInfo.gstin}` : ''}
-${invoice.clientTaxInfo?.id ? `Client Tax ID: ${invoice.clientTaxInfo.id} (${invoice.clientTaxInfo.type || 'N/A'})` : ''}
-
-${invoice.bankInfo ? `
-Bank Information:
-${(invoice.bankInfo as any)?.bankName ? `Bank Name: ${(invoice.bankInfo as any).bankName}` : ''}
-${(invoice.bankInfo as any)?.accountNumber ? `Account Number: ${(invoice.bankInfo as any).accountNumber}` : ''}
-${(invoice.bankInfo as any)?.routingCode || (invoice.bankInfo as any)?.ifscCode ? `Routing Code: ${(invoice.bankInfo as any)?.routingCode || (invoice.bankInfo as any)?.ifscCode}` : ''}` : ''}
-
-${invoice.notes ? `Notes: ${invoice.notes}` : ''}
-${invoice.terms ? `Terms & Conditions: ${invoice.terms}` : ''}
-
-Generated on: ${new Date().toLocaleString()}
-    `;
-
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Invoice-${invoice.invoiceNumber}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+      // Create a new window for printing/PDF generation
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+        
+        // Wait a moment for content to load, then trigger print
+        setTimeout(() => {
+          printWindow.print();
+          printWindow.close();
+        }, 250);
+      } else {
+        // Fallback: create a blob and download as HTML
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Invoice-${invoice.invoiceNumber}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      // Fallback to text download if PDF generation fails
+      const content = `Invoice #${invoice.invoiceNumber}\nCompany: ${invoice.companyName}\nClient: ${invoice.clientName}\nTotal: ${formatCurrency(invoice.companyAmount || invoice.totalAmount || 0, companyCountry)}`;
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Invoice-${invoice.invoiceNumber}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
   };
 
   // Use the stored country fields from the invoice with fallbacks
@@ -252,29 +308,31 @@ Generated on: ${new Date().toLocaleString()}
                   </p>
                 </div>
 
-                {/* Enhanced Tax Information with proper GSTIN display */}
+                {/* Enhanced Tax Information - Properly fetch from companyTaxInfo */}
                 {invoice.companyTaxInfo && (
                   <div className="bg-blue-50 p-6 rounded-xl border border-blue-200">
                     <h4 className="font-bold mb-4 flex items-center gap-3 text-gray-900 text-lg">
                       <FileText className="w-5 h-5 text-blue-600" />
                       Tax Information
                     </h4>
-                    {invoice.companyTaxInfo.gstin && (
-                      <div className="mb-4 p-3 bg-white rounded-lg border">
-                        <span className="font-semibold text-gray-700 text-base">GSTIN: </span>
-                        <span className="text-gray-900 font-mono bg-gray-100 px-3 py-1 rounded border text-lg">
-                          {invoice.companyTaxInfo.gstin}
-                        </span>
-                      </div>
-                    )}
-                    {invoice.companyTaxInfo.pan && (
-                      <div className="p-3 bg-white rounded-lg border">
-                        <span className="font-semibold text-gray-700 text-base">PAN: </span>
-                        <span className="text-gray-900 font-mono bg-gray-100 px-3 py-1 rounded border text-lg">
-                          {invoice.companyTaxInfo.pan}
-                        </span>
-                      </div>
-                    )}
+                    <div className="space-y-3">
+                      {invoice.companyTaxInfo.gstin && (
+                        <div className="p-3 bg-white rounded-lg border">
+                          <span className="font-semibold text-gray-700 text-base">GSTIN: </span>
+                          <span className="text-gray-900 font-mono bg-gray-100 px-3 py-1 rounded border text-lg">
+                            {invoice.companyTaxInfo.gstin}
+                          </span>
+                        </div>
+                      )}
+                      {invoice.companyTaxInfo.pan && (
+                        <div className="p-3 bg-white rounded-lg border">
+                          <span className="font-semibold text-gray-700 text-base">PAN: </span>
+                          <span className="text-gray-900 font-mono bg-gray-100 px-3 py-1 rounded border text-lg">
+                            {invoice.companyTaxInfo.pan}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -314,12 +372,13 @@ Generated on: ${new Date().toLocaleString()}
                   </div>
                 )}
 
+                {/* Business Owner Signature - Updated heading */}
                 {invoice.signatureUrl && (
                   <div className="bg-purple-50 p-6 rounded-xl border border-purple-200">
-                    <h4 className="font-bold mb-4 text-gray-900 text-lg">Digital Signature</h4>
+                    <h4 className="font-bold mb-4 text-gray-900 text-lg">Business Owner Signature</h4>
                     <img 
                       src={invoice.signatureUrl} 
-                      alt="Digital Signature" 
+                      alt="Business Owner Signature" 
                       className="max-w-48 h-24 object-contain border-2 rounded-lg bg-white p-3 shadow-sm"
                     />
                   </div>
@@ -419,39 +478,51 @@ Generated on: ${new Date().toLocaleString()}
             </Card>
           </div>
 
-          {/* Invoice Items */}
+          {/* Invoice Items - Enhanced Table Format */}
           <Card className="border-2 border-gray-200 shadow-xl rounded-xl">
             <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 border-b-2 border-gray-200 rounded-t-xl">
               <CardTitle className="text-xl font-bold text-gray-900">Invoice Items</CardTitle>
             </CardHeader>
             <CardContent className="p-8">
-              <div className="space-y-6">
-                {invoice.items?.map((item, index) => (
-                  <div key={index} className="flex justify-between items-center p-6 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border-2 border-gray-200 shadow-sm">
-                    <div className="flex-1">
-                      <p className="font-bold text-gray-900 text-lg mb-2">{item.description}</p>
-                      <p className="text-gray-600 text-base">
-                        Qty: <span className="font-semibold">{item.quantity}</span> × {formatCurrency(item.rate || 0, companyCountry)} (Item Price)
-                        {showDualCurrency && (
-                          <span className="text-gray-500 ml-1">
-                            ({formatCurrency(convertINRToClient(convertCompanyToINR(item.rate || 0)), clientCountry)})
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-2xl text-green-600">
-                        {formatCurrency(item.amount || 0, companyCountry)}
-                      </p>
-                      {showDualCurrency && (
-                        <p className="text-lg text-gray-600">
-                          {formatCurrency(convertINRToClient(convertCompanyToINR(item.amount || 0)), clientCountry)}
-                        </p>
-                      )}
-                      <p className="text-xs text-gray-500">Line Total</p>
-                    </div>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-gray-50">
+                      <TableHead className="font-bold text-gray-900">Description</TableHead>
+                      <TableHead className="font-bold text-gray-900 text-center">Quantity</TableHead>
+                      <TableHead className="font-bold text-gray-900 text-right">Rate</TableHead>
+                      <TableHead className="font-bold text-gray-900 text-right">Amount</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {invoice.items?.map((item, index) => (
+                      <TableRow key={index} className="hover:bg-gray-50">
+                        <TableCell className="font-medium text-gray-900">
+                          {item.description}
+                        </TableCell>
+                        <TableCell className="text-center text-gray-700">
+                          {item.quantity}
+                        </TableCell>
+                        <TableCell className="text-right text-gray-700">
+                          {formatCurrency(item.rate || 0, companyCountry)}
+                          {showDualCurrency && (
+                            <div className="text-sm text-gray-500">
+                              ({formatCurrency(convertINRToClient(convertCompanyToINR(item.rate || 0)), clientCountry)})
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-bold text-green-600">
+                          {formatCurrency(item.amount || 0, companyCountry)}
+                          {showDualCurrency && (
+                            <div className="text-sm text-gray-500">
+                              ({formatCurrency(convertINRToClient(convertCompanyToINR(item.amount || 0)), clientCountry)})
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
 
               <Separator className="my-8 bg-gray-400 h-0.5" />
