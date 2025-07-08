@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { 
   collection, 
@@ -50,12 +49,17 @@ export interface Invoice {
   clientCountry: string;
   // Company snapshot fields
   companyName: string;
+  companyEmail?: string;
+  companyWebsite?: string;
   companyLogoUrl?: string;
   companyPhone?: string;
   companyCity?: string;
   companyTaxInfo?: {
-    gstin: string;
-    pan: string;
+    primaryType?: string;
+    primaryId?: string;
+    secondaryId?: string;
+    gstin?: string;
+    pan?: string;
   };
   companyBankDetails?: {
     accountNumber: string;
@@ -201,6 +205,8 @@ export const useInvoices = () => {
             clientCountry: data.clientCountry || 'IN',
             // Handle company snapshot fields with fallbacks
             companyName: data.companyName || '',
+            companyEmail: data.companyEmail,
+            companyWebsite: data.companyWebsite,
             companyLogoUrl: data.companyLogoUrl,
             companyPhone: data.companyPhone,
             companyCity: data.companyCity,
@@ -245,7 +251,7 @@ export const useInvoices = () => {
     return () => unsubscribe();
   }, [currentUser?.companyId]);
 
-  const addInvoice = async (invoice: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt' | 'companyCountry' | 'clientCountry' | 'companyId' | 'companyName' | 'companyLogoUrl' | 'companyPhone' | 'companyCity' | 'companyTaxInfo' | 'companyBankDetails' | 'companyAddress' | 'ownerSignatureUrl' | 'clientAddress' | 'clientPhone' | 'clientPincode' | 'clientTaxInfo' | 'bankInfo' | 'logoUrl' | 'signatureUrl' | 'clientName' | 'clientEmail' | 'clientState'>) => {
+  const addInvoice = async (invoice: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt' | 'companyCountry' | 'clientCountry' | 'companyId' | 'companyName' | 'companyEmail' | 'companyWebsite' | 'companyLogoUrl' | 'companyPhone' | 'companyCity' | 'companyTaxInfo' | 'companyBankDetails' | 'companyAddress' | 'ownerSignatureUrl' | 'clientAddress' | 'clientPhone' | 'clientPincode' | 'clientTaxInfo' | 'bankInfo' | 'logoUrl' | 'signatureUrl' | 'clientName' | 'clientEmail' | 'clientState'>) => {
     if (!currentUser?.companyId) {
       throw new Error('User company ID not found');
     }
@@ -263,6 +269,8 @@ export const useInvoices = () => {
       // Map company fields as requested
       const companyCountry = companyData?.country || 'IN';
       const companyName = companyData?.companyName || companyData?.name || '';
+      const companyEmail = companyData?.email;
+      const companyWebsite = companyData?.website;
       const companyCurrency = companyData?.companyCurrency || 'INR';
       const companyAddress = companyData?.streetAddress || companyData?.address || '';
       const companyPhone = companyData?.phone;
@@ -322,6 +330,12 @@ export const useInvoices = () => {
       };
 
       // Only add optional fields if they have values
+      if (companyEmail) {
+        invoiceData.companyEmail = companyEmail;
+      }
+      if (companyWebsite) {
+        invoiceData.companyWebsite = companyWebsite;
+      }
       if (companyPhone) {
         invoiceData.companyPhone = companyPhone;
       }
@@ -361,7 +375,7 @@ export const useInvoices = () => {
 
       const docRef = await addDoc(collection(db, 'invoices'), invoiceData);
       
-      console.log('Invoice created with complete company and client snapshot data including phone and location details');
+      console.log('Invoice created with complete company and client snapshot data including email and website');
       return docRef.id;
     } catch (err) {
       console.error('Error adding invoice:', err);
