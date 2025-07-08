@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Calendar, Download, MapPin, Globe, Phone, Building, FileText, CreditCard } from 'lucide-react';
+import { Calendar, Download, MapPin, Globe, Phone, Building, FileText, CreditCard, Mail, ExternalLink } from 'lucide-react';
 import { Invoice } from '@/hooks/useFirestore';
 import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 
@@ -84,8 +84,8 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
               gap: 20px;
             }
             .company-logo { 
-              width: 80px; 
-              height: 80px; 
+              width: 120px; 
+              height: 120px; 
               object-fit: contain;
               border-radius: 8px;
               border: 2px solid #e5e7eb;
@@ -351,13 +351,14 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                     <div>${invoice.companyAddress}</div>
                     ${invoice.companyCity ? `<div>${invoice.companyCity}</div>` : ''}
                     ${invoice.companyPhone ? `<div>📞 ${invoice.companyPhone}</div>` : ''}
+                    ${invoice.companyEmail ? `<div>📧 ${invoice.companyEmail}</div>` : ''}
+                    ${invoice.companyWebsite ? `<div>🌐 ${invoice.companyWebsite}</div>` : ''}
                   </div>
 
-                  ${invoice.companyTaxInfo && (invoice.companyTaxInfo.gstin || invoice.companyTaxInfo.pan) ? `
+                  ${invoice.companyTaxInfo && (invoice.companyTaxInfo.primaryType && invoice.companyTaxInfo.primaryId) ? `
                     <div class="info-section">
                       <div class="section-title">🏛️ Tax Information</div>
-                      ${invoice.companyTaxInfo.gstin ? `<div><strong>GSTIN:</strong> ${invoice.companyTaxInfo.gstin}</div>` : ''}
-                      ${invoice.companyTaxInfo.pan ? `<div><strong>PAN:</strong> ${invoice.companyTaxInfo.pan}</div>` : ''}
+                      <div><strong>${invoice.companyTaxInfo.primaryType}:</strong> ${invoice.companyTaxInfo.primaryId}</div>
                     </div>
                   ` : ''}
 
@@ -715,6 +716,25 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                         {invoice.companyPhone}
                       </p>
                     )}
+                    {invoice.companyEmail && (
+                      <p className="text-gray-600 text-lg flex items-center gap-2">
+                        <Mail className="w-4 h-4" />
+                        {invoice.companyEmail}
+                      </p>
+                    )}
+                    {invoice.companyWebsite && (
+                      <p className="text-gray-600 text-lg flex items-center gap-2">
+                        <ExternalLink className="w-4 h-4" />
+                        <a 
+                          href={invoice.companyWebsite.startsWith('http') ? invoice.companyWebsite : `https://${invoice.companyWebsite}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          {invoice.companyWebsite}
+                        </a>
+                      </p>
+                    )}
                   </div>
                 </div>
                 
@@ -731,30 +751,20 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                   </p>
                 </div>
 
-                {/* Enhanced Tax Information - Properly fetch from companyTaxInfo */}
-                {invoice.companyTaxInfo && (
+                {/* Enhanced Tax Information - Display primaryType and primaryId */}
+                {invoice.companyTaxInfo && invoice.companyTaxInfo.primaryType && invoice.companyTaxInfo.primaryId && (
                   <div className="bg-blue-50 p-6 rounded-xl border border-blue-200">
                     <h4 className="font-bold mb-4 flex items-center gap-3 text-gray-900 text-lg">
                       <FileText className="w-5 h-5 text-blue-600" />
                       Tax Information
                     </h4>
-                    <div className="space-y-3">
-                      {invoice.companyTaxInfo.gstin && (
-                        <div className="p-3 bg-white rounded-lg border">
-                          <span className="font-semibold text-gray-700 text-base">GSTIN: </span>
-                          <span className="text-gray-900 font-mono bg-gray-100 px-3 py-1 rounded border text-lg">
-                            {invoice.companyTaxInfo.gstin}
-                          </span>
-                        </div>
-                      )}
-                      {invoice.companyTaxInfo.pan && (
-                        <div className="p-3 bg-white rounded-lg border">
-                          <span className="font-semibold text-gray-700 text-base">PAN: </span>
-                          <span className="text-gray-900 font-mono bg-gray-100 px-3 py-1 rounded border text-lg">
-                            {invoice.companyTaxInfo.pan}
-                          </span>
-                        </div>
-                      )}
+                    <div className="p-3 bg-white rounded-lg border">
+                      <span className="font-semibold text-gray-700 text-base">
+                        {invoice.companyTaxInfo.primaryType}: 
+                      </span>
+                      <span className="ml-2 text-gray-900 font-mono bg-gray-100 px-3 py-1 rounded border text-lg">
+                        {invoice.companyTaxInfo.primaryId}
+                      </span>
                     </div>
                   </div>
                 )}
