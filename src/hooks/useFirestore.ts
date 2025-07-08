@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { 
   collection, 
@@ -58,6 +59,7 @@ export interface Invoice {
     primaryType: string;
     primaryId: string;
     secondaryId?: string;
+    gstin?: string;
   };
   companyBankDetails?: {
     accountNumber: string;

@@ -129,8 +129,9 @@ export const initializeCollections = async () => {
       companyName: 'TechSolutions Pvt Ltd',
       companyLogoUrl: undefined,
       companyTaxInfo: {
-        gstin: '27AABCT1234M1Z5',
-        pan: 'AABCT1234M'
+        primaryType: 'GSTIN',
+        primaryId: '27AABCT1234M1Z5',
+        gstin: '27AABCT1234M1Z5'
       },
       companyBankDetails: {
         accountNumber: '123456789012',
