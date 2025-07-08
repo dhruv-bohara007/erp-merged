@@ -32,6 +32,9 @@ const InvoiceDetailsModal = ({ invoice, open, onOpenChange }: InvoiceDetailsModa
       try {
         console.log('Fetching company data for companyId:', invoice.companyId);
         console.log('Fetching client data for clientId:', invoice.clientId);
+        console.log('Invoice companyTaxInfo:', invoice.companyTaxInfo);
+        console.log('Invoice clientTaxInfo:', invoice.clientTaxInfo);
+        console.log('Invoice bankInfo:', invoice.bankInfo);
 
         // Fetch company data
         if (invoice.companyId) {
@@ -171,59 +174,66 @@ Generated on: ${new Date().toLocaleString()}
 
   const showDualCurrency = companyCountry !== clientCountry && invoice.conversionRate;
 
+  // Force re-render key to ensure changes are visible
+  const modalKey = `invoice-modal-${invoice.id}-${Date.now()}`;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog key={modalKey} open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto bg-white">
-        <DialogHeader className="border-b border-gray-200 pb-4">
+        <DialogHeader className="border-b border-gray-200 pb-6">
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-2xl font-bold text-gray-900">Invoice Details</DialogTitle>
+            <DialogTitle className="text-3xl font-bold text-gray-900">
+              Invoice Details
+            </DialogTitle>
             <Button
               onClick={handleDownloadPDF}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow-md transition-all duration-200"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg shadow-lg transition-all duration-200 flex items-center gap-2 font-semibold"
             >
-              <Download className="w-4 h-4 mr-2" />
+              <Download className="w-5 h-5" />
               Download PDF
             </Button>
           </div>
         </DialogHeader>
 
         {loading && (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-2 text-gray-600">Loading invoice details...</p>
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-lg text-gray-600">Loading invoice details...</p>
           </div>
         )}
 
-        <div className="space-y-8 p-2">
+        <div className="space-y-8 p-4">
           {/* Invoice Header */}
-          <Card className="border-2 border-gray-100 shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
+          <Card className="border-2 border-gray-200 shadow-xl rounded-xl">
+            <CardHeader className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-b-2 border-gray-200 rounded-t-xl">
               <div className="flex justify-between items-start">
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">Invoice #{invoice.invoiceNumber}</h1>
-                  <Badge className={`${getStatusColor(invoice.status || 'draft')} px-3 py-1 text-sm font-medium border`}>
+                <div className="space-y-3">
+                  <h1 className="text-4xl font-bold text-gray-900 mb-3">
+                    Invoice #{invoice.invoiceNumber}
+                  </h1>
+                  <Badge className={`${getStatusColor(invoice.status || 'draft')} px-4 py-2 text-base font-semibold border-2 rounded-full`}>
                     {(invoice.status || 'draft').charAt(0).toUpperCase() + (invoice.status || 'draft').slice(1)}
                   </Badge>
                 </div>
                 <div className="text-right">
                   {showDualCurrency ? (
-                    <div className="bg-white p-4 rounded-lg border border-gray-200">
-                      <p className="text-3xl font-bold text-green-600 mb-1">
+                    <div className="bg-white p-6 rounded-xl border-2 border-gray-200 shadow-lg">
+                      <p className="text-4xl font-bold text-green-600 mb-2">
                         {formatCurrency(invoice.companyAmount || invoice.totalAmount || 0, companyCountry)}
                       </p>
-                      <p className="text-xl text-gray-600 mb-2">
+                      <p className="text-2xl text-gray-600 mb-3">
                         {formatCurrency(invoice.clientAmount || 0, clientCountry)}
                       </p>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-gray-500 font-medium">
                         Company ({companyCurrency.code}) / Client ({clientCurrency.code})
                       </p>
                     </div>
                   ) : (
-                    <div className="bg-white p-4 rounded-lg border border-gray-200">
-                      <p className="text-3xl font-bold text-green-600 mb-1">
+                    <div className="bg-white p-6 rounded-xl border-2 border-gray-200 shadow-lg">
+                      <p className="text-4xl font-bold text-green-600 mb-2">
                         {formatCurrency(invoice.totalAmount || 0, companyCountry)}
                       </p>
-                      <p className="text-sm text-gray-500">Total Amount</p>
+                      <p className="text-sm text-gray-500 font-medium">Total Amount</p>
                     </div>
                   )}
                 </div>
@@ -233,66 +243,66 @@ Generated on: ${new Date().toLocaleString()}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Company Information */}
-            <Card className="border-2 border-gray-100 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b">
-                <CardTitle className="flex items-center gap-2 text-lg font-semibold text-gray-900">
-                  <Building className="w-5 h-5 text-green-600" />
+            <Card className="border-2 border-gray-200 shadow-xl rounded-xl">
+              <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b-2 border-gray-200 rounded-t-xl">
+                <CardTitle className="flex items-center gap-3 text-xl font-bold text-gray-900">
+                  <Building className="w-6 h-6 text-green-600" />
                   Company Information
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-6 space-y-6">
+              <CardContent className="p-8 space-y-8">
                 {companyData ? (
                   <>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-6">
                       {companyData.logoUrl && (
                         <img 
                           src={companyData.logoUrl} 
                           alt="Company Logo" 
-                          className="w-20 h-20 object-contain rounded-lg border border-gray-200"
+                          className="w-24 h-24 object-contain rounded-xl border-2 border-gray-200 shadow-md"
                         />
                       )}
-                      <div>
-                        <h3 className="text-xl font-bold text-gray-900">{companyData.companyName}</h3>
-                        <p className="text-gray-600">{companyData.email}</p>
-                        <p className="text-gray-600">{companyData.phone}</p>
+                      <div className="space-y-2">
+                        <h3 className="text-2xl font-bold text-gray-900">{companyData.companyName}</h3>
+                        <p className="text-gray-600 text-lg">{companyData.email}</p>
+                        <p className="text-gray-600 text-lg">{companyData.phone}</p>
                       </div>
                     </div>
                     
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-semibold mb-3 flex items-center gap-2 text-gray-900">
-                        <MapPin className="w-4 h-4 text-blue-600" />
+                    <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
+                      <h4 className="font-bold mb-4 flex items-center gap-3 text-gray-900 text-lg">
+                        <MapPin className="w-5 h-5 text-blue-600" />
                         Address
                       </h4>
-                      <p className="text-gray-700 leading-relaxed">
+                      <p className="text-gray-700 leading-relaxed text-base">
                         {companyData.streetAddress}<br />
                         {companyData.city}, {companyData.country}
                       </p>
                     </div>
 
-                    {/* Tax Information with proper GSTIN display */}
+                    {/* Enhanced Tax Information with proper GSTIN display */}
                     {(companyData.taxInfo || invoice.companyTaxInfo) && (
-                      <div className="bg-blue-50 p-4 rounded-lg">
-                        <h4 className="font-semibold mb-3 flex items-center gap-2 text-gray-900">
-                          <FileText className="w-4 h-4 text-blue-600" />
+                      <div className="bg-blue-50 p-6 rounded-xl border border-blue-200">
+                        <h4 className="font-bold mb-4 flex items-center gap-3 text-gray-900 text-lg">
+                          <FileText className="w-5 h-5 text-blue-600" />
                           Tax Information
                         </h4>
                         {invoice.companyTaxInfo?.gstin && (
-                          <div className="mb-2">
-                            <span className="font-medium text-gray-700">GSTIN: </span>
-                            <span className="text-gray-900 font-mono bg-white px-2 py-1 rounded border">
+                          <div className="mb-4 p-3 bg-white rounded-lg border">
+                            <span className="font-semibold text-gray-700 text-base">GSTIN: </span>
+                            <span className="text-gray-900 font-mono bg-gray-100 px-3 py-1 rounded border text-lg">
                               {invoice.companyTaxInfo.gstin}
                             </span>
                           </div>
                         )}
                         {companyData.taxInfo?.primaryType && (
-                          <div>
-                            <span className="font-medium text-gray-700">{companyData.taxInfo.primaryType}: </span>
-                            <span className="text-gray-900">{companyData.taxInfo.primaryId}</span>
+                          <div className="p-3 bg-white rounded-lg border">
+                            <span className="font-semibold text-gray-700 text-base">{companyData.taxInfo.primaryType}: </span>
+                            <span className="text-gray-900 text-base">{companyData.taxInfo.primaryId}</span>
                             {companyData.taxInfo.secondaryId && (
                               <>
                                 <br />
-                                <span className="font-medium text-gray-700">Secondary ID: </span>
-                                <span className="text-gray-900">{companyData.taxInfo.secondaryId}</span>
+                                <span className="font-semibold text-gray-700 text-base">Secondary ID: </span>
+                                <span className="text-gray-900 text-base">{companyData.taxInfo.secondaryId}</span>
                               </>
                             )}
                           </div>
@@ -300,53 +310,53 @@ Generated on: ${new Date().toLocaleString()}
                       </div>
                     )}
 
-                    {/* Bank Information - Formatted Table */}
+                    {/* Enhanced Bank Information - Professional Table Format */}
                     {(companyData.bankInfo || invoice.bankInfo) && (
-                      <div className="bg-green-50 p-4 rounded-lg">
-                        <h4 className="font-semibold mb-3 flex items-center gap-2 text-gray-900">
-                          <CreditCard className="w-4 h-4 text-green-600" />
+                      <div className="bg-green-50 p-6 rounded-xl border border-green-200">
+                        <h4 className="font-bold mb-4 flex items-center gap-3 text-gray-900 text-lg">
+                          <CreditCard className="w-5 h-5 text-green-600" />
                           Bank Information
                         </h4>
-                        <div className="bg-white rounded border overflow-hidden">
-                          <table className="w-full text-sm">
+                        <div className="bg-white rounded-lg border-2 border-gray-200 shadow-sm overflow-hidden">
+                          <table className="w-full">
                             <tbody>
                               {(invoice.bankInfo as any)?.bankName && (
                                 <tr className="border-b border-gray-100">
-                                  <td className="px-3 py-2 font-medium text-gray-700 bg-gray-50">Bank Name</td>
-                                  <td className="px-3 py-2 text-gray-900">{(invoice.bankInfo as any).bankName}</td>
+                                  <td className="px-4 py-3 font-semibold text-gray-700 bg-gray-50 w-1/3">Bank Name</td>
+                                  <td className="px-4 py-3 text-gray-900 font-medium">{(invoice.bankInfo as any).bankName}</td>
                                 </tr>
                               )}
                               {(invoice.bankInfo as any)?.accountNumber && (
                                 <tr className="border-b border-gray-100">
-                                  <td className="px-3 py-2 font-medium text-gray-700 bg-gray-50">Account Number</td>
-                                  <td className="px-3 py-2 text-gray-900 font-mono">{(invoice.bankInfo as any).accountNumber}</td>
+                                  <td className="px-4 py-3 font-semibold text-gray-700 bg-gray-50">Account Number</td>
+                                  <td className="px-4 py-3 text-gray-900 font-mono text-lg">{(invoice.bankInfo as any).accountNumber}</td>
                                 </tr>
                               )}
                               {((invoice.bankInfo as any)?.routingCode || (invoice.bankInfo as any)?.ifscCode) && (
                                 <tr>
-                                  <td className="px-3 py-2 font-medium text-gray-700 bg-gray-50">Routing Code</td>
-                                  <td className="px-3 py-2 text-gray-900 font-mono">
+                                  <td className="px-4 py-3 font-semibold text-gray-700 bg-gray-50">Routing Code</td>
+                                  <td className="px-4 py-3 text-gray-900 font-mono text-lg">
                                     {(invoice.bankInfo as any)?.routingCode || (invoice.bankInfo as any)?.ifscCode}
                                   </td>
                                 </tr>
                               )}
                               {!(invoice.bankInfo as any)?.bankName && (companyData.bankInfo as any)?.bankName && (
                                 <tr className="border-b border-gray-100">
-                                  <td className="px-3 py-2 font-medium text-gray-700 bg-gray-50">Bank Name</td>
-                                  <td className="px-3 py-2 text-gray-900">{(companyData.bankInfo as any).bankName}</td>
+                                  <td className="px-4 py-3 font-semibold text-gray-700 bg-gray-50">Bank Name</td>
+                                  <td className="px-4 py-3 text-gray-900 font-medium">{(companyData.bankInfo as any).bankName}</td>
                                 </tr>
                               )}
                               {!(invoice.bankInfo as any)?.accountNumber && (companyData.bankInfo as any)?.accountNumber && (
                                 <tr className="border-b border-gray-100">
-                                  <td className="px-3 py-2 font-medium text-gray-700 bg-gray-50">Account Number</td>
-                                  <td className="px-3 py-2 text-gray-900 font-mono">{(companyData.bankInfo as any).accountNumber}</td>
+                                  <td className="px-4 py-3 font-semibold text-gray-700 bg-gray-50">Account Number</td>
+                                  <td className="px-4 py-3 text-gray-900 font-mono text-lg">{(companyData.bankInfo as any).accountNumber}</td>
                                 </tr>
                               )}
                               {!((invoice.bankInfo as any)?.routingCode || (invoice.bankInfo as any)?.ifscCode) && 
                                ((companyData.bankInfo as any)?.routingCode || (companyData.bankInfo as any)?.ifscCode) && (
                                 <tr>
-                                  <td className="px-3 py-2 font-medium text-gray-700 bg-gray-50">Routing Code</td>
-                                  <td className="px-3 py-2 text-gray-900 font-mono">
+                                  <td className="px-4 py-3 font-semibold text-gray-700 bg-gray-50">Routing Code</td>
+                                  <td className="px-4 py-3 text-gray-900 font-mono text-lg">
                                     {(companyData.bankInfo as any)?.routingCode || (companyData.bankInfo as any)?.ifscCode}
                                   </td>
                                 </tr>
@@ -358,25 +368,25 @@ Generated on: ${new Date().toLocaleString()}
                     )}
 
                     {companyData.signatureUrl && (
-                      <div className="bg-purple-50 p-4 rounded-lg">
-                        <h4 className="font-semibold mb-3 text-gray-900">Digital Signature</h4>
+                      <div className="bg-purple-50 p-6 rounded-xl border border-purple-200">
+                        <h4 className="font-bold mb-4 text-gray-900 text-lg">Digital Signature</h4>
                         <img 
                           src={companyData.signatureUrl} 
                           alt="Digital Signature" 
-                          className="max-w-40 h-20 object-contain border rounded bg-white p-2"
+                          className="max-w-48 h-24 object-contain border-2 rounded-lg bg-white p-3 shadow-sm"
                         />
                       </div>
                     )}
                   </>
                 ) : (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-12 text-gray-500">
                     {loading ? (
                       <div>
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-400 mx-auto mb-2"></div>
-                        Loading company information...
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400 mx-auto mb-3"></div>
+                        <p className="text-lg">Loading company information...</p>
                       </div>
                     ) : (
-                      'Company information not available'
+                      <p className="text-lg">Company information not available</p>
                     )}
                   </div>
                 )}
@@ -384,23 +394,23 @@ Generated on: ${new Date().toLocaleString()}
             </Card>
 
             {/* Client Information */}
-            <Card className="border-2 border-gray-100 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 border-b">
-                <CardTitle className="text-lg font-semibold text-gray-900">Client Information</CardTitle>
+            <Card className="border-2 border-gray-200 shadow-xl rounded-xl">
+              <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 border-b-2 border-gray-200 rounded-t-xl">
+                <CardTitle className="text-xl font-bold text-gray-900">Client Information</CardTitle>
               </CardHeader>
-              <CardContent className="p-6 space-y-6">
-                <div className="bg-white p-4 rounded-lg border border-gray-200">
-                  <h3 className="text-xl font-bold text-gray-900">{invoice.clientName}</h3>
-                  <p className="text-gray-600">{invoice.clientEmail}</p>
+              <CardContent className="p-8 space-y-8">
+                <div className="bg-white p-6 rounded-xl border-2 border-gray-200 shadow-sm">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">{invoice.clientName}</h3>
+                  <p className="text-gray-600 text-lg">{invoice.clientEmail}</p>
                 </div>
 
                 {(clientData || invoice.clientAddress) && (
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-semibold mb-3 flex items-center gap-2 text-gray-900">
-                      <MapPin className="w-4 h-4 text-orange-600" />
+                  <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
+                    <h4 className="font-bold mb-4 flex items-center gap-3 text-gray-900 text-lg">
+                      <MapPin className="w-5 h-5 text-orange-600" />
                       Address
                     </h4>
-                    <p className="text-gray-700 leading-relaxed">
+                    <p className="text-gray-700 leading-relaxed text-base">
                       {invoice.clientAddress || clientData?.address}<br />
                       {clientData?.city && `${clientData.city}, `}
                       {clientData?.state && `${clientData.state} `}
@@ -411,43 +421,43 @@ Generated on: ${new Date().toLocaleString()}
                 )}
 
                 {(clientData?.phone || invoice.clientPhone) && (
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <h4 className="font-semibold mb-2 text-gray-900">Phone</h4>
-                    <p className="text-gray-700">{invoice.clientPhone || clientData?.phone}</p>
+                  <div className="bg-blue-50 p-6 rounded-xl border border-blue-200">
+                    <h4 className="font-bold mb-3 text-gray-900 text-lg">Phone</h4>
+                    <p className="text-gray-700 text-base">{invoice.clientPhone || clientData?.phone}</p>
                   </div>
                 )}
 
-                {/* Client Tax Information - Properly display clientTaxInfo.id */}
+                {/* Enhanced Client Tax Information - Properly display clientTaxInfo.id */}
                 {(invoice.clientTaxInfo || clientData?.taxInfo || clientData?.gstin) && (
-                  <div className="bg-yellow-50 p-4 rounded-lg">
-                    <h4 className="font-semibold mb-3 flex items-center gap-2 text-gray-900">
-                      <FileText className="w-4 h-4 text-yellow-600" />
+                  <div className="bg-yellow-50 p-6 rounded-xl border border-yellow-200">
+                    <h4 className="font-bold mb-4 flex items-center gap-3 text-gray-900 text-lg">
+                      <FileText className="w-5 h-5 text-yellow-600" />
                       Tax Information
                     </h4>
                     {invoice.clientTaxInfo?.id && (
-                      <div className="mb-2">
-                        <span className="font-medium text-gray-700">
+                      <div className="mb-4 p-3 bg-white rounded-lg border">
+                        <span className="font-semibold text-gray-700 text-base">
                           {invoice.clientTaxInfo.type || 'Tax ID'}: 
                         </span>
-                        <span className="ml-2 text-gray-900 font-mono bg-white px-2 py-1 rounded border">
+                        <span className="ml-2 text-gray-900 font-mono bg-gray-100 px-3 py-1 rounded border text-lg">
                           {invoice.clientTaxInfo.id}
                         </span>
                       </div>
                     )}
                     {clientData?.taxInfo?.id && (
-                      <div className="mb-2">
-                        <span className="font-medium text-gray-700">
+                      <div className="mb-4 p-3 bg-white rounded-lg border">
+                        <span className="font-semibold text-gray-700 text-base">
                           {clientData.taxInfo.type || 'Tax ID'}: 
                         </span>
-                        <span className="ml-2 text-gray-900 font-mono bg-white px-2 py-1 rounded border">
+                        <span className="ml-2 text-gray-900 font-mono bg-gray-100 px-3 py-1 rounded border text-lg">
                           {clientData.taxInfo.id}
                         </span>
                       </div>
                     )}
                     {clientData?.gstin && (
-                      <div>
-                        <span className="font-medium text-gray-700">GSTIN: </span>
-                        <span className="text-gray-900 font-mono bg-white px-2 py-1 rounded border">
+                      <div className="p-3 bg-white rounded-lg border">
+                        <span className="font-semibold text-gray-700 text-base">GSTIN: </span>
+                        <span className="text-gray-900 font-mono bg-gray-100 px-3 py-1 rounded border text-lg">
                           {clientData.gstin}
                         </span>
                       </div>
@@ -455,22 +465,22 @@ Generated on: ${new Date().toLocaleString()}
                   </div>
                 )}
 
-                <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-2 text-gray-700">
-                      <Calendar className="w-4 h-4" />
+                    <span className="flex items-center gap-3 text-gray-700 font-medium text-base">
+                      <Calendar className="w-5 h-5" />
                       Issue Date:
                     </span>
-                    <span className="font-medium text-gray-900">
+                    <span className="font-semibold text-gray-900 text-base">
                       {invoice.issueDate?.toLocaleDateString() || 'N/A'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-2 text-gray-700">
-                      <Calendar className="w-4 h-4" />
+                    <span className="flex items-center gap-3 text-gray-700 font-medium text-base">
+                      <Calendar className="w-5 h-5" />
                       Due Date:
                     </span>
-                    <span className="font-medium text-gray-900">
+                    <span className="font-semibold text-gray-900 text-base">
                       {invoice.dueDate?.toLocaleDateString() || 'N/A'}
                     </span>
                   </div>
@@ -480,22 +490,22 @@ Generated on: ${new Date().toLocaleString()}
           </div>
 
           {/* Invoice Items */}
-          <Card className="border-2 border-gray-100 shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 border-b">
-              <CardTitle className="text-lg font-semibold text-gray-900">Invoice Items</CardTitle>
+          <Card className="border-2 border-gray-200 shadow-xl rounded-xl">
+            <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 border-b-2 border-gray-200 rounded-t-xl">
+              <CardTitle className="text-xl font-bold text-gray-900">Invoice Items</CardTitle>
             </CardHeader>
-            <CardContent className="p-6">
-              <div className="space-y-4">
+            <CardContent className="p-8">
+              <div className="space-y-6">
                 {invoice.items?.map((item, index) => (
-                  <div key={index} className="flex justify-between items-center p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200">
+                  <div key={index} className="flex justify-between items-center p-6 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border-2 border-gray-200 shadow-sm">
                     <div className="flex-1">
-                      <p className="font-semibold text-gray-900">{item.description}</p>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Qty: <span className="font-medium">{item.quantity}</span> × {formatCurrency(item.rate || 0, companyCountry)}
+                      <p className="font-bold text-gray-900 text-lg mb-2">{item.description}</p>
+                      <p className="text-gray-600 text-base">
+                        Qty: <span className="font-semibold">{item.quantity}</span> × {formatCurrency(item.rate || 0, companyCountry)}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-lg text-green-600">
+                      <p className="font-bold text-2xl text-green-600">
                         {formatCurrency(item.amount || 0, companyCountry)}
                       </p>
                     </div>
@@ -503,43 +513,43 @@ Generated on: ${new Date().toLocaleString()}
                 ))}
               </div>
 
-              <Separator className="my-6 bg-gray-300" />
+              <Separator className="my-8 bg-gray-400 h-0.5" />
 
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg space-y-3">
-                <div className="flex justify-between text-gray-700">
-                  <span className="font-medium">Subtotal:</span>
-                  <span className="font-semibold">{formatCurrency(invoice.subtotal || 0, companyCountry)}</span>
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-8 rounded-xl border-2 border-blue-200 space-y-4">
+                <div className="flex justify-between text-gray-700 text-lg">
+                  <span className="font-semibold">Subtotal:</span>
+                  <span className="font-bold">{formatCurrency(invoice.subtotal || 0, companyCountry)}</span>
                 </div>
                 
                 {(invoice.cgst || 0) > 0 && (
-                  <div className="flex justify-between text-gray-700">
-                    <span className="font-medium">CGST:</span>
-                    <span className="font-semibold">{formatCurrency(invoice.cgst || 0, companyCountry)}</span>
+                  <div className="flex justify-between text-gray-700 text-lg">
+                    <span className="font-semibold">CGST:</span>
+                    <span className="font-bold">{formatCurrency(invoice.cgst || 0, companyCountry)}</span>
                   </div>
                 )}
                 
                 {(invoice.sgst || 0) > 0 && (
-                  <div className="flex justify-between text-gray-700">
-                    <span className="font-medium">SGST:</span>
-                    <span className="font-semibold">{formatCurrency(invoice.sgst || 0, companyCountry)}</span>
+                  <div className="flex justify-between text-gray-700 text-lg">
+                    <span className="font-semibold">SGST:</span>
+                    <span className="font-bold">{formatCurrency(invoice.sgst || 0, companyCountry)}</span>
                   </div>
                 )}
                 
                 {(invoice.igst || 0) > 0 && (
-                  <div className="flex justify-between text-gray-700">
-                    <span className="font-medium">IGST:</span>
-                    <span className="font-semibold">{formatCurrency(invoice.igst || 0, companyCountry)}</span>
+                  <div className="flex justify-between text-gray-700 text-lg">
+                    <span className="font-semibold">IGST:</span>
+                    <span className="font-bold">{formatCurrency(invoice.igst || 0, companyCountry)}</span>
                   </div>
                 )}
                 
-                <div className="flex justify-between text-gray-700">
-                  <span className="font-medium">Total Tax:</span>
-                  <span className="font-semibold">{formatCurrency(invoice.totalGst || 0, companyCountry)}</span>
+                <div className="flex justify-between text-gray-700 text-lg">
+                  <span className="font-semibold">Total Tax:</span>
+                  <span className="font-bold">{formatCurrency(invoice.totalGst || 0, companyCountry)}</span>
                 </div>
                 
-                <Separator className="bg-gray-400" />
+                <Separator className="bg-gray-500 h-0.5" />
                 
-                <div className="flex justify-between font-bold text-xl text-green-700">
+                <div className="flex justify-between font-bold text-2xl text-green-700">
                   <span>Total Amount:</span>
                   <span>{formatCurrency(invoice.totalAmount || 0, companyCountry)}</span>
                 </div>
@@ -549,18 +559,18 @@ Generated on: ${new Date().toLocaleString()}
 
           {/* Notes and Terms */}
           {(invoice.notes || invoice.terms) && (
-            <Card className="border-2 border-gray-100 shadow-lg">
-              <CardContent className="p-6">
+            <Card className="border-2 border-gray-200 shadow-xl rounded-xl">
+              <CardContent className="p-8">
                 {invoice.notes && (
-                  <div className="mb-6 bg-blue-50 p-4 rounded-lg">
-                    <h4 className="font-semibold mb-3 text-gray-900">Notes:</h4>
-                    <p className="text-gray-700 leading-relaxed">{invoice.notes}</p>
+                  <div className="mb-8 bg-blue-50 p-6 rounded-xl border border-blue-200">
+                    <h4 className="font-bold mb-4 text-gray-900 text-lg">Notes:</h4>
+                    <p className="text-gray-700 leading-relaxed text-base">{invoice.notes}</p>
                   </div>
                 )}
                 {invoice.terms && (
-                  <div className="bg-yellow-50 p-4 rounded-lg">
-                    <h4 className="font-semibold mb-3 text-gray-900">Terms & Conditions:</h4>
-                    <p className="text-gray-700 leading-relaxed">{invoice.terms}</p>
+                  <div className="bg-yellow-50 p-6 rounded-xl border border-yellow-200">
+                    <h4 className="font-bold mb-4 text-gray-900 text-lg">Terms & Conditions:</h4>
+                    <p className="text-gray-700 leading-relaxed text-base">{invoice.terms}</p>
                   </div>
                 )}
               </CardContent>
