@@ -98,6 +98,8 @@ export interface Invoice {
   clientCountry: string; // Automatically fetched from client document
   // New company snapshot fields
   companyName: string;
+  companyEmail?: string;
+  companyWebsite?: string;
   companyLogoUrl?: string;
   companyTaxInfo?: {
     gstin: string;

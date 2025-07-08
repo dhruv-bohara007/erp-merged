@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -78,9 +77,12 @@ const InvoiceDetailsModal = ({ invoice, open, onOpenChange }: InvoiceDetailsModa
   const handleDownloadPDF = () => {
     const companyInfo = companyData ? `
 Company: ${companyData.companyName}
+${companyData.email ? `Email: ${companyData.email}` : ''}
+${companyData.website ? `Website: ${companyData.website}` : ''}
 Address: ${companyData.streetAddress}, ${companyData.city}, ${companyData.country}
-Phone: ${companyData.phone}
-Email: ${companyData.email}` : `Company: ${invoice.companyName || 'N/A'}`;
+Phone: ${companyData.phone}` : `Company: ${invoice.companyName || 'N/A'}
+${invoice.companyEmail ? `Email: ${invoice.companyEmail}` : ''}
+${invoice.companyWebsite ? `Website: ${invoice.companyWebsite}` : ''}`;
 
     const bankInfo = invoice.bankInfo || companyData?.bankInfo ? `
 Bank Information:
@@ -96,6 +98,7 @@ Routing Code: ${(companyData.bankInfo as any).routingCode || (companyData.bankIn
     const taxInfo = `
 Tax Information:
 ${invoice.companyTaxInfo?.gstin ? `Company GSTIN: ${invoice.companyTaxInfo.gstin}` : ''}
+${companyData?.taxInfo?.primaryType && companyData?.taxInfo?.primaryId ? `${companyData.taxInfo.primaryType}: ${companyData.taxInfo.primaryId}` : ''}
 ${invoice.clientTaxInfo?.id ? `Client Tax ID: ${invoice.clientTaxInfo.id} (${invoice.clientTaxInfo.type || 'N/A'})` : ''}`;
 
     const content = `
@@ -258,12 +261,21 @@ Generated on: ${new Date().toLocaleString()}
                         <img 
                           src={companyData.logoUrl} 
                           alt="Company Logo" 
-                          className="w-24 h-24 object-contain rounded-xl border-2 border-gray-200 shadow-md"
+                          className="w-32 h-32 object-contain rounded-xl border-2 border-gray-200 shadow-md"
                         />
                       )}
                       <div className="space-y-2">
                         <h3 className="text-2xl font-bold text-gray-900">{companyData.companyName}</h3>
-                        <p className="text-gray-600 text-lg">{companyData.email}</p>
+                        {(companyData.email || invoice.companyEmail) && (
+                          <p className="text-gray-600 text-lg">{companyData.email || invoice.companyEmail}</p>
+                        )}
+                        {(companyData.website || invoice.companyWebsite) && (
+                          <p className="text-blue-600 text-lg hover:underline">
+                            <a href={companyData.website || invoice.companyWebsite} target="_blank" rel="noopener noreferrer">
+                              {companyData.website || invoice.companyWebsite}
+                            </a>
+                          </p>
+                        )}
                         <p className="text-gray-600 text-lg">{companyData.phone}</p>
                       </div>
                     </div>
@@ -279,7 +291,7 @@ Generated on: ${new Date().toLocaleString()}
                       </p>
                     </div>
 
-                    {/* Enhanced Tax Information with proper GSTIN display */}
+                    {/* Enhanced Tax Information with proper display of primaryType and primaryId */}
                     {(companyData.taxInfo || invoice.companyTaxInfo) && (
                       <div className="bg-blue-50 p-6 rounded-xl border border-blue-200">
                         <h4 className="font-bold mb-4 flex items-center gap-3 text-gray-900 text-lg">
@@ -294,17 +306,12 @@ Generated on: ${new Date().toLocaleString()}
                             </span>
                           </div>
                         )}
-                        {companyData.taxInfo?.primaryType && (
+                        {companyData.taxInfo?.primaryType && companyData.taxInfo?.primaryId && (
                           <div className="p-3 bg-white rounded-lg border">
                             <span className="font-semibold text-gray-700 text-base">{companyData.taxInfo.primaryType}: </span>
-                            <span className="text-gray-900 text-base">{companyData.taxInfo.primaryId}</span>
-                            {companyData.taxInfo.secondaryId && (
-                              <>
-                                <br />
-                                <span className="font-semibold text-gray-700 text-base">Secondary ID: </span>
-                                <span className="text-gray-900 text-base">{companyData.taxInfo.secondaryId}</span>
-                              </>
-                            )}
+                            <span className="text-gray-900 font-mono bg-gray-100 px-3 py-1 rounded border text-lg">
+                              {companyData.taxInfo.primaryId}
+                            </span>
                           </div>
                         )}
                       </div>
