@@ -10,10 +10,16 @@ import type { Invoice } from '@/hooks/useFirestore';
 
 interface InvoiceViewProps {
   invoice: Invoice | null;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-const InvoiceView = ({ invoice }: InvoiceViewProps) => {
-  const [isOpen, setIsOpen] = useState(false);
+const InvoiceView = ({ invoice, open: externalOpen, onOpenChange: externalOnOpenChange }: InvoiceViewProps) => {
+  const [internalOpen, setInternalOpen] = useState(false);
+
+  // Use external state if provided, otherwise use internal state
+  const isOpen = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setIsOpen = externalOnOpenChange || setInternalOpen;
 
   if (!invoice) return null;
 
@@ -102,9 +108,12 @@ Generated on: ${new Date().toLocaleString()}
 
   return (
     <>
-      <Button onClick={() => setIsOpen(true)} variant="outline" size="sm">
-        View Invoice
-      </Button>
+      {/* Only show trigger button if using internal state */}
+      {externalOpen === undefined && (
+        <Button onClick={() => setIsOpen(true)} variant="outline" size="sm">
+          View Invoice
+        </Button>
+      )}
       
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
@@ -156,7 +165,7 @@ Generated on: ${new Date().toLocaleString()}
                       <img 
                         src={invoice.companyLogoUrl || invoice.logoUrl} 
                         alt="Company Logo" 
-                        className="w-20 h-20 object-contain rounded border shadow-sm"
+                        className="w-24 h-24 object-contain rounded border shadow-sm"
                       />
                     )}
                     <div className="space-y-1">
