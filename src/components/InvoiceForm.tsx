@@ -13,14 +13,12 @@ import { useTaxCalculations } from '@/hooks/useTaxCalculations';
 import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import { useInventory } from '@/hooks/useFirestore';
 
 const InvoiceForm = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { addInvoice } = useInvoices();
   const { clients } = useClients();
-  const { inventory } = useInventory();
   const { companyData } = useCompanyData();
   const { calculateTaxes, getTaxDisplayName } = useTaxCalculations();
   const { convertToINR, convertFromINR, formatCurrency, getCurrencyInfo, loading: currencyLoading } = useCurrencyConverter();
@@ -166,15 +164,7 @@ const InvoiceForm = () => {
     setItems(items.map((item, i) => {
       if (i === index) {
         const updatedItem = { ...item, [field]: value };
-        
-        // If description (item name) is selected from inventory, auto-fill the rate
-        if (field === 'description' && typeof value === 'string') {
-          const selectedInventoryItem = inventory.find(inv => inv.itemName === value);
-          if (selectedInventoryItem) {
-            updatedItem.rate = selectedInventoryItem.rate;
-            updatedItem.amount = updatedItem.quantity * selectedInventoryItem.rate;
-          }
-        } else if (field === 'quantity' || field === 'rate') {
+        if (field === 'quantity' || field === 'rate') {
           updatedItem.amount = updatedItem.quantity * updatedItem.rate;
         }
         return updatedItem;
@@ -466,28 +456,13 @@ const InvoiceForm = () => {
             {items.map((item, index) => (
               <div key={index} className="grid grid-cols-12 gap-4 items-center p-4 bg-gray-50 rounded-lg">
                 <div className="col-span-5">
-                  <Label htmlFor={`desc-${index}`}>Item Name *</Label>
-                  <Select onValueChange={(value) => updateItem(index, 'description', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={item.description || "Select item or type custom name"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {inventory.map((inventoryItem) => (
-                        <SelectItem key={inventoryItem.id} value={inventoryItem.itemName}>
-                          {inventoryItem.itemName}
-                        </SelectItem>
-                      ))}
-                      <SelectItem value="__custom__">Custom Item (Manual Entry)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {(item.description === '__custom__' || (item.description && !inventory.find(inv => inv.itemName === item.description))) && (
-                    <Input
-                      className="mt-2"
-                      placeholder="Enter custom item name"
-                      value={item.description === '__custom__' ? '' : item.description}
-                      onChange={(e) => updateItem(index, 'description', e.target.value)}
-                    />
-                  )}
+                  <Label htmlFor={`desc-${index}`}>Description *</Label>
+                  <Input
+                    id={`desc-${index}`}
+                    placeholder="Item description"
+                    value={item.description}
+                    onChange={(e) => updateItem(index, 'description', e.target.value)}
+                  />
                 </div>
                 <div className="col-span-2">
                   <Label htmlFor={`qty-${index}`}>Quantity *</Label>
