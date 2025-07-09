@@ -148,6 +148,8 @@ export interface Expense {
 export interface InventoryItem {
   id: string;
   itemName: string;
+  productVersion?: string;
+  productCategory?: string;
   unitPrice: number;
   rate: number;
   rateInInr: number;
