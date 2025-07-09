@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -41,7 +40,7 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
 
-  // Check authentication on mount and operation attempts
+  // Check authentication on mount
   useEffect(() => {
     if (!currentUser?.companyId) {
       console.log('User not authenticated or missing company ID, redirecting to login');
@@ -88,6 +87,7 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
   const handleAddCategory = async () => {
     if (!newCategory.trim()) return;
     
+    // Check authentication before performing operations
     if (!currentUser?.companyId) {
       toast({
         title: "Authentication Error",
@@ -99,11 +99,17 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
     }
     
     try {
-      // Don't create inventory items automatically - just update state
+      // Create a placeholder product definition for the new category
+      await addProductDefinition({
+        category: newCategory.trim(),
+        name: 'Default Product',
+        version: '1.0'
+      });
+      
       setNewCategory('');
       toast({
         title: "Success",
-        description: "Category definition ready to use",
+        description: "Category added successfully",
       });
     } catch (error) {
       console.error('Error adding category:', error);
@@ -129,11 +135,16 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
     }
     
     try {
-      // Don't create inventory items automatically - just update state
+      await addProductDefinition({
+        category: selectedCategory,
+        name: newName.trim(),
+        version: '1.0'
+      });
+      
       setNewName('');
       toast({
         title: "Success",
-        description: "Product name definition ready to use",
+        description: "Product name added successfully",
       });
     } catch (error) {
       console.error('Error adding name:', error);
@@ -159,11 +170,16 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
     }
     
     try {
-      // Don't create inventory items automatically - just update state
+      await addProductDefinition({
+        category: selectedCategory,
+        name: selectedName,
+        version: newVersion.trim()
+      });
+      
       setNewVersion('');
       toast({
         title: "Success",
-        description: "Product version definition ready to use",
+        description: "Product version added successfully",
       });
     } catch (error) {
       console.error('Error adding version:', error);
@@ -261,54 +277,43 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
 
       <div>
         <Label>Manage Existing Categories</Label>
-        <div className="mt-2">
-          <Select>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a category to manage" />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map((category) => {
-                const categoryItem = productDefinitions.find(p => p.category === category);
-                return (
-                  <SelectItem key={category} value={category} className="flex items-center justify-between">
-                    <div className="flex items-center justify-between w-full">
-                      <span className="flex-1">{category}</span>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="sm" className="ml-2 h-6 w-6 p-0">
-                            <MoreVertical className="h-3 w-3" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="bg-white border shadow-md">
-                          <DropdownMenuItem 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingItem(categoryItem?.id || '');
-                              setEditValue(category);
-                            }}
-                            className="hover:bg-gray-100"
-                          >
-                            <Edit2 className="w-4 h-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (categoryItem) handleDelete(categoryItem.id);
-                            }}
-                            className="text-red-600 hover:bg-red-50"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
+        <div className="mt-2 space-y-2">
+          {categories.map((category) => {
+            const categoryItem = productDefinitions.find(p => p.category === category);
+            return (
+              <div key={category} className="flex items-center justify-between p-2 border rounded">
+                <span className="flex-1">{category}</span>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                      <MoreVertical className="h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-white border shadow-md">
+                    <DropdownMenuItem 
+                      onClick={() => {
+                        setEditingItem(categoryItem?.id || '');
+                        setEditValue(category);
+                      }}
+                      className="hover:bg-gray-100"
+                    >
+                      <Edit2 className="w-4 h-4 mr-2" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => {
+                        if (categoryItem) handleDelete(categoryItem.id);
+                      }}
+                      className="text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -387,54 +392,43 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
 
       <div>
         <Label>Manage Existing Product Names</Label>
-        <div className="mt-2">
-          <Select>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a product name to manage" />
-            </SelectTrigger>
-            <SelectContent>
-              {uniqueNamesInCategory.map((name) => {
-                const nameItem = productDefinitions.find(p => p.category === selectedCategory && p.name === name);
-                return (
-                  <SelectItem key={name} value={name}>
-                    <div className="flex items-center justify-between w-full">
-                      <span className="flex-1">{name}</span>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="sm" className="ml-2 h-6 w-6 p-0">
-                            <MoreVertical className="h-3 w-3" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="bg-white border shadow-md">
-                          <DropdownMenuItem 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingItem(nameItem?.id || '');
-                              setEditValue(name);
-                            }}
-                            className="hover:bg-gray-100"
-                          >
-                            <Edit2 className="w-4 h-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (nameItem) handleDelete(nameItem.id);
-                            }}
-                            className="text-red-600 hover:bg-red-50"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
+        <div className="mt-2 space-y-2">
+          {uniqueNamesInCategory.map((name) => {
+            const nameItem = productDefinitions.find(p => p.category === selectedCategory && p.name === name);
+            return (
+              <div key={name} className="flex items-center justify-between p-2 border rounded">
+                <span className="flex-1">{name}</span>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                      <MoreVertical className="h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-white border shadow-md">
+                    <DropdownMenuItem 
+                      onClick={() => {
+                        setEditingItem(nameItem?.id || '');
+                        setEditValue(name);
+                      }}
+                      className="hover:bg-gray-100"
+                    >
+                      <Edit2 className="w-4 h-4 mr-2" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => {
+                        if (nameItem) handleDelete(nameItem.id);
+                      }}
+                      className="text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -517,53 +511,40 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
 
       <div>
         <Label>Manage Existing Versions</Label>
-        <div className="mt-2">
-          <Select>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a version to manage" />
-            </SelectTrigger>
-            <SelectContent>
-              {productDefinitions
-                .filter(p => p.category === selectedCategory && p.name === selectedName)
-                .map((item) => (
-                  <SelectItem key={item.id} value={item.version}>
-                    <div className="flex items-center justify-between w-full">
-                      <span className="flex-1">{item.version}</span>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="sm" className="ml-2 h-6 w-6 p-0">
-                            <MoreVertical className="h-3 w-3" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="bg-white border shadow-md">
-                          <DropdownMenuItem 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingItem(item.id);
-                              setEditValue(item.version);
-                            }}
-                            className="hover:bg-gray-100"
-                          >
-                            <Edit2 className="w-4 h-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(item.id);
-                            }}
-                            className="text-red-600 hover:bg-red-50"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
+        <div className="mt-2 space-y-2">
+          {productDefinitions
+            .filter(p => p.category === selectedCategory && p.name === selectedName)
+            .map((item) => (
+              <div key={item.id} className="flex items-center justify-between p-2 border rounded">
+                <span className="flex-1">{item.version}</span>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                      <MoreVertical className="h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-white border shadow-md">
+                    <DropdownMenuItem 
+                      onClick={() => {
+                        setEditingItem(item.id);
+                        setEditValue(item.version);
+                      }}
+                      className="hover:bg-gray-100"
+                    >
+                      <Edit2 className="w-4 h-4 mr-2" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => handleDelete(item.id)}
+                      className="text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            ))}
         </div>
       </div>
 
