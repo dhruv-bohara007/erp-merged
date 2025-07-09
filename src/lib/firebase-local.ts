@@ -39,18 +39,22 @@ export const db = getFirestore(app);
 // Initialize Auth
 export const auth = getAuth(app);
 
-// Connect to emulators in development
+// Connect to emulators in development (simplified approach)
 if (isDevelopment && !window.location.hostname.includes('lovable')) {
   try {
-    // Only connect to emulators if not already connected
-    if (!auth._delegate._config.emulator) {
-      connectAuthEmulator(auth, "http://localhost:9099");
-    }
-    if (!db._delegate._databaseId.projectId.includes('emulator')) {
-      connectFirestoreEmulator(db, 'localhost', 8080);
-    }
+    // Connect to Auth emulator
+    connectAuthEmulator(auth, "http://localhost:9099", { disableWarnings: true });
+    console.log('Connected to Auth emulator');
   } catch (error) {
-    console.log('Firebase emulators not available, using mock data');
+    console.log('Auth emulator not available, using production Firebase');
+  }
+
+  try {
+    // Connect to Firestore emulator
+    connectFirestoreEmulator(db, 'localhost', 8080);
+    console.log('Connected to Firestore emulator');
+  } catch (error) {
+    console.log('Firestore emulator not available, using production Firebase');
   }
 }
 

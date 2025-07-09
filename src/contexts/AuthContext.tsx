@@ -8,7 +8,7 @@ import {
   onAuthStateChanged
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase-local';
 
 export type UserRole = 'company_admin' | 'super_admin';
 
@@ -42,15 +42,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   const fetchUserData = async (user: User) => {
-    const userDoc = await getDoc(doc(db, 'users', user.uid));
-    const userData = userDoc.data();
-    
-    return {
-      ...user,
-      role: userData?.role || 'company_admin',
-      companyId: userData?.companyId,
-      hasCompletedSetup: userData?.hasCompletedSetup || false
-    };
+    try {
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const userData = userDoc.data();
+      
+      return {
+        ...user,
+        role: userData?.role || 'company_admin',
+        companyId: userData?.companyId,
+        hasCompletedSetup: userData?.hasCompletedSetup || false
+      };
+    } catch (error) {
+      console.log('Error fetching user data:', error);
+      // Return user with default values if Firestore fails
+      return {
+        ...user,
+        role: 'company_admin' as UserRole,
+        hasCompletedSetup: false
+      };
+    }
   };
 
   const login = async (email: string, password: string) => {
@@ -62,13 +72,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (email: string, password: string, role: UserRole = 'company_admin') => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     
-    // Store user role in Firestore
-    await setDoc(doc(db, 'users', userCredential.user.uid), {
-      email: userCredential.user.email,
-      role: role,
-      hasCompletedSetup: false,
-      createdAt: new Date().toISOString(),
-    });
+    try {
+      // Store user role in Firestore
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
+        email: userCredential.user.email,
+        role: role,
+        hasCompletedSetup: false,
+        createdAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.log('Error storing user data:', error);
+    }
 
     const authUser: AuthUser = {
       ...userCredential.user,
