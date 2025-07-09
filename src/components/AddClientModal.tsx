@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { countries } from '@/data/countries';
 import { countriesWithTaxInfo } from '@/data/countriesWithTax';
 import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
+import { countryPhoneCodes } from '@/data/countryPhoneCodes';
 
 interface AddClientModalProps {
   open: boolean;
@@ -46,6 +47,7 @@ const AddClientModal = ({ open, onOpenChange }: AddClientModalProps) => {
 
   const selectedCountryInfo = countriesWithTaxInfo.find(c => c.value === formData.country);
   const isIndianClient = formData.country === 'IN';
+  const selectedCountryCode = countryPhoneCodes[formData.country]?.code || '+91';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,9 +128,9 @@ const AddClientModal = ({ open, onOpenChange }: AddClientModalProps) => {
         <DialogHeader>
           <DialogTitle>Add New Client</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-2">
               <Label htmlFor="name">Name *</Label>
               <Input
                 id="name"
@@ -137,7 +139,7 @@ const AddClientModal = ({ open, onOpenChange }: AddClientModalProps) => {
                 required
               />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="email">Email *</Label>
               <Input
                 id="email"
@@ -149,17 +151,24 @@ const AddClientModal = ({ open, onOpenChange }: AddClientModalProps) => {
             </div>
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
-            <div>
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-2">
               <Label htmlFor="phone">Phone *</Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                required
-              />
+              <div className="flex gap-2">
+                <div className="flex items-center px-3 py-2 border border-input rounded-md bg-muted text-sm font-mono min-w-[80px] justify-center">
+                  {selectedCountryCode}
+                </div>
+                <Input
+                  id="phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                  placeholder="Enter phone number"
+                  className="flex-1"
+                  required
+                />
+              </div>
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="country">Country *</Label>
               <Select value={formData.country} onValueChange={handleCountryChange}>
                 <SelectTrigger>
@@ -177,7 +186,7 @@ const AddClientModal = ({ open, onOpenChange }: AddClientModalProps) => {
           </div>
 
           {selectedCountryInfo && (
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="taxId">{selectedCountryInfo.primaryTaxLabel}</Label>
               <Input
                 id="taxId"
@@ -191,7 +200,7 @@ const AddClientModal = ({ open, onOpenChange }: AddClientModalProps) => {
             </div>
           )}
 
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="address">Address *</Label>
             <Input
               id="address"
@@ -202,7 +211,7 @@ const AddClientModal = ({ open, onOpenChange }: AddClientModalProps) => {
           </div>
 
           <div className="grid grid-cols-3 gap-4">
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="city">City *</Label>
               <Input
                 id="city"
@@ -211,7 +220,7 @@ const AddClientModal = ({ open, onOpenChange }: AddClientModalProps) => {
                 required
               />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="state">State *</Label>
               {isIndianClient ? (
                 <Select value={formData.state} onValueChange={(value) => setFormData({...formData, state: value})}>
@@ -236,7 +245,7 @@ const AddClientModal = ({ open, onOpenChange }: AddClientModalProps) => {
                 />
               )}
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="pincode">{isIndianClient ? 'Pincode' : 'Postal Code'} *</Label>
               <Input
                 id="pincode"
@@ -247,7 +256,7 @@ const AddClientModal = ({ open, onOpenChange }: AddClientModalProps) => {
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4">
+          <div className="flex justify-end gap-3 pt-6">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
