@@ -1,15 +1,18 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Plus, 
   Package, 
   TrendingUp,
   Trash2,
   Search,
-  Settings
+  Settings,
+  ArrowUpDown
 } from 'lucide-react';
 import { useInventory } from '@/hooks/useFirestore';
 import { useCompanyData } from '@/hooks/useCompanyData';
@@ -17,10 +20,13 @@ import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
 import AddProductModalWrapper from './AddProductModalWrapper';
 import ManageProductCategoryModal from './ManageProductCategoryModal';
 
+type SortBy = 'category' | 'name' | 'version' | 'none';
+
 const InventoryManagement = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isManageCategoryModalOpen, setIsManageCategoryModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<SortBy>('none');
   const { inventory, loading, deleteInventoryItem } = useInventory();
   const { companyData } = useCompanyData();
 
@@ -39,6 +45,19 @@ const InventoryManagement = () => {
     item.productCategory?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.productVersion?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const sortedInventory = [...filteredInventory].sort((a, b) => {
+    switch (sortBy) {
+      case 'category':
+        return (a.productCategory || '').localeCompare(b.productCategory || '');
+      case 'name':
+        return (a.itemName || '').localeCompare(b.itemName || '');
+      case 'version':
+        return (a.productVersion || '').localeCompare(b.productVersion || '');
+      default:
+        return 0;
+    }
+  });
 
   const totalItems = inventory.length;
   const totalValueINR = inventory.reduce((sum, item) => sum + (item.rateInInr || 0), 0);
@@ -110,19 +129,35 @@ const InventoryManagement = () => {
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle>Products</CardTitle>
-            <div className="relative w-72">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Search products..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <ArrowUpDown className="h-4 w-4 text-gray-400" />
+                <Select value={sortBy} onValueChange={(value: SortBy) => setSortBy(value)}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Sort by..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No sorting</SelectItem>
+                    <SelectItem value="category">Product Category</SelectItem>
+                    <SelectItem value="name">Product Name</SelectItem>
+                    <SelectItem value="version">Product Version</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="relative w-72">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Search products..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          {filteredInventory.length > 0 ? (
+          {sortedInventory.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -134,7 +169,7 @@ const InventoryManagement = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredInventory.map((item) => (
+                {sortedInventory.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell>
                       <div className="font-medium">

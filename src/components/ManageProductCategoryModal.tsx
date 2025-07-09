@@ -1,4 +1,6 @@
+
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Trash2, Edit2, Plus, ArrowLeft, ArrowRight } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useProductDefinitions } from '@/hooks/useProductDefinitions';
 import { useToast } from '@/hooks/use-toast';
 
@@ -17,6 +20,7 @@ interface ManageProductCategoryModalProps {
 type Step = 'category' | 'name' | 'version';
 
 const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryModalProps) => {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const { 
     productDefinitions, 
@@ -54,6 +58,19 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
     setEditingItem(null);
     setEditValue('');
     onClose();
+  };
+
+  const handleSave = () => {
+    toast({
+      title: "Success",
+      description: "Product definitions saved successfully",
+    });
+    navigate('/');
+    handleClose();
+  };
+
+  const handleCancel = () => {
+    handleClose();
   };
 
   const handleAddCategory = async () => {
@@ -197,65 +214,65 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
 
       <div>
         <Label>Existing Categories</Label>
-        <div className="mt-2 space-y-2">
-          {categories.map((category) => {
-            const categoryItems = productDefinitions.filter(p => p.category === category);
-            return categoryItems.map((item) => (
-              <div key={item.id} className="flex items-center justify-between p-2 border rounded">
-                {editingItem === item.id ? (
-                  <div className="flex gap-2 flex-1">
-                    <Input
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      className="flex-1"
-                    />
-                    <Button size="sm" onClick={() => handleEdit(item.id, 'category')}>
-                      Save
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => setEditingItem(null)}>
-                      Cancel
-                    </Button>
-                  </div>
-                ) : (
-                  <>
-                    <span>{category}</span>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setEditingItem(item.id);
-                          setEditValue(category);
-                        }}
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleDelete(item.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+        <div className="mt-2">
+          <Select>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a category to edit or delete" />
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map((category) => {
+                const categoryItem = productDefinitions.find(p => p.category === category);
+                return (
+                  <SelectItem key={category} value={category}>
+                    <div className="flex items-center justify-between w-full">
+                      <span>{category}</span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="ml-2">
+                            ⋮
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem onClick={() => {
+                            setEditingItem(categoryItem?.id || '');
+                            setEditValue(category);
+                          }}>
+                            <Edit2 className="w-4 h-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => categoryItem && handleDelete(categoryItem.id)}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                  </>
-                )}
-              </div>
-            ));
-          })}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
-      <div className="flex justify-between">
-        <div />
-        <Button 
-          onClick={() => setCurrentStep('name')} 
-          disabled={!selectedCategory}
-        >
-          Next <ArrowRight className="w-4 h-4 ml-2" />
-        </Button>
-      </div>
+      {editingItem && (
+        <div className="flex gap-2">
+          <Input
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            placeholder="Edit category name"
+          />
+          <Button size="sm" onClick={() => handleEdit(editingItem, 'category')}>
+            Save
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setEditingItem(null)}>
+            Cancel
+          </Button>
+        </div>
+      )}
 
       <div>
         <Label htmlFor="categorySelect">Select Category to Continue</Label>
@@ -271,6 +288,16 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
             ))}
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="flex justify-between">
+        <div />
+        <Button 
+          onClick={() => setCurrentStep('name')} 
+          disabled={!selectedCategory}
+        >
+          Next <ArrowRight className="w-4 h-4 ml-2" />
+        </Button>
       </div>
     </div>
   );
@@ -303,67 +330,65 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
 
       <div>
         <Label>Existing Product Names</Label>
-        <div className="mt-2 space-y-2">
-          {uniqueNamesInCategory.map((name) => {
-            const nameItems = productDefinitions.filter(p => p.category === selectedCategory && p.name === name);
-            return nameItems.map((item) => (
-              <div key={item.id} className="flex items-center justify-between p-2 border rounded">
-                {editingItem === item.id ? (
-                  <div className="flex gap-2 flex-1">
-                    <Input
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      className="flex-1"
-                    />
-                    <Button size="sm" onClick={() => handleEdit(item.id, 'name')}>
-                      Save
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => setEditingItem(null)}>
-                      Cancel
-                    </Button>
-                  </div>
-                ) : (
-                  <>
-                    <span>{name}</span>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setEditingItem(item.id);
-                          setEditValue(name);
-                        }}
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleDelete(item.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+        <div className="mt-2">
+          <Select>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a product name to edit or delete" />
+            </SelectTrigger>
+            <SelectContent>
+              {uniqueNamesInCategory.map((name) => {
+                const nameItem = productDefinitions.find(p => p.category === selectedCategory && p.name === name);
+                return (
+                  <SelectItem key={name} value={name}>
+                    <div className="flex items-center justify-between w-full">
+                      <span>{name}</span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="ml-2">
+                            ⋮
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem onClick={() => {
+                            setEditingItem(nameItem?.id || '');
+                            setEditValue(name);
+                          }}>
+                            <Edit2 className="w-4 h-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => nameItem && handleDelete(nameItem.id)}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                  </>
-                )}
-              </div>
-            ));
-          })}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={() => setCurrentStep('category')}>
-          <ArrowLeft className="w-4 h-4 mr-2" /> Previous
-        </Button>
-        <Button 
-          onClick={() => setCurrentStep('version')} 
-          disabled={!selectedName}
-        >
-          Next <ArrowRight className="w-4 h-4 ml-2" />
-        </Button>
-      </div>
+      {editingItem && (
+        <div className="flex gap-2">
+          <Input
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            placeholder="Edit product name"
+          />
+          <Button size="sm" onClick={() => handleEdit(editingItem, 'name')}>
+            Save
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setEditingItem(null)}>
+            Cancel
+          </Button>
+        </div>
+      )}
 
       <div>
         <Label htmlFor="nameSelect">Select Product Name to Continue</Label>
@@ -379,6 +404,18 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
             ))}
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="flex justify-between">
+        <Button variant="outline" onClick={() => setCurrentStep('category')}>
+          <ArrowLeft className="w-4 h-4 mr-2" /> Previous
+        </Button>
+        <Button 
+          onClick={() => setCurrentStep('version')} 
+          disabled={!selectedName}
+        >
+          Next <ArrowRight className="w-4 h-4 ml-2" />
+        </Button>
       </div>
     </div>
   );
@@ -413,60 +450,77 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
 
       <div>
         <Label>Existing Versions</Label>
-        <div className="mt-2 space-y-2">
-          {productDefinitions
-            .filter(p => p.category === selectedCategory && p.name === selectedName)
-            .map((item) => (
-              <div key={item.id} className="flex items-center justify-between p-2 border rounded">
-                {editingItem === item.id ? (
-                  <div className="flex gap-2 flex-1">
-                    <Input
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      className="flex-1"
-                    />
-                    <Button size="sm" onClick={() => handleEdit(item.id, 'version')}>
-                      Save
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => setEditingItem(null)}>
-                      Cancel
-                    </Button>
-                  </div>
-                ) : (
-                  <>
-                    <span>{item.version}</span>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setEditingItem(item.id);
-                          setEditValue(item.version);
-                        }}
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleDelete(item.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+        <div className="mt-2">
+          <Select>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a version to edit or delete" />
+            </SelectTrigger>
+            <SelectContent>
+              {productDefinitions
+                .filter(p => p.category === selectedCategory && p.name === selectedName)
+                .map((item) => (
+                  <SelectItem key={item.id} value={item.version}>
+                    <div className="flex items-center justify-between w-full">
+                      <span>{item.version}</span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="ml-2">
+                            ⋮
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem onClick={() => {
+                            setEditingItem(item.id);
+                            setEditValue(item.version);
+                          }}>
+                            <Edit2 className="w-4 h-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleDelete(item.id)}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                  </>
-                )}
-              </div>
-            ))}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
+
+      {editingItem && (
+        <div className="flex gap-2">
+          <Input
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            placeholder="Edit version"
+          />
+          <Button size="sm" onClick={() => handleEdit(editingItem, 'version')}>
+            Save
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setEditingItem(null)}>
+            Cancel
+          </Button>
+        </div>
+      )}
 
       <div className="flex justify-between">
         <Button variant="outline" onClick={() => setCurrentStep('name')}>
           <ArrowLeft className="w-4 h-4 mr-2" /> Previous
         </Button>
-        <div />
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleCancel}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave}>
+            Save
+          </Button>
+        </div>
       </div>
     </div>
   );
