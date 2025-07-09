@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { doc, setDoc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase-local';
+import { db } from '@/lib/firebase';
 import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 
 interface CompanyFormData {
