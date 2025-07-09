@@ -4,12 +4,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 import { useInventory } from '@/hooks/useFirestore';
 import { useCompanyData } from '@/hooks/useCompanyData';
 import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
-import { useProductDefinitions } from '@/hooks/useProductDefinitions';
 import { useToast } from '@/hooks/use-toast';
 
 interface AddProductModalProps {
@@ -22,40 +20,19 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
   const { addInventoryItem } = useInventory();
   const { companyData } = useCompanyData();
   const { convertToINR, getCurrencyInfo, loading: currencyLoading } = useCurrencyConverter();
-  const { productDefinitions } = useProductDefinitions();
   
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    category: '',
-    productName: '',
-    version: '',
+    itemName: '',
     rate: ''
   });
 
   const companyCurrency = getCurrencyInfo(companyData?.country || 'US');
 
-  // Get unique categories
-  const categories = Array.from(new Set(productDefinitions.map(item => item.category)));
-  
-  // Get product names for selected category
-  const productNames = Array.from(new Set(
-    productDefinitions
-      .filter(item => item.category === formData.category)
-      .map(item => item.productName)
-  ));
-  
-  // Get versions for selected product name
-  const versions = productDefinitions
-    .filter(item => 
-      item.category === formData.category && 
-      item.productName === formData.productName
-    )
-    .map(item => item.version);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.category || !formData.productName || !formData.version || !formData.rate) {
+    if (!formData.itemName || !formData.rate) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -81,9 +58,7 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
       const { amountInINR, rate: exchangeRate } = await convertToINR(rateValue, companyData?.country || 'US');
       
       await addInventoryItem({
-        itemName: formData.productName,
-        productVersion: formData.version,
-        productCategory: formData.category,
+        itemName: formData.itemName,
         unitPrice: rateValue,
         rate: rateValue,
         rateInInr: amountInINR,
@@ -94,9 +69,7 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
       });
       
       setFormData({
-        category: '',
-        productName: '',
-        version: '',
+        itemName: '',
         rate: ''
       });
       
@@ -120,9 +93,7 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
 
   const handleClose = () => {
     setFormData({
-      category: '',
-      productName: '',
-      version: '',
+      itemName: '',
       rate: ''
     });
     onClose();
@@ -136,51 +107,14 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="category">Product Category</Label>
-            <Select value={formData.category} onValueChange={(value) => setFormData({...formData, category: value, productName: '', version: ''})}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="productName">Product Name</Label>
-            <Select value={formData.productName} onValueChange={(value) => setFormData({...formData, productName: value, version: ''})} disabled={!formData.category}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select product name" />
-              </SelectTrigger>
-              <SelectContent>
-                {productNames.map((name) => (
-                  <SelectItem key={name} value={name}>
-                    {name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="version">Product Version</Label>
-            <Select value={formData.version} onValueChange={(value) => setFormData({...formData, version: value})} disabled={!formData.productName}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select version" />
-              </SelectTrigger>
-              <SelectContent>
-                {versions.map((version) => (
-                  <SelectItem key={version} value={version}>
-                    {version}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="itemName">Item Name</Label>
+            <Input
+              id="itemName"
+              value={formData.itemName}
+              onChange={(e) => setFormData({...formData, itemName: e.target.value})}
+              placeholder="Enter item name"
+              required
+            />
           </div>
           
           <div>
