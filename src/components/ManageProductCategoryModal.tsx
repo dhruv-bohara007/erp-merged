@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -321,11 +321,6 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
           <DialogTitle>
             Manage Product Category - Step {step} of 3
           </DialogTitle>
-          <DialogDescription>
-            {step === 1 && "Select or create a product category to organize your inventory."}
-            {step === 2 && "Choose or add a product name within the selected category."}
-            {step === 3 && "Define the product version to complete the product definition."}
-          </DialogDescription>
         </DialogHeader>
         
         <div className="py-4">
