@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Calendar, Download, MapPin, Globe, Phone, Building, FileText, CreditCard, Mail, ExternalLink } from 'lucide-react';
 import { Invoice } from '@/hooks/useFirestore';
 import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
+import { countryPhoneCodes } from '@/data/countryPhoneCodes';
 
 interface InvoiceViewProps {
   invoice: Invoice | null;
@@ -350,7 +351,7 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                     <div><strong>${invoice.companyName}</strong></div>
                     <div>${invoice.companyAddress}</div>
                     ${invoice.companyCity ? `<div>${invoice.companyCity}</div>` : ''}
-                    ${invoice.companyPhone ? `<div>📞 ${invoice.companyPhone}</div>` : ''}
+                    ${invoice.companyPhone ? `<div>📞 ${countryPhoneCodes[companyCountry]?.code || ''}${invoice.companyPhone}</div>` : ''}
                     ${invoice.companyEmail ? `<div>📧 ${invoice.companyEmail}</div>` : ''}
                     ${invoice.companyWebsite ? `<div>🌐 ${invoice.companyWebsite}</div>` : ''}
                   </div>
@@ -407,7 +408,7 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                     <div class="section-title">👤 Contact Details</div>
                     <div><strong>${invoice.clientName}</strong></div>
                     <div>📧 ${invoice.clientEmail}</div>
-                    ${invoice.clientPhone ? `<div>📞 ${invoice.clientPhone}</div>` : ''}
+                    ${invoice.clientPhone ? `<div>📞 ${countryPhoneCodes[clientCountry]?.code || ''}${invoice.clientPhone}</div>` : ''}
                   </div>
 
                   <div class="info-section">
@@ -449,13 +450,10 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                        const itemAmountAfterDiscount = itemSubtotal - discountAmount;
                        
                        return `
-                         <tr>
-                           <td>
-                             <strong>${item.description}</strong>
-                             ${(item.productCategory || item.itemName || item.productVersion) ? `
-                               <br><small style="color: #6b7280;">${[item.productCategory, item.itemName, item.productVersion].filter(Boolean).join(' • ')}</small>
-                             ` : ''}
-                           </td>
+                          <tr>
+                            <td>
+                              <strong>${item.description}</strong>
+                            </td>
                            <td style="text-align: center;">${item.quantity}</td>
                            <td style="text-align: right;">
                              ${formatCurrency(item.rate || 0, companyCountry)}
@@ -737,7 +735,7 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                     {invoice.companyPhone && (
                       <p className="text-gray-600 text-lg flex items-center gap-2">
                         <Phone className="w-4 h-4" />
-                        {invoice.companyPhone}
+                        {countryPhoneCodes[companyCountry]?.code || ''} {invoice.companyPhone}
                       </p>
                     )}
                     {invoice.companyEmail && (
@@ -855,7 +853,7 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                   {invoice.clientPhone && (
                     <p className="text-gray-600 text-lg flex items-center gap-2 mt-2">
                       <Phone className="w-4 h-4" />
-                      {invoice.clientPhone}
+                      {countryPhoneCodes[clientCountry]?.code || ''} {invoice.clientPhone}
                     </p>
                   )}
                 </div>
@@ -961,16 +959,9 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                        
                        return (
                          <TableRow key={index} className="hover:bg-gray-50">
-                           <TableCell className="font-medium text-gray-900">
-                             <div>
-                               <div className="font-semibold">{item.description}</div>
-                               {(item.productCategory || item.itemName || item.productVersion) && (
-                                 <div className="text-sm text-gray-500 mt-1">
-                                   {[item.productCategory, item.itemName, item.productVersion].filter(Boolean).join(' • ')}
-                                 </div>
-                               )}
-                             </div>
-                           </TableCell>
+                            <TableCell className="font-medium text-gray-900">
+                              <div className="font-semibold">{item.description}</div>
+                            </TableCell>
                            <TableCell className="text-center text-gray-700 font-medium">
                              {item.quantity}
                            </TableCell>
