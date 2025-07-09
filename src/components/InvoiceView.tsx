@@ -392,8 +392,8 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
 
                   ${invoice.signatureUrl ? `
                     <div class="signature-section">
-                      <div class="section-title">✍️ Business Owner Signature</div>
-                      <img src="${invoice.signatureUrl}" alt="Business Owner Signature" class="signature-image">
+                      <div class="section-title">✍️ Authorized Signatory</div>
+                      <img src="${invoice.signatureUrl}" alt="Authorized Signatory" class="signature-image">
                     </div>
                   ` : ''}
                 </div>
@@ -432,37 +432,61 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
               <div class="card-header" style="background: linear-gradient(135deg, #faf5ff 0%, #e9d5ff 100%);">Invoice Items</div>
               <div class="card-content">
                 <table class="items-table">
-                  <thead>
-                    <tr>
-                      <th>Description</th>
-                      <th>Quantity</th>
-                      <th>Rate</th>
-                      <th>Amount</th>
-                    </tr>
-                  </thead>
+                   <thead>
+                     <tr>
+                       <th>Description</th>
+                       <th>Quantity</th>
+                       <th>Rate</th>
+                       <th>Discount</th>
+                       <th>Amount</th>
+                     </tr>
+                   </thead>
                   <tbody>
-                    ${invoice.items?.map(item => `
-                      <tr>
-                        <td><strong>${item.description}</strong></td>
-                        <td>${item.quantity}</td>
-                        <td>
-                          ${formatCurrency(item.rate || 0, companyCountry)}
-                          ${showDualCurrency ? `
-                            <div class="dual-currency">
-                              (${formatCurrency(convertINRToClient(convertCompanyToINR(item.rate || 0)), clientCountry)})
-                            </div>
-                          ` : ''}
-                        </td>
-                        <td>
-                          <strong>${formatCurrency(item.amount || 0, companyCountry)}</strong>
-                          ${showDualCurrency ? `
-                            <div class="dual-currency">
-                              (${formatCurrency(convertINRToClient(convertCompanyToINR(item.amount || 0)), clientCountry)})
-                            </div>
-                          ` : ''}
-                        </td>
-                      </tr>
-                    `).join('') || '<tr><td colspan="4" style="text-align: center; color: #6b7280;">No items</td></tr>'}
+                     ${invoice.items?.map(item => {
+                       const discountRate = typeof item.discount === 'string' ? parseFloat(item.discount) || 0 : item.discount || 0;
+                       const discountAmount = (item.rate || 0) * (item.quantity || 0) * (discountRate / 100);
+                       const itemSubtotal = (item.rate || 0) * (item.quantity || 0);
+                       const itemAmountAfterDiscount = itemSubtotal - discountAmount;
+                       
+                       return `
+                         <tr>
+                           <td>
+                             <strong>${item.description}</strong>
+                             ${(item.productCategory || item.itemName || item.productVersion) ? `
+                               <br><small style="color: #6b7280;">${[item.productCategory, item.itemName, item.productVersion].filter(Boolean).join(' • ')}</small>
+                             ` : ''}
+                           </td>
+                           <td style="text-align: center;">${item.quantity}</td>
+                           <td style="text-align: right;">
+                             ${formatCurrency(item.rate || 0, companyCountry)}
+                             ${showDualCurrency ? `
+                               <div class="dual-currency">
+                                 (${formatCurrency(convertINRToClient(convertCompanyToINR(item.rate || 0)), clientCountry)})
+                               </div>
+                             ` : ''}
+                           </td>
+                           <td style="text-align: center;">
+                             ${discountRate > 0 ? `
+                               <span style="color: #ea580c; font-weight: 600;">${discountRate}%</span><br>
+                               <small style="color: #6b7280;">-${formatCurrency(discountAmount, companyCountry)}</small>
+                               ${showDualCurrency ? `
+                                 <div class="dual-currency">
+                                   (-${formatCurrency(convertINRToClient(convertCompanyToINR(discountAmount)), clientCountry)})
+                                 </div>
+                               ` : ''}
+                             ` : '<span style="color: #9ca3af;">—</span>'}
+                           </td>
+                           <td style="text-align: right;">
+                             <strong>${formatCurrency(item.amount || itemAmountAfterDiscount, companyCountry)}</strong>
+                             ${showDualCurrency ? `
+                               <div class="dual-currency">
+                                 (${formatCurrency(convertINRToClient(convertCompanyToINR(item.amount || itemAmountAfterDiscount)), clientCountry)})
+                               </div>
+                             ` : ''}
+                           </td>
+                         </tr>
+                       `;
+                     }).join('') || '<tr><td colspan="5" style="text-align: center; color: #6b7280;">No items</td></tr>'}
                   </tbody>
                 </table>
 
@@ -635,7 +659,7 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
 
   return (
     <Dialog key={modalKey} open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto bg-white">
+      <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto bg-white dark:bg-white dark:text-gray-900">
         <DialogHeader className="border-b border-gray-200 pb-6">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-3xl font-bold text-gray-900">
@@ -808,10 +832,10 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                 {/* Business Owner Signature - Updated heading */}
                 {invoice.signatureUrl && (
                   <div className="bg-purple-50 p-6 rounded-xl border border-purple-200">
-                    <h4 className="font-bold mb-4 text-gray-900 text-lg">Business Owner Signature</h4>
+                    <h4 className="font-bold mb-4 text-gray-900 text-lg">Authorized Signatory</h4>
                     <img 
                       src={invoice.signatureUrl} 
-                      alt="Business Owner Signature" 
+                       alt="Authorized Signatory"
                       className="max-w-48 h-24 object-contain border-2 rounded-lg bg-white p-3 shadow-sm"
                     />
                   </div>
@@ -919,41 +943,73 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
             <CardContent className="p-8">
               <div className="overflow-x-auto">
                 <Table>
-                  <TableHeader>
-                    <TableRow className="bg-gray-50">
-                      <TableHead className="font-bold text-gray-900">Description</TableHead>
-                      <TableHead className="font-bold text-gray-900 text-center">Quantity</TableHead>
-                      <TableHead className="font-bold text-gray-900 text-right">Rate</TableHead>
-                      <TableHead className="font-bold text-gray-900 text-right">Amount</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                   <TableHeader>
+                     <TableRow className="bg-gray-50">
+                       <TableHead className="font-bold text-gray-900">Description</TableHead>
+                       <TableHead className="font-bold text-gray-900 text-center">Quantity</TableHead>
+                       <TableHead className="font-bold text-gray-900 text-right">Rate</TableHead>
+                       <TableHead className="font-bold text-gray-900 text-center">Discount</TableHead>
+                       <TableHead className="font-bold text-gray-900 text-right">Amount</TableHead>
+                     </TableRow>
+                   </TableHeader>
                   <TableBody>
-                    {invoice.items?.map((item, index) => (
-                      <TableRow key={index} className="hover:bg-gray-50">
-                        <TableCell className="font-medium text-gray-900">
-                          {item.description}
-                        </TableCell>
-                        <TableCell className="text-center text-gray-700">
-                          {item.quantity}
-                        </TableCell>
-                        <TableCell className="text-right text-gray-700">
-                          {formatCurrency(item.rate || 0, companyCountry)}
-                          {showDualCurrency && (
-                            <div className="text-sm text-gray-500">
-                              ({formatCurrency(convertINRToClient(convertCompanyToINR(item.rate || 0)), clientCountry)})
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right font-bold text-green-600">
-                          {formatCurrency(item.amount || 0, companyCountry)}
-                          {showDualCurrency && (
-                            <div className="text-sm text-gray-500">
-                              ({formatCurrency(convertINRToClient(convertCompanyToINR(item.amount || 0)), clientCountry)})
-                            </div>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                     {invoice.items?.map((item, index) => {
+                       const discountRate = typeof item.discount === 'string' ? parseFloat(item.discount) || 0 : item.discount || 0;
+                       const discountAmount = (item.rate || 0) * (item.quantity || 0) * (discountRate / 100);
+                       const itemSubtotal = (item.rate || 0) * (item.quantity || 0);
+                       const itemAmountAfterDiscount = itemSubtotal - discountAmount;
+                       
+                       return (
+                         <TableRow key={index} className="hover:bg-gray-50">
+                           <TableCell className="font-medium text-gray-900">
+                             <div>
+                               <div className="font-semibold">{item.description}</div>
+                               {(item.productCategory || item.itemName || item.productVersion) && (
+                                 <div className="text-sm text-gray-500 mt-1">
+                                   {[item.productCategory, item.itemName, item.productVersion].filter(Boolean).join(' • ')}
+                                 </div>
+                               )}
+                             </div>
+                           </TableCell>
+                           <TableCell className="text-center text-gray-700 font-medium">
+                             {item.quantity}
+                           </TableCell>
+                           <TableCell className="text-right text-gray-700">
+                             <div className="font-semibold">{formatCurrency(item.rate || 0, companyCountry)}</div>
+                             {showDualCurrency && (
+                               <div className="text-sm text-gray-500">
+                                 ({formatCurrency(convertINRToClient(convertCompanyToINR(item.rate || 0)), clientCountry)})
+                               </div>
+                             )}
+                           </TableCell>
+                           <TableCell className="text-center">
+                             {discountRate > 0 ? (
+                               <div className="space-y-1">
+                                 <div className="text-orange-600 font-semibold">{discountRate}%</div>
+                                 <div className="text-sm text-gray-600">
+                                   -{formatCurrency(discountAmount, companyCountry)}
+                                   {showDualCurrency && (
+                                     <div className="text-xs text-gray-500">
+                                       (-{formatCurrency(convertINRToClient(convertCompanyToINR(discountAmount)), clientCountry)})
+                                     </div>
+                                   )}
+                                 </div>
+                               </div>
+                             ) : (
+                               <span className="text-gray-400">—</span>
+                             )}
+                           </TableCell>
+                           <TableCell className="text-right font-bold text-green-600">
+                             <div className="font-bold">{formatCurrency(item.amount || itemAmountAfterDiscount, companyCountry)}</div>
+                             {showDualCurrency && (
+                               <div className="text-sm text-gray-500">
+                                 ({formatCurrency(convertINRToClient(convertCompanyToINR(item.amount || itemAmountAfterDiscount)), clientCountry)})
+                               </div>
+                             )}
+                           </TableCell>
+                         </TableRow>
+                       );
+                     })}
                   </TableBody>
                 </Table>
               </div>
