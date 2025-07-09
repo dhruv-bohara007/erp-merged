@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,13 +34,12 @@ const InventoryManagement = () => {
   };
 
   const filteredInventory = inventory.filter(item =>
-    item.itemName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.name?.toLowerCase().includes(searchTerm.toLowerCase())
+    item.itemName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const totalItems = inventory.length;
   const totalValue = inventory.reduce((sum, item) => {
-    const price = item.unitPrice || item.unitPrice || 0;
+    const price = item.unitPrice || 0;
     return sum + price;
   }, 0);
   const totalValueINR = inventory.reduce((sum, item) => sum + (item.rateInInr || 0), 0);
@@ -150,11 +148,11 @@ const InventoryManagement = () => {
                   <TableRow key={item.id}>
                     <TableCell>
                       <div className="font-medium">
-                        {item.itemName || item.name || 'Unknown Item'}
+                        {item.itemName || 'Unknown Item'}
                       </div>
                     </TableCell>
                     <TableCell className="font-medium">
-                      {formatCurrency(item.unitPrice || item.unitPrice || 0, item.companyCountry || 'US')}
+                      {formatCurrency(item.unitPrice || 0, item.companyCountry || 'US')}
                     </TableCell>
                     <TableCell className="font-medium">
                       {formatINR(item.rateInInr || 0)}
