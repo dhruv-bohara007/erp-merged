@@ -27,6 +27,8 @@ import { countriesWithTaxInfo, CountryTaxInfo } from '@/data/countriesWithTax';
 import { countryTaxData, CountryTaxInfo as CountryTaxDataInfo } from '@/data/countryTaxData';
 import { countries } from '@/data/countries';
 import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
+import EnhancedBusinessInfo from '@/components/EnhancedBusinessInfo';
+import { countryPhoneCodes } from '@/data/countryPhoneCodes';
 
 const Settings = () => {
   const { companyData, loading, saving, saveCompanyData } = useCompanyData();
@@ -116,13 +118,26 @@ const Settings = () => {
   const handleCountryChange = (countryValue: string) => {
     const countryInfo = countriesWithTaxInfo.find(c => c.value === countryValue);
     const currencyInfo = getCurrencyByCountry(countryValue);
+    const phoneCode = countryPhoneCodes[countryValue] || '+1';
     
     if (countryInfo && formData) {
       setSelectedCountryInfo(countryInfo);
+      
+      // Auto-populate phone country code if phone is empty or only contains a country code
+      const currentPhone = formData.phone || '';
+      const hasOnlyCountryCode = Object.values(countryPhoneCodes).some(code => 
+        currentPhone === code || currentPhone === code + ' '
+      );
+      
+      const updatedPhone = (!currentPhone || hasOnlyCountryCode) 
+        ? phoneCode + ' ' 
+        : currentPhone;
+      
       setFormData({
         ...formData,
         country: countryValue,
         companyCurrency: currencyInfo.code,
+        phone: updatedPhone,
         taxInfo: {
           ...formData.taxInfo,
           primaryType: countryInfo.primaryTaxLabel
@@ -214,274 +229,19 @@ const Settings = () => {
 
           {/* Business Information */}
           <TabsContent value="business">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <Building className="w-5 h-5" />
-                    Business Information
-                  </CardTitle>
-                  {!isEditing ? (
-                    <Button onClick={handleEdit} variant="outline" size="sm">
-                      <Edit className="w-4 h-4 mr-2" />
-                      Edit
-                    </Button>
-                  ) : (
-                    <div className="flex gap-2">
-                      <Button onClick={handleSave} size="sm" disabled={saving}>
-                        <Save className="w-4 h-4 mr-2" />
-                        {saving ? 'Saving...' : 'Save'}
-                      </Button>
-                      <Button onClick={handleCancel} variant="outline" size="sm">
-                        <X className="w-4 h-4 mr-2" />
-                        Cancel
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {formData && (
-                  <>
-                    {/* Basic Company Info */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="companyName">Company Name</Label>
-                        <Input
-                          id="companyName"
-                          value={formData.companyName || ''}
-                          onChange={(e) => handleInputChange('companyName', e.target.value)}
-                          disabled={!isEditing}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          value={formData.email || ''}
-                          onChange={(e) => handleInputChange('email', e.target.value)}
-                          disabled={!isEditing}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="phone">Phone</Label>
-                        <Input
-                          id="phone"
-                          value={formData.phone || ''}
-                          onChange={(e) => handleInputChange('phone', e.target.value)}
-                          disabled={!isEditing}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="website">Website</Label>
-                        <Input
-                          id="website"
-                          value={formData.website || ''}
-                          onChange={(e) => handleInputChange('website', e.target.value)}
-                          disabled={!isEditing}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Address */}
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="streetAddress">Street Address</Label>
-                        <Textarea
-                          id="streetAddress"
-                          value={formData.streetAddress || ''}
-                          onChange={(e) => handleInputChange('streetAddress', e.target.value)}
-                          rows={2}
-                          disabled={!isEditing}
-                        />
-                      </div>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="city">City</Label>
-                          <Input
-                            id="city"
-                            value={formData.city || ''}
-                            onChange={(e) => handleInputChange('city', e.target.value)}
-                            disabled={!isEditing}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="country">Country</Label>
-                          <Select 
-                            value={formData.country || 'US'} 
-                            onValueChange={handleCountryChange}
-                            disabled={!isEditing}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {countriesWithTaxInfo.map((country) => (
-                                <SelectItem key={country.value} value={country.value}>
-                                  {country.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="currency">Currency</Label>
-                          <Input
-                            id="currency"
-                            value={formData.companyCurrency || 'USD'}
-                            disabled
-                            className="bg-gray-50"
-                          />
-                          <p className="text-xs text-gray-500">
-                            Automatically set based on country
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Tax Information */}
-                    {selectedCountryInfo && formData.taxInfo && (
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-medium text-gray-900">Tax Information</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="primaryTaxId">{selectedCountryInfo.primaryTaxLabel}</Label>
-                            <Input
-                              id="primaryTaxId"
-                              value={formData.taxInfo.primaryId || ''}
-                              onChange={(e) => handleInputChange('taxInfo.primaryId', e.target.value)}
-                              disabled={!isEditing}
-                            />
-                          </div>
-                          {selectedCountryInfo.secondaryTaxLabel && (
-                            <div className="space-y-2">
-                              <Label htmlFor="secondaryTaxId">{selectedCountryInfo.secondaryTaxLabel}</Label>
-                              <Input
-                                id="secondaryTaxId"
-                                value={formData.taxInfo.secondaryId || ''}
-                                onChange={(e) => handleInputChange('taxInfo.secondaryId', e.target.value)}
-                                disabled={!isEditing}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {selectedCountryInfo && formData.bankInfo && (
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-medium text-gray-900">Banking Information</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="bankName">Bank Name</Label>
-                            <Input
-                              id="bankName"
-                              value={formData.bankInfo.bankName || ''}
-                              onChange={(e) => handleInputChange('bankInfo.bankName', e.target.value)}
-                              disabled={!isEditing}
-                              required
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="accountNumber">Account Number</Label>
-                            <Input
-                              id="accountNumber"
-                              value={formData.bankInfo.accountNumber || ''}
-                              onChange={(e) => handleInputChange('bankInfo.accountNumber', e.target.value)}
-                              disabled={!isEditing}
-                              required
-                            />
-                          </div>
-                          <div className="space-y-2 col-span-2">
-                            <Label htmlFor="routingCode">{selectedCountryInfo.routingLabel}</Label>
-                            <Input
-                              id="routingCode"
-                              value={formData.bankInfo.routingCode || ''}
-                              onChange={(e) => handleInputChange('bankInfo.routingCode', e.target.value)}
-                              disabled={!isEditing}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Company Logo and Digital Signature URLs */}
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-medium text-gray-900">Branding & Signatures</h3>
-                      <div className="grid grid-cols-1 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="logoUrl">Company Logo URL</Label>
-                          <Input
-                            id="logoUrl"
-                            type="url"
-                            placeholder="https://example.com/logo.png"
-                            value={formData.logoUrl || ''}
-                            onChange={(e) => handleInputChange('logoUrl', e.target.value)}
-                            disabled={!isEditing}
-                          />
-                          <p className="text-xs text-gray-500">
-                            Enter the URL of your company logo image
-                          </p>
-                          {formData.logoUrl && (
-                            <div className="flex items-center gap-4 mt-2">
-                              <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
-                                <img
-                                  src={formData.logoUrl}
-                                  alt="Company Logo"
-                                  className="w-full h-full object-contain"
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.style.display = 'none';
-                                    const fallback = target.parentElement?.querySelector('.fallback-icon');
-                                    if (fallback) fallback.classList.remove('hidden');
-                                  }}
-                                />
-                                <Building className="w-8 h-8 text-gray-400 fallback-icon hidden" />
-                              </div>
-                              <span className="text-sm text-gray-600">Logo Preview</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="signatureUrl">Digital Signature URL</Label>
-                          <Input
-                            id="signatureUrl"
-                            type="url"
-                            placeholder="https://example.com/signature.png"
-                            value={formData.signatureUrl || ''}
-                            onChange={(e) => handleInputChange('signatureUrl', e.target.value)}
-                            disabled={!isEditing}
-                          />
-                          <p className="text-xs text-gray-500">
-                            Enter the URL of your digital signature image
-                          </p>
-                          {formData.signatureUrl && (
-                            <div className="flex items-center gap-4 mt-2">
-                              <div className="w-32 h-16 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
-                                <img
-                                  src={formData.signatureUrl}
-                                  alt="Digital Signature"
-                                  className="w-full h-full object-contain"
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.style.display = 'none';
-                                    const fallback = target.parentElement?.querySelector('.fallback-icon');
-                                    if (fallback) fallback.classList.remove('hidden');
-                                  }}
-                                />
-                                <Image className="w-6 h-6 text-gray-400 fallback-icon hidden" />
-                              </div>
-                              <span className="text-sm text-gray-600">Signature Preview</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
+            {formData && (
+              <EnhancedBusinessInfo
+                formData={formData}
+                isEditing={isEditing}
+                saving={saving}
+                onInputChange={handleInputChange}
+                onCountryChange={handleCountryChange}
+                onSave={handleSave}
+                onEdit={handleEdit}
+                onCancel={handleCancel}
+                selectedCountryInfo={selectedCountryInfo}
+              />
+            )}
           </TabsContent>
 
           {/* Invoice Settings */}
