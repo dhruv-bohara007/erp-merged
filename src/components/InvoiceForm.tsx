@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, Plus, Loader2 } from 'lucide-react';
+import { Trash2, Plus, Loader2, Package, Edit3 } from 'lucide-react';
 import { useInvoices, useClients, InvoiceItem } from '@/hooks/useFirestore';
 import { useCompanyData } from '@/hooks/useCompanyData';
 import { useTaxCalculations } from '@/hooks/useTaxCalculations';
@@ -23,8 +22,10 @@ interface InvoiceFormItem {
   productVersion: string;
   quantity: number;
   rate: number;
-  discount: number;
+  productRate?: number; // Rate from inventory
+  discount: string; // Changed to string for text input
   amount: number;
+  sourceType: 'available' | 'manual';
 }
 
 const InvoiceForm = () => {
@@ -39,6 +40,7 @@ const InvoiceForm = () => {
   
   const [loading, setLoading] = useState(false);
   const [conversionError, setConversionError] = useState<string | null>(null);
+  const [productSource, setProductSource] = useState<'available' | 'manual'>('available');
   const [currencyAmounts, setCurrencyAmounts] = useState({
     companyAmount: 0,
     totalAmountINR: 0,
@@ -62,9 +64,11 @@ const InvoiceForm = () => {
       itemName: '', 
       productVersion: '', 
       quantity: 1, 
-      rate: 0, 
-      discount: 0, 
-      amount: 0 
+      rate: 0,
+      productRate: 0,
+      discount: '0', 
+      amount: 0,
+      sourceType: 'available'
     }
   ]);
 
@@ -181,8 +185,10 @@ const InvoiceForm = () => {
       productVersion: '',
       quantity: 1,
       rate: 0,
-      discount: 0,
-      amount: 0
+      productRate: 0,
+      discount: '0',
+      amount: 0,
+      sourceType: productSource
     };
     setItems([...items, newItem]);
   };
@@ -198,16 +204,20 @@ const InvoiceForm = () => {
       if (i === index) {
         const updatedItem = { ...item, [field]: value };
         
-        // Auto-fill rate when category, name, and version are selected
-        if (field === 'productCategory' || field === 'itemName' || field === 'productVersion') {
+        // Auto-fill rate when category, name, and version are selected for available products
+        if (updatedItem.sourceType === 'available' && 
+            (field === 'productCategory' || field === 'itemName' || field === 'productVersion')) {
           if (updatedItem.productCategory && updatedItem.itemName && updatedItem.productVersion) {
+            const companyCurrency = companyData?.companyCurrency || 'INR';
             const inventoryItem = activeInventory.find(inv => 
               inv.productCategory === updatedItem.productCategory &&
               inv.itemName === updatedItem.itemName &&
-              inv.productVersion === updatedItem.productVersion
+              inv.productVersion === updatedItem.productVersion &&
+              inv.companyCurrency === companyCurrency
             );
             if (inventoryItem) {
               updatedItem.rate = inventoryItem.rate || 0;
+              updatedItem.productRate = inventoryItem.rate || 0;
             }
           }
         }
@@ -215,7 +225,8 @@ const InvoiceForm = () => {
         // Recalculate amount when quantity, rate, or discount changes
         if (field === 'quantity' || field === 'rate' || field === 'discount') {
           const subtotalAmount = updatedItem.quantity * updatedItem.rate;
-          const discountAmount = (subtotalAmount * updatedItem.discount) / 100;
+          const discountPercent = parseFloat(updatedItem.discount.toString()) || 0;
+          const discountAmount = (subtotalAmount * discountPercent) / 100;
           updatedItem.amount = subtotalAmount - discountAmount;
         }
         
@@ -272,6 +283,18 @@ const InvoiceForm = () => {
         invoiceNumber: invoiceData.invoiceNumber,
         clientId: invoiceData.clientId,
         items: firestoreItems,
+        // Store additional product fields
+        productDetails: items.map(item => ({
+          productCategory: item.productCategory,
+          itemName: item.itemName,
+          productVersion: item.productVersion,
+          quantity: item.quantity,
+          rate: item.rate,
+          productRate: item.productRate || item.rate,
+          discount: item.discount,
+          amount: item.amount,
+          sourceType: item.sourceType
+        })),
         subtotal,
         cgst: taxCalculation.taxes.find(t => t.name === 'CGST')?.amount || 0,
         sgst: taxCalculation.taxes.find(t => t.name === 'SGST')?.amount || 0,
@@ -500,124 +523,203 @@ const InvoiceForm = () => {
         </Card>
       </div>
 
-      {/* Invoice Items */}
-      <Card>
-        <CardHeader>
+      {/* Enhanced Invoice Items */}
+      <Card className="border-2 border-blue-100">
+        <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
           <div className="flex justify-between items-center">
-            <CardTitle>Invoice Items</CardTitle>
-            <Button onClick={addItem} size="sm">
+            <div className="flex items-center gap-3">
+              <Package className="w-6 h-6 text-blue-600" />
+              <CardTitle className="text-xl text-blue-900">Invoice Items</CardTitle>
+            </div>
+            <Button onClick={addItem} size="sm" className="bg-blue-600 hover:bg-blue-700">
               <Plus className="w-4 h-4 mr-2" />
               Add Item
             </Button>
           </div>
+          
+          {/* Product Source Toggle */}
+          <div className="mt-4 p-4 bg-white rounded-lg border border-blue-200">
+            <Label className="text-sm font-medium text-blue-900 mb-2 block">Select Product Source</Label>
+            <Select value={productSource} onValueChange={(value: 'available' | 'manual') => setProductSource(value)}>
+              <SelectTrigger className="w-full max-w-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="available" className="flex items-center gap-2">
+                  <Package className="w-4 h-4" />
+                  From Available Products
+                </SelectItem>
+                <SelectItem value="manual" className="flex items-center gap-2">
+                  <Edit3 className="w-4 h-4" />
+                  Manual Entry
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+        
+        <CardContent className="p-6">
+          <div className="space-y-6">
             {items.map((item, index) => (
-              <div key={index} className="grid grid-cols-12 gap-4 items-end p-4 bg-gray-50 rounded-lg">
-                <div className="col-span-2">
-                  <Label htmlFor={`category-${index}`}>Item Category *</Label>
-                  <SearchableDropdown
-                    items={availableCategories}
-                    value={item.productCategory}
-                    onValueChange={(value) => updateItem(index, 'productCategory', value)}
-                    placeholder="Select category"
-                  />
-                  {!availableCategories.includes(item.productCategory) && item.productCategory && (
+              <div key={index} className="p-6 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200">
+                <div className="grid grid-cols-12 gap-4 items-end">
+                  
+                  {/* Product Category */}
+                  <div className="col-span-2">
+                    <Label className="text-sm font-semibold text-gray-700 mb-2 block">
+                      Category *
+                    </Label>
+                    {item.sourceType === 'available' ? (
+                      <SearchableDropdown
+                        items={availableCategories}
+                        value={item.productCategory}
+                        onValueChange={(value) => updateItem(index, 'productCategory', value)}
+                        placeholder="Select category"
+                      />
+                    ) : (
+                      <Input
+                        placeholder="Enter category"
+                        value={item.productCategory}
+                        onChange={(e) => updateItem(index, 'productCategory', e.target.value)}
+                        className="border-blue-200 focus:border-blue-400"
+                      />
+                    )}
+                  </div>
+
+                  {/* Product Name */}
+                  <div className="col-span-2">
+                    <Label className="text-sm font-semibold text-gray-700 mb-2 block">
+                      Name *
+                    </Label>
+                    {item.sourceType === 'available' ? (
+                      <SearchableDropdown
+                        items={availableNames}
+                        value={item.itemName}
+                        onValueChange={(value) => updateItem(index, 'itemName', value)}
+                        placeholder="Select name"
+                      />
+                    ) : (
+                      <Input
+                        placeholder="Enter name"
+                        value={item.itemName}
+                        onChange={(e) => updateItem(index, 'itemName', e.target.value)}
+                        className="border-blue-200 focus:border-blue-400"
+                      />
+                    )}
+                  </div>
+
+                  {/* Product Version */}
+                  <div className="col-span-2">
+                    <Label className="text-sm font-semibold text-gray-700 mb-2 block">
+                      Version *
+                    </Label>
+                    {item.sourceType === 'available' ? (
+                      <SearchableDropdown
+                        items={availableVersions}
+                        value={item.productVersion}
+                        onValueChange={(value) => updateItem(index, 'productVersion', value)}
+                        placeholder="Select version"
+                      />
+                    ) : (
+                      <Input
+                        placeholder="Enter version"
+                        value={item.productVersion}
+                        onChange={(e) => updateItem(index, 'productVersion', e.target.value)}
+                        className="border-blue-200 focus:border-blue-400"
+                      />
+                    )}
+                  </div>
+
+                  {/* Quantity */}
+                  <div className="col-span-1">
+                    <Label className="text-sm font-semibold text-gray-700 mb-2 block">
+                      Qty *
+                    </Label>
                     <Input
-                      className="mt-2"
-                      placeholder="Custom category"
-                      value={item.productCategory}
-                      onChange={(e) => updateItem(index, 'productCategory', e.target.value)}
+                      type="number"
+                      min="1"
+                      value={item.quantity}
+                      onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
+                      className="border-blue-200 focus:border-blue-400"
                     />
-                  )}
-                </div>
-                <div className="col-span-2">
-                  <Label htmlFor={`name-${index}`}>Item Name *</Label>
-                  <SearchableDropdown
-                    items={availableNames}
-                    value={item.itemName}
-                    onValueChange={(value) => updateItem(index, 'itemName', value)}
-                    placeholder="Select name"
-                  />
-                  {!availableNames.includes(item.itemName) && item.itemName && (
+                  </div>
+
+                  {/* Rate */}
+                  <div className="col-span-1">
+                    <Label className="text-sm font-semibold text-gray-700 mb-2 block">
+                      Rate ({companyCurrency.symbol}) *
+                    </Label>
+                    {item.sourceType === 'available' ? (
+                      <div className="p-2 bg-blue-100 rounded border text-center text-sm font-medium">
+                        {item.rate === 0 ? 'Auto' : item.rate.toFixed(2)}
+                      </div>
+                    ) : (
+                      <Input
+                        type="text"
+                        placeholder="0.00"
+                        value={item.rate === 0 ? '' : item.rate.toString()}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
+                            updateItem(index, 'rate', value === '' ? 0 : Number(value));
+                          }
+                        }}
+                        className="border-blue-200 focus:border-blue-400"
+                      />
+                    )}
+                  </div>
+
+                  {/* Discount */}
+                  <div className="col-span-1">
+                    <Label className="text-sm font-semibold text-gray-700 mb-2 block">
+                      Discount (%)
+                    </Label>
                     <Input
-                      className="mt-2"
-                      placeholder="Custom name"
-                      value={item.itemName}
-                      onChange={(e) => updateItem(index, 'itemName', e.target.value)}
+                      type="text"
+                      placeholder="0"
+                      value={item.discount}
+                      onChange={(e) => updateItem(index, 'discount', e.target.value)}
+                      className="border-blue-200 focus:border-blue-400"
                     />
-                  )}
-                </div>
-                <div className="col-span-2">
-                  <Label htmlFor={`version-${index}`}>Item Version *</Label>
-                  <SearchableDropdown
-                    items={availableVersions}
-                    value={item.productVersion}
-                    onValueChange={(value) => updateItem(index, 'productVersion', value)}
-                    placeholder="Select version"
-                  />
-                  {!availableVersions.includes(item.productVersion) && item.productVersion && (
-                    <Input
-                      className="mt-2"
-                      placeholder="Custom version"
-                      value={item.productVersion}
-                      onChange={(e) => updateItem(index, 'productVersion', e.target.value)}
-                    />
-                  )}
-                </div>
-                <div className="col-span-1">
-                  <Label htmlFor={`qty-${index}`}>Quantity *</Label>
-                  <Input
-                    id={`qty-${index}`}
-                    type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
-                  />
-                </div>
-                <div className="col-span-1">
-                  <Label htmlFor={`rate-${index}`}>Rate ({companyCurrency.symbol}) *</Label>
-                  <Input
-                    id={`rate-${index}`}
-                    type="text"
-                    placeholder="0.00"
-                    value={item.rate === 0 ? '' : item.rate.toString()}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
-                        updateItem(index, 'rate', value === '' ? 0 : Number(value));
-                      }
-                    }}
-                  />
-                </div>
-                <div className="col-span-1">
-                  <Label htmlFor={`discount-${index}`}>Discount (%)</Label>
-                  <Input
-                    id={`discount-${index}`}
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={item.discount}
-                    onChange={(e) => updateItem(index, 'discount', Number(e.target.value))}
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label>Amount</Label>
-                  <div className="p-2 bg-gray-100 rounded border text-right">
-                    {formatCurrency(item.amount, companyCountry)}
+                  </div>
+
+                  {/* Amount */}
+                  <div className="col-span-2">
+                    <Label className="text-sm font-semibold text-gray-700 mb-2 block">
+                      Amount
+                    </Label>
+                    <div className="p-3 bg-green-50 rounded border border-green-200 text-right font-bold text-green-800">
+                      {formatCurrency(item.amount, companyCountry)}
+                    </div>
+                  </div>
+
+                  {/* Remove Button */}
+                  <div className="col-span-1 flex justify-center">
+                    {items.length > 1 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeItem(index)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
-                <div className="col-span-1 flex justify-center">
-                  {items.length > 1 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeItem(index)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+
+                {/* Source Type Indicator */}
+                <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
+                  {item.sourceType === 'available' ? (
+                    <>
+                      <Package className="w-3 h-3" />
+                      From Available Products
+                    </>
+                  ) : (
+                    <>
+                      <Edit3 className="w-3 h-3" />
+                      Manual Entry
+                    </>
                   )}
                 </div>
               </div>
