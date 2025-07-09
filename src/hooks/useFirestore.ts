@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { 
   collection, 
@@ -147,13 +148,19 @@ export interface Expense {
 
 export interface InventoryItem {
   id: string;
-  itemName: string;
+  name: string;
+  description: string;
+  category: string;
+  sku: string;
+  currentStock: number;
+  minStock: number;
+  maxStock: number;
   unitPrice: number;
-  rate: number;
-  rateInInr: number;
-  exchangeRateUsed: number;
-  companyCurrency: string;
-  companyCountry: string;
+  unitCost: number;
+  unit: string;
+  supplier: string;
+  location: string;
+  status: 'active' | 'inactive' | 'discontinued';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -689,7 +696,7 @@ export const useInventory = () => {
         })) as InventoryItem[];
         
         // Sort by name in memory instead of using orderBy to avoid composite index
-        inventoryData.sort((a, b) => (a.itemName || '').localeCompare(b.itemName || ''));
+        inventoryData.sort((a, b) => a.name.localeCompare(b.name));
         
         setInventory(inventoryData);
         setLoading(false);
