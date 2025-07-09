@@ -92,6 +92,13 @@ export interface InvoiceItem {
   quantity: number;
   rate: number;
   amount: number;
+  // Product details for enhanced invoice management
+  productCategory?: string;
+  itemName?: string;
+  productVersion?: string;
+  discount?: string;
+  productRate?: number;
+  sourceType?: 'available' | 'manual';
 }
 
 export interface Client {

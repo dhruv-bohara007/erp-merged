@@ -23,8 +23,10 @@ interface InvoiceFormItem {
   productVersion: string;
   quantity: number;
   rate: number;
-  discount: number;
+  discount: string;
   amount: number;
+  productRate?: number;
+  sourceType: 'available' | 'manual';
 }
 
 const InvoiceForm = () => {
@@ -56,6 +58,7 @@ const InvoiceForm = () => {
     terms: 'Payment due within 30 days of invoice date.',
   });
 
+  const [productSourceType, setProductSourceType] = useState<'available' | 'manual'>('available');
   const [items, setItems] = useState<InvoiceFormItem[]>([
     { 
       productCategory: '', 
@@ -63,8 +66,9 @@ const InvoiceForm = () => {
       productVersion: '', 
       quantity: 1, 
       rate: 0, 
-      discount: 0, 
-      amount: 0 
+      discount: '0', 
+      amount: 0,
+      sourceType: 'available'
     }
   ]);
 
@@ -181,8 +185,9 @@ const InvoiceForm = () => {
       productVersion: '',
       quantity: 1,
       rate: 0,
-      discount: 0,
-      amount: 0
+      discount: '0',
+      amount: 0,
+      sourceType: productSourceType
     };
     setItems([...items, newItem]);
   };
@@ -198,16 +203,18 @@ const InvoiceForm = () => {
       if (i === index) {
         const updatedItem = { ...item, [field]: value };
         
-        // Auto-fill rate when category, name, and version are selected
-        if (field === 'productCategory' || field === 'itemName' || field === 'productVersion') {
+        // Auto-fill rate when category, name, and version are selected (only for 'available' source type)
+        if ((field === 'productCategory' || field === 'itemName' || field === 'productVersion') && updatedItem.sourceType === 'available') {
           if (updatedItem.productCategory && updatedItem.itemName && updatedItem.productVersion) {
             const inventoryItem = activeInventory.find(inv => 
               inv.productCategory === updatedItem.productCategory &&
               inv.itemName === updatedItem.itemName &&
-              inv.productVersion === updatedItem.productVersion
+              inv.productVersion === updatedItem.productVersion &&
+              inv.status === 'active'
             );
             if (inventoryItem) {
               updatedItem.rate = inventoryItem.rate || 0;
+              updatedItem.productRate = inventoryItem.rate || 0;
             }
           }
         }
@@ -215,7 +222,8 @@ const InvoiceForm = () => {
         // Recalculate amount when quantity, rate, or discount changes
         if (field === 'quantity' || field === 'rate' || field === 'discount') {
           const subtotalAmount = updatedItem.quantity * updatedItem.rate;
-          const discountAmount = (subtotalAmount * updatedItem.discount) / 100;
+          const discountPercent = typeof updatedItem.discount === 'string' ? parseFloat(updatedItem.discount) || 0 : updatedItem.discount;
+          const discountAmount = (subtotalAmount * discountPercent) / 100;
           updatedItem.amount = subtotalAmount - discountAmount;
         }
         
@@ -260,12 +268,19 @@ const InvoiceForm = () => {
     setLoading(true);
 
     try {
-      // Convert InvoiceFormItem[] to InvoiceItem[] expected by firestore
+      // Convert InvoiceFormItem[] to extended InvoiceItem[] with product details
       const firestoreItems: InvoiceItem[] = items.map(item => ({
         description: `${item.productCategory} - ${item.itemName} (${item.productVersion})`,
         quantity: item.quantity,
         rate: item.rate,
-        amount: item.amount
+        amount: item.amount,
+        // Store all product fields as required
+        productCategory: item.productCategory,
+        itemName: item.itemName,
+        productVersion: item.productVersion,
+        discount: item.discount,
+        productRate: item.productRate || item.rate,
+        sourceType: item.sourceType
       }));
 
       const invoice = {
@@ -501,125 +516,213 @@ const InvoiceForm = () => {
       </div>
 
       {/* Invoice Items */}
-      <Card>
-        <CardHeader>
+      <Card className="border-0 shadow-lg">
+        <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10 border-b">
           <div className="flex justify-between items-center">
-            <CardTitle>Invoice Items</CardTitle>
-            <Button onClick={addItem} size="sm">
+            <CardTitle className="text-xl font-semibold text-primary">Invoice Items</CardTitle>
+            <Button onClick={addItem} size="sm" className="bg-primary hover:bg-primary/90">
               <Plus className="w-4 h-4 mr-2" />
               Add Item
             </Button>
           </div>
+          
+          {/* Product Source Selector */}
+          <div className="mt-4 p-4 bg-background rounded-lg border">
+            <Label className="text-sm font-medium mb-3 block">Select Product Source</Label>
+            <Select value={productSourceType} onValueChange={(value: 'available' | 'manual') => {
+              setProductSourceType(value);
+              // Update all items to use the new source type
+              setItems(items.map(item => ({ ...item, sourceType: value })));
+            }}>
+              <SelectTrigger className="w-64">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="available">From Available Products</SelectItem>
+                <SelectItem value="manual">Manual Entry</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+        <CardContent className="p-6">
+          <div className="space-y-6">
             {items.map((item, index) => (
-              <div key={index} className="grid grid-cols-12 gap-4 items-end p-4 bg-gray-50 rounded-lg">
-                <div className="col-span-2">
-                  <Label htmlFor={`category-${index}`}>Item Category *</Label>
-                  <SearchableDropdown
-                    items={availableCategories}
-                    value={item.productCategory}
-                    onValueChange={(value) => updateItem(index, 'productCategory', value)}
-                    placeholder="Select category"
-                  />
-                  {!availableCategories.includes(item.productCategory) && item.productCategory && (
-                    <Input
-                      className="mt-2"
-                      placeholder="Custom category"
-                      value={item.productCategory}
-                      onChange={(e) => updateItem(index, 'productCategory', e.target.value)}
-                    />
-                  )}
-                </div>
-                <div className="col-span-2">
-                  <Label htmlFor={`name-${index}`}>Item Name *</Label>
-                  <SearchableDropdown
-                    items={availableNames}
-                    value={item.itemName}
-                    onValueChange={(value) => updateItem(index, 'itemName', value)}
-                    placeholder="Select name"
-                  />
-                  {!availableNames.includes(item.itemName) && item.itemName && (
-                    <Input
-                      className="mt-2"
-                      placeholder="Custom name"
-                      value={item.itemName}
-                      onChange={(e) => updateItem(index, 'itemName', e.target.value)}
-                    />
-                  )}
-                </div>
-                <div className="col-span-2">
-                  <Label htmlFor={`version-${index}`}>Item Version *</Label>
-                  <SearchableDropdown
-                    items={availableVersions}
-                    value={item.productVersion}
-                    onValueChange={(value) => updateItem(index, 'productVersion', value)}
-                    placeholder="Select version"
-                  />
-                  {!availableVersions.includes(item.productVersion) && item.productVersion && (
-                    <Input
-                      className="mt-2"
-                      placeholder="Custom version"
-                      value={item.productVersion}
-                      onChange={(e) => updateItem(index, 'productVersion', e.target.value)}
-                    />
-                  )}
-                </div>
-                <div className="col-span-1">
-                  <Label htmlFor={`qty-${index}`}>Quantity *</Label>
-                  <Input
-                    id={`qty-${index}`}
-                    type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
-                  />
-                </div>
-                <div className="col-span-1">
-                  <Label htmlFor={`rate-${index}`}>Rate ({companyCurrency.symbol}) *</Label>
-                  <Input
-                    id={`rate-${index}`}
-                    type="text"
-                    placeholder="0.00"
-                    value={item.rate === 0 ? '' : item.rate.toString()}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
-                        updateItem(index, 'rate', value === '' ? 0 : Number(value));
-                      }
-                    }}
-                  />
-                </div>
-                <div className="col-span-1">
-                  <Label htmlFor={`discount-${index}`}>Discount (%)</Label>
-                  <Input
-                    id={`discount-${index}`}
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={item.discount}
-                    onChange={(e) => updateItem(index, 'discount', Number(e.target.value))}
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label>Amount</Label>
-                  <div className="p-2 bg-gray-100 rounded border text-right">
-                    {formatCurrency(item.amount, companyCountry)}
-                  </div>
-                </div>
-                <div className="col-span-1 flex justify-center">
+              <div key={index} className="relative bg-gradient-to-br from-card to-card/80 border border-border/50 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200">
+                {/* Item Header */}
+                <div className="flex justify-between items-center mb-4">
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Item #{index + 1} • {productSourceType === 'available' ? 'From Inventory' : 'Manual Entry'}
+                  </span>
                   {items.length > 1 && (
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
                       onClick={() => removeItem(index)}
-                      className="text-red-600 hover:text-red-700"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   )}
                 </div>
+
+                {productSourceType === 'available' ? (
+                  // Available Products Mode
+                  <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                    <div className="md:col-span-2">
+                      <Label className="text-sm font-medium text-foreground mb-2 block">Product Category *</Label>
+                      <SearchableDropdown
+                        items={availableCategories}
+                        value={item.productCategory}
+                        onValueChange={(value) => updateItem(index, 'productCategory', value)}
+                        placeholder="Select category"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className="text-sm font-medium text-foreground mb-2 block">Product Name *</Label>
+                      <SearchableDropdown
+                        items={availableNames.filter(name => {
+                          if (!item.productCategory) return true;
+                          return activeInventory.some(inv => 
+                            inv.productCategory === item.productCategory && inv.itemName === name
+                          );
+                        })}
+                        value={item.itemName}
+                        onValueChange={(value) => updateItem(index, 'itemName', value)}
+                        placeholder="Select name"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className="text-sm font-medium text-foreground mb-2 block">Product Version *</Label>
+                      <SearchableDropdown
+                        items={availableVersions.filter(version => {
+                          if (!item.productCategory || !item.itemName) return true;
+                          return activeInventory.some(inv => 
+                            inv.productCategory === item.productCategory && 
+                            inv.itemName === item.itemName && 
+                            inv.productVersion === version
+                          );
+                        })}
+                        value={item.productVersion}
+                        onValueChange={(value) => updateItem(index, 'productVersion', value)}
+                        placeholder="Select version"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label className="text-sm font-medium text-foreground mb-2 block">Quantity *</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
+                        className="bg-background"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-foreground mb-2 block">
+                        Rate ({companyCurrency.symbol})
+                      </Label>
+                      <Input
+                        type="text"
+                        value={item.rate === 0 ? '' : item.rate.toString()}
+                        readOnly
+                        className="bg-muted text-muted-foreground"
+                        placeholder="Auto-filled"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-foreground mb-2 block">Discount (%)</Label>
+                      <Input
+                        type="text"
+                        value={item.discount}
+                        onChange={(e) => updateItem(index, 'discount', e.target.value)}
+                        className="bg-background"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-foreground mb-2 block">Amount</Label>
+                      <div className="h-10 px-3 py-2 bg-primary/10 text-primary font-semibold rounded-md border flex items-center justify-end">
+                        {formatCurrency(item.amount, companyCountry)}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  // Manual Entry Mode
+                  <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                    <div className="md:col-span-2">
+                      <Label className="text-sm font-medium text-foreground mb-2 block">Product Category *</Label>
+                      <Input
+                        value={item.productCategory}
+                        onChange={(e) => updateItem(index, 'productCategory', e.target.value)}
+                        placeholder="Enter category"
+                        className="bg-background"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className="text-sm font-medium text-foreground mb-2 block">Product Name *</Label>
+                      <Input
+                        value={item.itemName}
+                        onChange={(e) => updateItem(index, 'itemName', e.target.value)}
+                        placeholder="Enter product name"
+                        className="bg-background"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className="text-sm font-medium text-foreground mb-2 block">Product Version *</Label>
+                      <Input
+                        value={item.productVersion}
+                        onChange={(e) => updateItem(index, 'productVersion', e.target.value)}
+                        placeholder="Enter version"
+                        className="bg-background"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label className="text-sm font-medium text-foreground mb-2 block">Quantity *</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
+                        className="bg-background"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-foreground mb-2 block">
+                        Rate ({companyCurrency.symbol}) *
+                      </Label>
+                      <Input
+                        type="text"
+                        value={item.rate === 0 ? '' : item.rate.toString()}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
+                            updateItem(index, 'rate', value === '' ? 0 : Number(value));
+                          }
+                        }}
+                        placeholder="0.00"
+                        className="bg-background"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-foreground mb-2 block">Discount (%)</Label>
+                      <Input
+                        type="text"
+                        value={item.discount}
+                        onChange={(e) => updateItem(index, 'discount', e.target.value)}
+                        className="bg-background"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-foreground mb-2 block">Amount</Label>
+                      <div className="h-10 px-3 py-2 bg-primary/10 text-primary font-semibold rounded-md border flex items-center justify-end">
+                        {formatCurrency(item.amount, companyCountry)}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
