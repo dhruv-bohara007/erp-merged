@@ -93,35 +93,36 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
               display: flex; 
               justify-content: space-between; 
               align-items: flex-start;
-              margin-bottom: 40px;
-              padding: 30px;
+              margin-bottom: 30px;
+              padding: 25px;
               background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
               border-radius: 12px;
               border: 2px solid #e2e8f0;
+              page-break-inside: avoid;
             }
             .logo-section {
               display: flex;
               align-items: center;
-              gap: 20px;
+              gap: 25px;
             }
             .company-logo { 
-              width: 120px; 
-              height: 120px; 
+              width: 160px; 
+              height: 160px; 
               object-fit: contain;
               border-radius: 8px;
               border: 2px solid #e5e7eb;
             }
             .invoice-title {
-              font-size: 48px;
+              font-size: 52px;
               font-weight: bold;
               color: #1f2937;
-              margin-bottom: 10px;
+              margin-bottom: 12px;
             }
             .invoice-number {
-              font-size: 24px;
+              font-size: 26px;
               font-weight: 600;
               color: #374151;
-              margin-bottom: 15px;
+              margin-bottom: 18px;
             }
             .invoice-status {
               display: inline-block;
@@ -140,44 +141,48 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
             .total-amount {
               text-align: right;
               background: white;
-              padding: 20px;
+              padding: 25px;
               border-radius: 12px;
               border: 2px solid #e5e7eb;
-              box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+              box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+              min-width: 250px;
             }
             .amount-primary {
-              font-size: 32px;
+              font-size: 36px;
               font-weight: bold;
               color: #059669;
-              margin-bottom: 8px;
+              margin-bottom: 10px;
             }
             .amount-secondary {
-              font-size: 18px;
+              font-size: 20px;
               color: #6b7280;
             }
 
             /* Dates Section */
             .dates-section {
               display: flex;
-              gap: 30px;
-              margin: 20px 0;
-              padding: 20px;
+              gap: 40px;
+              margin: 15px 0;
+              padding: 25px;
               background: #f9fafb;
               border-radius: 8px;
+              page-break-inside: avoid;
             }
             .date-item {
               display: flex;
               align-items: center;
-              gap: 8px;
+              gap: 10px;
               font-weight: 600;
+              font-size: 16px;
             }
 
             /* Two Column Layout */
             .two-column {
               display: grid;
               grid-template-columns: 1fr 1fr;
-              gap: 40px;
-              margin: 40px 0;
+              gap: 30px;
+              margin: 25px 0;
+              page-break-inside: avoid;
             }
             
             /* Card Styles */
@@ -323,12 +328,32 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
             
             /* Footer */
             .invoice-footer {
-              margin-top: 40px;
+              margin-top: 30px;
               text-align: center;
               color: #6b7280;
               font-size: 14px;
               padding: 20px;
               border-top: 1px solid #e5e7eb;
+            }
+            
+            /* Page break controls */
+            .page-break-before {
+              page-break-before: always;
+            }
+            
+            .no-page-break {
+              page-break-inside: avoid;
+            }
+            
+            /* Hide repeated content on subsequent pages */
+            @media print {
+              body { padding: 0; margin: 0; }
+              .container { max-width: none; }
+              .invoice-meta { display: none; }
+              .page-break-after { page-break-after: always; }
+              
+              /* First page styles */
+              .first-page .invoice-meta { display: block; }
             }
             
             .dual-currency {
@@ -337,22 +362,18 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
               margin-top: 4px;
             }
             
-            @media print {
-              body { padding: 0; }
-              .container { max-width: none; }
-            }
           </style>
         </head>
         <body>
-          <div class="container">
-            <!-- Header Section -->
-            <div class="invoice-header">
+          <div class="container first-page">
+            <!-- Header Section (First page only) -->
+            <div class="invoice-header no-page-break">
               <div class="logo-section">
                 ${invoice.logoUrl ? `<img src="${invoice.logoUrl}" alt="Company Logo" class="company-logo">` : ''}
                 <div>
                   <div class="invoice-title">INVOICE</div>
-                  <div class="invoice-number">#${invoice.invoiceNumber}</div>
-                  <span class="invoice-status status-${invoice.status || 'draft'}">
+                  <div class="invoice-number invoice-meta">#${invoice.invoiceNumber}</div>
+                  <span class="invoice-status status-${invoice.status || 'draft'} invoice-meta">
                     ${(invoice.status || 'draft').toUpperCase()}
                   </span>
                 </div>
@@ -366,15 +387,15 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                   <div class="amount-secondary">
                     ${formatCurrency(invoice.clientAmount || convertINRToClient(invoice.totalAmountINR || 0), clientCountry)}
                   </div>
-                  <div style="font-size: 12px; color: #9ca3af; margin-top: 8px;">
+                  <div style="font-size: 14px; color: #9ca3af; margin-top: 10px;">
                     ${companyCurrency.code} / ${clientCurrency.code}
                   </div>
                 ` : ''}
               </div>
             </div>
 
-            <!-- Dates Section -->
-            <div class="dates-section">
+            <!-- Dates Section (First page only) -->
+            <div class="dates-section no-page-break invoice-meta">
               <div class="date-item">
                 <strong>Issue Date:</strong> ${invoice.issueDate?.toLocaleDateString() || 'N/A'}
               </div>
@@ -383,8 +404,8 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
               </div>
             </div>
 
-            <!-- Two Column Layout -->
-            <div class="two-column">
+            <!-- Two Column Layout (First page only) -->
+            <div class="two-column no-page-break">
               <!-- Company Information -->
               <div class="info-card">
                 <div class="card-header company-header">Company Information</div>
@@ -394,6 +415,16 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                     <div><strong>${invoice.companyName}</strong></div>
                     <div>${invoice.companyAddress}</div>
                     ${invoice.companyCity ? `<div>${invoice.companyCity}</div>` : ''}
+                    <div><strong>Country:</strong> ${(() => {
+                      const countryNames = {
+                        'US': 'United States', 'IN': 'India', 'GB': 'United Kingdom', 'DE': 'Germany',
+                        'FR': 'France', 'IT': 'Italy', 'ES': 'Spain', 'NL': 'Netherlands', 'CA': 'Canada',
+                        'AU': 'Australia', 'JP': 'Japan', 'CN': 'China', 'SG': 'Singapore', 'HK': 'Hong Kong',
+                        'MX': 'Mexico', 'BR': 'Brazil', 'ZA': 'South Africa', 'AE': 'United Arab Emirates',
+                        'SA': 'Saudi Arabia', 'DK': 'Denmark', 'NO': 'Norway', 'SE': 'Sweden', 'CH': 'Switzerland'
+                      };
+                      return countryNames[companyCountry] || companyCountry;
+                    })()}</div>
                     ${invoice.companyPhone ? `<div>📞 <span class="phone-number">${formatPhoneNumber(invoice.companyPhone, companyCountry)}</span></div>` : ''}
                     ${invoice.companyEmail ? `<div>📧 ${invoice.companyEmail}</div>` : ''}
                     ${invoice.companyWebsite ? `<div>🌐 ${invoice.companyWebsite}</div>` : ''}
@@ -475,8 +506,8 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
               </div>
             </div>
 
-            <!-- Invoice Items -->
-            <div class="info-card">
+            <!-- Invoice Items (Optimized for single page) -->
+            <div class="info-card no-page-break">
               <div class="card-header" style="background: linear-gradient(135deg, #faf5ff 0%, #e9d5ff 100%);">Invoice Items</div>
               <div class="card-content">
                 <table class="items-table">
@@ -571,19 +602,19 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
               </div>
             </div>
 
-            <!-- Notes and Terms -->
+            <!-- Notes and Terms (Concise format) -->
             ${(invoice.notes || invoice.terms) ? `
-              <div class="notes-section">
+              <div class="notes-section no-page-break">
                 ${invoice.notes ? `
-                  <div style="margin-bottom: 20px;">
+                  <div style="margin-bottom: 15px;">
                     <div class="section-title">📝 Notes</div>
-                    <p>${invoice.notes}</p>
+                    <p style="font-size: 14px; line-height: 1.4;">${invoice.notes}</p>
                   </div>
                 ` : ''}
                 ${invoice.terms ? `
                   <div>
                     <div class="section-title">📋 Terms & Conditions</div>
-                    <p>${invoice.terms}</p>
+                    <p style="font-size: 14px; line-height: 1.4;">${invoice.terms}</p>
                   </div>
                 ` : ''}
               </div>
@@ -591,8 +622,7 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
 
             <!-- Footer -->
             <div class="invoice-footer">
-              <p><em>Generated on: ${new Date().toLocaleString()}</em></p>
-              <p>Thank you for your business!</p>
+              <p><strong>Thank you for your business!</strong></p>
             </div>
           </div>
         </body>
@@ -600,21 +630,23 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
       `;
 
       // Create a new window and trigger print dialog for PDF generation
-      const printWindow = window.open('', '_blank');
+      const printWindow = window.open('', '_blank', 'width=800,height=600');
       if (printWindow) {
+        printWindow.document.open();
         printWindow.document.write(htmlContent);
         printWindow.document.close();
         
         // Wait for content to load, then trigger print dialog
-        setTimeout(() => {
-          printWindow.focus();
-          printWindow.print();
-          // Note: The print dialog allows users to save as PDF
-          // Close window after a delay to allow print dialog to open
+        printWindow.onload = () => {
           setTimeout(() => {
-            printWindow.close();
-          }, 1000);
-        }, 500);
+            printWindow.focus();
+            printWindow.print();
+            // Close window after print dialog
+            setTimeout(() => {
+              printWindow.close();
+            }, 1000);
+          }, 500);
+        };
       } else {
         // Fallback: create downloadable HTML file if popup is blocked
         const blob = new Blob([htmlContent], { type: 'text/html' });
