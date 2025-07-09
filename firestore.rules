@@ -108,18 +108,16 @@ service cloud.firestore {
 
     // PRODUCT DEFINITIONS: only accessible by users from the same company
     match /productDefinitions/{definitionId} {
-      // Allow read/write for company admins on their company's data
-      allow read, write: if request.auth != null && 
-        (getUserData().role == 'company_admin' || getUserData().role == 'super_admin') &&
+      // Company admin can read/write their company's product definitions
+      allow read, write: if isCompanyAdmin() && 
         (resource == null || resource.data.companyId == getUserData().companyId);
       
-      // Allow creation for company admins with proper companyId
-      allow create: if request.auth != null &&
-        (getUserData().role == 'company_admin' || getUserData().role == 'super_admin') &&
+      // Company admin can create product definitions for their company
+      allow create: if isCompanyAdmin() &&
         request.resource.data.companyId == getUserData().companyId;
       
-      // Super admin has full access to everything
-      allow read, write: if request.auth != null && getUserData().role == 'super_admin';
+      // Super admin has full access
+      allow read, write: if isSuperAdmin();
     }
 
     // GST RETURNS: only accessible by users from the same company
