@@ -54,28 +54,15 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
         companyData.companyCurrency
       );
 
-      // Create the inventory item with the required structure
+      // Create the simplified inventory item
       await addInventoryItem({
         itemName: itemName.trim(),
         unitPrice: rateValue,
         rate: rateValue,
-        rateInInr: Math.round(amountInINR * 100) / 100, // Round to 2 decimal places
-        exchangeRateUsed: Math.round(exchangeRate * 10000) / 10000, // Round to 4 decimal places
+        rateInInr: Math.round(amountInINR * 100) / 100,
+        exchangeRateUsed: Math.round(exchangeRate * 10000) / 10000,
         companyCurrency: companyData.companyCurrency,
-        companyCountry: companyData.country,
-        // Required fields for existing inventory structure
-        name: itemName.trim(),
-        description: '',
-        category: 'Products',
-        sku: `PROD-${Date.now()}`,
-        currentStock: 0,
-        minStock: 0,
-        maxStock: 1000,
-        unitCost: 0,
-        unit: 'pieces',
-        supplier: '',
-        location: '',
-        status: 'active'
+        companyCountry: companyData.country
       });
 
       toast({

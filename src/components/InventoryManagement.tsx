@@ -4,11 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { 
   Plus, 
   Package, 
-  AlertCircle, 
   TrendingUp,
   Trash2,
   Search
@@ -35,26 +33,20 @@ const InventoryManagement = () => {
   };
 
   const filteredInventory = inventory.filter(item =>
-    item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.itemName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.category?.toLowerCase().includes(searchTerm.toLowerCase())
+    item.itemName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const totalItems = inventory.length;
-  const lowStockItems = inventory.filter(item => item.currentStock <= item.minStock).length;
   
   // Calculate total value using unitPrice (in company currency) and rateInInr
   const totalValueCompanyCurrency = inventory.reduce((sum, item) => {
-    const price = item.unitPrice || item.rate || 0;
-    const stock = item.currentStock || 0;
-    return sum + (price * stock);
+    const price = item.unitPrice || 0;
+    return sum + price;
   }, 0);
 
   const totalValueINR = inventory.reduce((sum, item) => {
-    const priceInINR = item.rateInInr || item.unitPrice || item.rate || 0;
-    const stock = item.currentStock || 0;
-    return sum + (priceInINR * stock);
+    const priceInINR = item.rateInInr || 0;
+    return sum + priceInINR;
   }, 0);
 
   // Get currency symbol for company currency
@@ -94,7 +86,7 @@ const InventoryManagement = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Items</CardTitle>
@@ -108,23 +100,12 @@ const InventoryManagement = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Low Stock Alerts</CardTitle>
-            <AlertCircle className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{lowStockItems}</div>
-            <p className="text-xs text-muted-foreground">Items need restocking</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Value ({companyCurrencyInfo.code})</CardTitle>
             <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(totalValueCompanyCurrency, companyCurrencyInfo.code)}</div>
-            <p className="text-xs text-muted-foreground">Total stock value</p>
+            <p className="text-xs text-muted-foreground">Total inventory value</p>
           </CardContent>
         </Card>
 
@@ -148,7 +129,7 @@ const InventoryManagement = () => {
             <div className="relative w-72">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
-                placeholder="Search items, SKU, or category..."
+                placeholder="Search items..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -161,12 +142,8 @@ const InventoryManagement = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Item Details</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Stock Level</TableHead>
-                  <TableHead>Unit Price ({companyCurrencyInfo.code})</TableHead>
+                  <TableHead>Item Name</TableHead>
                   <TableHead>Price (INR)</TableHead>
-                  <TableHead>Exchange Rate</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -174,35 +151,10 @@ const InventoryManagement = () => {
                 {filteredInventory.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell>
-                      <div>
-                        <div className="font-medium">{item.itemName || item.name}</div>
-                        <div className="text-sm text-gray-500">SKU: {item.sku}</div>
-                        {item.location && (
-                          <div className="text-xs text-gray-400">📍 {item.location}</div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{item.category}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">
-                          {item.currentStock} {item.unit}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          Min: {item.minStock} | Max: {item.maxStock}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {formatCurrency(item.unitPrice || item.rate || 0, companyCurrencyInfo.code)}
+                      <div className="font-medium">{item.itemName}</div>
                     </TableCell>
                     <TableCell className="font-medium text-blue-600">
                       {item.rateInInr ? formatCurrency(item.rateInInr) : 'N/A'}
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-500">
-                      {item.exchangeRateUsed ? `1 ${companyCurrencyInfo.code} = ${item.exchangeRateUsed.toFixed(4)} INR` : 'N/A'}
                     </TableCell>
                     <TableCell>
                       <Button
