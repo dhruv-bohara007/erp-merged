@@ -7,13 +7,24 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Trash2, Plus, Loader2 } from 'lucide-react';
-import { useInvoices, useClients, InvoiceItem } from '@/hooks/useFirestore';
+import { useInvoices, useClients } from '@/hooks/useFirestore';
 import { useCompanyData } from '@/hooks/useCompanyData';
 import { useTaxCalculations } from '@/hooks/useTaxCalculations';
 import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useInventory } from '@/hooks/useFirestore';
+import SearchableDropdown from './SearchableDropdown';
+
+interface InvoiceItem {
+  productCategory: string;
+  itemName: string;
+  productVersion: string;
+  quantity: number;
+  rate: number;
+  discount: number;
+  amount: number;
+}
 
 const InvoiceForm = () => {
   const navigate = useNavigate();
@@ -45,10 +56,26 @@ const InvoiceForm = () => {
   });
 
   const [items, setItems] = useState<InvoiceItem[]>([
-    { description: '', quantity: 1, rate: 0, amount: 0 }
+    { 
+      productCategory: '', 
+      itemName: '', 
+      productVersion: '', 
+      quantity: 1, 
+      rate: 0, 
+      discount: 0, 
+      amount: 0 
+    }
   ]);
 
   const [selectedClient, setSelectedClient] = useState<any>(null);
+
+  // Get active inventory items
+  const activeInventory = inventory.filter(item => item.status === 'active');
+  
+  // Get unique categories, names, and versions from active inventory
+  const availableCategories = [...new Set(activeInventory.map(item => item.productCategory))].filter(Boolean);
+  const availableNames = [...new Set(activeInventory.map(item => item.itemName))].filter(Boolean);
+  const availableVersions = [...new Set(activeInventory.map(item => item.productVersion))].filter(Boolean);
 
   // Calculate totals first
   const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
@@ -148,9 +175,12 @@ const InvoiceForm = () => {
 
   const addItem = () => {
     const newItem: InvoiceItem = {
-      description: '',
+      productCategory: '',
+      itemName: '',
+      productVersion: '',
       quantity: 1,
       rate: 0,
+      discount: 0,
       amount: 0
     };
     setItems([...items, newItem]);
@@ -167,16 +197,27 @@ const InvoiceForm = () => {
       if (i === index) {
         const updatedItem = { ...item, [field]: value };
         
-        // If description/itemName changed, auto-fill rate from inventory
-        if (field === 'description' && typeof value === 'string') {
-          const inventoryItem = inventory.find(inv => inv.itemName === value);
-          if (inventoryItem) {
-            updatedItem.rate = inventoryItem.rate;
-            updatedItem.amount = updatedItem.quantity * inventoryItem.rate;
+        // Auto-fill rate when category, name, and version are selected
+        if (field === 'productCategory' || field === 'itemName' || field === 'productVersion') {
+          if (updatedItem.productCategory && updatedItem.itemName && updatedItem.productVersion) {
+            const inventoryItem = activeInventory.find(inv => 
+              inv.productCategory === updatedItem.productCategory &&
+              inv.itemName === updatedItem.itemName &&
+              inv.productVersion === updatedItem.productVersion
+            );
+            if (inventoryItem) {
+              updatedItem.rate = inventoryItem.rate || 0;
+            }
           }
-        } else if (field === 'quantity' || field === 'rate') {
-          updatedItem.amount = updatedItem.quantity * updatedItem.rate;
         }
+        
+        // Recalculate amount when quantity, rate, or discount changes
+        if (field === 'quantity' || field === 'rate' || field === 'discount') {
+          const subtotalAmount = updatedItem.quantity * updatedItem.rate;
+          const discountAmount = (subtotalAmount * updatedItem.discount) / 100;
+          updatedItem.amount = subtotalAmount - discountAmount;
+        }
+        
         return updatedItem;
       }
       return item;
@@ -206,7 +247,7 @@ const InvoiceForm = () => {
       return;
     }
 
-    if (items.some(item => !item.description || item.quantity <= 0 || item.rate <= 0)) {
+    if (items.some(item => !item.itemName || item.quantity <= 0 || item.rate <= 0)) {
       toast({
         title: "Error",
         description: "Please fill all item details correctly",
@@ -464,36 +505,59 @@ const InvoiceForm = () => {
         <CardContent>
           <div className="space-y-4">
             {items.map((item, index) => (
-              <div key={index} className="grid grid-cols-12 gap-4 items-center p-4 bg-gray-50 rounded-lg">
-                <div className="col-span-5">
-                  <Label htmlFor={`itemName-${index}`}>Item Name *</Label>
-                  <Select onValueChange={(value) => updateItem(index, 'description', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select item or enter custom">
-                        {item.description || "Select item"}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__custom__">
-                        💡 Enter custom item name
-                      </SelectItem>
-                      {inventory.map((inventoryItem) => (
-                        <SelectItem key={inventoryItem.id} value={inventoryItem.itemName}>
-                          {inventoryItem.itemName} - {formatCurrency(inventoryItem.rate, companyCountry)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {(item.description === "__custom__" || !inventory.find(inv => inv.itemName === item.description)) && (
+              <div key={index} className="grid grid-cols-12 gap-4 items-end p-4 bg-gray-50 rounded-lg">
+                <div className="col-span-2">
+                  <Label htmlFor={`category-${index}`}>Item Category *</Label>
+                  <SearchableDropdown
+                    items={availableCategories}
+                    value={item.productCategory}
+                    onValueChange={(value) => updateItem(index, 'productCategory', value)}
+                    placeholder="Select category"
+                  />
+                  {!availableCategories.includes(item.productCategory) && item.productCategory && (
                     <Input
                       className="mt-2"
-                      placeholder="Enter custom item name"
-                      value={item.description === "__custom__" ? "" : item.description}
-                      onChange={(e) => updateItem(index, 'description', e.target.value)}
+                      placeholder="Custom category"
+                      value={item.productCategory}
+                      onChange={(e) => updateItem(index, 'productCategory', e.target.value)}
                     />
                   )}
                 </div>
                 <div className="col-span-2">
+                  <Label htmlFor={`name-${index}`}>Item Name *</Label>
+                  <SearchableDropdown
+                    items={availableNames}
+                    value={item.itemName}
+                    onValueChange={(value) => updateItem(index, 'itemName', value)}
+                    placeholder="Select name"
+                  />
+                  {!availableNames.includes(item.itemName) && item.itemName && (
+                    <Input
+                      className="mt-2"
+                      placeholder="Custom name"
+                      value={item.itemName}
+                      onChange={(e) => updateItem(index, 'itemName', e.target.value)}
+                    />
+                  )}
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor={`version-${index}`}>Item Version *</Label>
+                  <SearchableDropdown
+                    items={availableVersions}
+                    value={item.productVersion}
+                    onValueChange={(value) => updateItem(index, 'productVersion', value)}
+                    placeholder="Select version"
+                  />
+                  {!availableVersions.includes(item.productVersion) && item.productVersion && (
+                    <Input
+                      className="mt-2"
+                      placeholder="Custom version"
+                      value={item.productVersion}
+                      onChange={(e) => updateItem(index, 'productVersion', e.target.value)}
+                    />
+                  )}
+                </div>
+                <div className="col-span-1">
                   <Label htmlFor={`qty-${index}`}>Quantity *</Label>
                   <Input
                     id={`qty-${index}`}
@@ -503,7 +567,7 @@ const InvoiceForm = () => {
                     onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-1">
                   <Label htmlFor={`rate-${index}`}>Rate ({companyCurrency.symbol}) *</Label>
                   <Input
                     id={`rate-${index}`}
@@ -516,6 +580,17 @@ const InvoiceForm = () => {
                         updateItem(index, 'rate', value === '' ? 0 : Number(value));
                       }
                     }}
+                  />
+                </div>
+                <div className="col-span-1">
+                  <Label htmlFor={`discount-${index}`}>Discount (%)</Label>
+                  <Input
+                    id={`discount-${index}`}
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={item.discount}
+                    onChange={(e) => updateItem(index, 'discount', Number(e.target.value))}
                   />
                 </div>
                 <div className="col-span-2">
