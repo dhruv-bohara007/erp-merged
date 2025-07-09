@@ -118,15 +118,15 @@ const Settings = () => {
   const handleCountryChange = (countryValue: string) => {
     const countryInfo = countriesWithTaxInfo.find(c => c.value === countryValue);
     const currencyInfo = getCurrencyByCountry(countryValue);
-    const phoneCode = countryPhoneCodes[countryValue] || '+1';
+    const phoneCode = countryPhoneCodes[countryValue]?.code || '+1';
     
     if (countryInfo && formData) {
       setSelectedCountryInfo(countryInfo);
       
       // Auto-populate phone country code if phone is empty or only contains a country code
       const currentPhone = formData.phone || '';
-      const hasOnlyCountryCode = Object.values(countryPhoneCodes).some(code => 
-        currentPhone === code || currentPhone === code + ' '
+      const hasOnlyCountryCode = Object.values(countryPhoneCodes).some(data => 
+        currentPhone === data.code || currentPhone === data.code + ' '
       );
       
       const updatedPhone = (!currentPhone || hasOnlyCountryCode) 

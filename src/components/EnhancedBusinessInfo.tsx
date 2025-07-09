@@ -4,6 +4,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { 
@@ -182,22 +184,39 @@ const EnhancedBusinessInfo: React.FC<EnhancedBusinessInfoProps> = ({
                 Phone Number
               </Label>
               <div className="flex gap-2">
-                <Select 
-                  value={selectedPhoneCode} 
-                  onValueChange={handlePhoneCodeChange}
-                  disabled={!isEditing}
-                >
-                  <SelectTrigger className="w-24">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(countryPhoneCodes).map(([country, code]) => (
-                      <SelectItem key={country} value={code}>
-                        {code}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-28 justify-between"
+                      disabled={!isEditing}
+                    >
+                      {selectedPhoneCode}
+                      <span className="ml-2 h-4 w-4 shrink-0 opacity-50">▼</span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-0">
+                    <Command>
+                      <CommandInput placeholder="Search country code..." />
+                      <CommandEmpty>No country code found.</CommandEmpty>
+                      <CommandList>
+                        <CommandGroup>
+                          {Object.entries(countryPhoneCodes).map(([country, data]) => (
+                            <CommandItem
+                              key={country}
+                              value={`${data.code} ${data.name}`}
+                              onSelect={() => handlePhoneCodeChange(data.code)}
+                            >
+                              <span className="font-mono">{data.code}</span>
+                              <span className="ml-2 text-muted-foreground">{data.name}</span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
                 <Input
                   id="phone"
                   value={getPhoneWithoutCode(formData.phone || '')}
