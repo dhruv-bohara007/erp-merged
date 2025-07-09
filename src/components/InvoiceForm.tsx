@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Trash2, Plus, Loader2 } from 'lucide-react';
-import { useInvoices, useClients } from '@/hooks/useFirestore';
+import { useInvoices, useClients, InvoiceItem } from '@/hooks/useFirestore';
 import { useCompanyData } from '@/hooks/useCompanyData';
 import { useTaxCalculations } from '@/hooks/useTaxCalculations';
 import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
@@ -16,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useInventory } from '@/hooks/useFirestore';
 import SearchableDropdown from './SearchableDropdown';
 
-interface InvoiceItem {
+interface InvoiceFormItem {
   productCategory: string;
   itemName: string;
   productVersion: string;
@@ -55,7 +56,7 @@ const InvoiceForm = () => {
     terms: 'Payment due within 30 days of invoice date.',
   });
 
-  const [items, setItems] = useState<InvoiceItem[]>([
+  const [items, setItems] = useState<InvoiceFormItem[]>([
     { 
       productCategory: '', 
       itemName: '', 
@@ -174,7 +175,7 @@ const InvoiceForm = () => {
   }, [subtotal, selectedClient, companyData?.country, taxCalculation.totalAmount]);
 
   const addItem = () => {
-    const newItem: InvoiceItem = {
+    const newItem: InvoiceFormItem = {
       productCategory: '',
       itemName: '',
       productVersion: '',
@@ -192,7 +193,7 @@ const InvoiceForm = () => {
     }
   };
 
-  const updateItem = (index: number, field: keyof InvoiceItem, value: string | number) => {
+  const updateItem = (index: number, field: keyof InvoiceFormItem, value: string | number) => {
     setItems(items.map((item, i) => {
       if (i === index) {
         const updatedItem = { ...item, [field]: value };
@@ -259,10 +260,18 @@ const InvoiceForm = () => {
     setLoading(true);
 
     try {
+      // Convert InvoiceFormItem[] to InvoiceItem[] expected by firestore
+      const firestoreItems: InvoiceItem[] = items.map(item => ({
+        description: `${item.productCategory} - ${item.itemName} (${item.productVersion})`,
+        quantity: item.quantity,
+        rate: item.rate,
+        amount: item.amount
+      }));
+
       const invoice = {
         invoiceNumber: invoiceData.invoiceNumber,
         clientId: invoiceData.clientId,
-        items,
+        items: firestoreItems,
         subtotal,
         cgst: taxCalculation.taxes.find(t => t.name === 'CGST')?.amount || 0,
         sgst: taxCalculation.taxes.find(t => t.name === 'SGST')?.amount || 0,
