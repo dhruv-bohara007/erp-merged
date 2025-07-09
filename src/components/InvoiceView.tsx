@@ -29,7 +29,7 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
     }
   };
 
-  // Function to format phone numbers with proper spacing
+  // Enhanced function to format phone numbers with proper spacing and alignment
   const formatPhoneNumber = (phoneNumber: string, countryCode: string) => {
     if (!phoneNumber) return '';
     
@@ -37,8 +37,16 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
     const countryInfo = countryPhoneCodes[countryCode];
     const code = countryInfo?.code || '';
     
-    // Ensure proper spacing between country code and phone number
-    return `${code} ${phoneNumber}`.trim();
+    // Remove any existing country code from the phone number to avoid duplication
+    let cleanPhoneNumber = phoneNumber.replace(/^\+?\d{1,4}\s*/, '').trim();
+    
+    // If the phone number is empty after cleaning, use the original
+    if (!cleanPhoneNumber) {
+      cleanPhoneNumber = phoneNumber;
+    }
+    
+    // Format with consistent spacing: country code + single space + phone number
+    return `${code} ${cleanPhoneNumber}`.trim();
   };
 
   const handleDownloadPDF = async () => {
@@ -206,6 +214,14 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
               display: flex;
               align-items: center;
               gap: 8px;
+            }
+            
+            /* Phone number formatting with consistent alignment */
+            .phone-number {
+              font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+              font-size: 14px;
+              letter-spacing: 0.5px;
+              word-spacing: 2px;
             }
             
             /* Table Styles */
@@ -378,7 +394,7 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                     <div><strong>${invoice.companyName}</strong></div>
                     <div>${invoice.companyAddress}</div>
                     ${invoice.companyCity ? `<div>${invoice.companyCity}</div>` : ''}
-                    ${invoice.companyPhone ? `<div>📞 ${formatPhoneNumber(invoice.companyPhone, companyCountry)}</div>` : ''}
+                    ${invoice.companyPhone ? `<div>📞 <span class="phone-number">${formatPhoneNumber(invoice.companyPhone, companyCountry)}</span></div>` : ''}
                     ${invoice.companyEmail ? `<div>📧 ${invoice.companyEmail}</div>` : ''}
                     ${invoice.companyWebsite ? `<div>🌐 ${invoice.companyWebsite}</div>` : ''}
                   </div>
@@ -439,7 +455,7 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                     <div class="section-title">👤 Contact Details</div>
                     <div><strong>${invoice.clientName}</strong></div>
                     <div>📧 ${invoice.clientEmail}</div>
-                    ${invoice.clientPhone ? `<div>📞 ${formatPhoneNumber(invoice.clientPhone, clientCountry)}</div>` : ''}
+                    ${invoice.clientPhone ? `<div>📞 <span class="phone-number">${formatPhoneNumber(invoice.clientPhone, clientCountry)}</span></div>` : ''}
                   </div>
 
                   <div class="info-section">
@@ -766,7 +782,7 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                     {invoice.companyPhone && (
                       <p className="text-gray-600 text-lg flex items-center gap-2">
                         <Phone className="w-4 h-4" />
-                        {formatPhoneNumber(invoice.companyPhone, companyCountry)}
+                        <span className="font-mono text-sm">{formatPhoneNumber(invoice.companyPhone, companyCountry)}</span>
                       </p>
                     )}
                     {invoice.companyEmail && (
@@ -897,7 +913,7 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                   {invoice.clientPhone && (
                     <p className="text-gray-600 text-lg flex items-center gap-2 mt-2">
                       <Phone className="w-4 h-4" />
-                      {formatPhoneNumber(invoice.clientPhone, clientCountry)}
+                      <span className="font-mono text-sm">{formatPhoneNumber(invoice.clientPhone, clientCountry)}</span>
                     </p>
                   )}
                 </div>
