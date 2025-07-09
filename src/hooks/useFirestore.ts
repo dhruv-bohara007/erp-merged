@@ -709,7 +709,7 @@ export const useInventory = () => {
     return () => unsubscribe();
   }, [currentUser?.companyId]);
 
-  const addInventoryItem = async (item: Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const addInventoryItem = async (item: Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt' | 'companyId'>) => {
     if (!currentUser?.companyId) {
       throw new Error('User company ID not found');
     }
