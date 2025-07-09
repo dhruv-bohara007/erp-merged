@@ -1,7 +1,5 @@
-
 import { useState, useEffect } from 'react';
 import { exchangeRateService } from '@/services/exchangeRateService';
-import { countryCurrencyMapping } from '@/data/countryCurrencyMapping';
 
 interface ExchangeRates {
   [key: string]: number;
@@ -13,16 +11,35 @@ interface CurrencyInfo {
   name: string;
 }
 
-// Export the country-currency mapping functions
-export const getCurrencyInfo = (countryCode: string): CurrencyInfo => {
-  return countryCurrencyMapping[countryCode] || { code: 'USD', symbol: '$', name: 'US Dollar' };
+export const currencyMap: Record<string, CurrencyInfo> = {
+  'US': { code: 'USD', symbol: '$', name: 'US Dollar' },
+  'IN': { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
+  'GB': { code: 'GBP', symbol: '£', name: 'British Pound' },
+  'DE': { code: 'EUR', symbol: '€', name: 'Euro' },
+  'FR': { code: 'EUR', symbol: '€', name: 'Euro' },
+  'IT': { code: 'EUR', symbol: '€', name: 'Euro' },
+  'ES': { code: 'EUR', symbol: '€', name: 'Euro' },
+  'NL': { code: 'EUR', symbol: '€', name: 'Euro' },
+  'CA': { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar' },
+  'AU': { code: 'AUD', symbol: 'A$', name: 'Australian Dollar' },
+  'JP': { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
+  'CN': { code: 'CNY', symbol: '¥', name: 'Chinese Yuan' },
+  'SG': { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar' },
+  'HK': { code: 'HKD', symbol: 'HK$', name: 'Hong Kong Dollar' },
+  'MX': { code: 'MXN', symbol: '$', name: 'Mexican Peso' },
+  'BR': { code: 'BRL', symbol: 'R$', name: 'Brazilian Real' },
+  'ZA': { code: 'ZAR', symbol: 'R', name: 'South African Rand' },
+  'AE': { code: 'AED', symbol: 'د.إ', name: 'UAE Dirham' },
+  'SA': { code: 'SAR', symbol: '﷼', name: 'Saudi Riyal' },
 };
 
 export const useCurrencyConverter = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const convertToINR = async (amount: number, fromCurrency: string): Promise<{ amountInINR: number; rate: number }> => {
+  const convertToINR = async (amount: number, fromCountry: string): Promise<{ amountInINR: number; rate: number }> => {
+    const fromCurrency = currencyMap[fromCountry]?.code || 'USD';
+    
     setLoading(true);
     try {
       const result = await exchangeRateService.convertToINR(amount, fromCurrency);
@@ -37,7 +54,9 @@ export const useCurrencyConverter = () => {
     }
   };
 
-  const convertFromINR = async (amountINR: number, toCurrency: string): Promise<{ convertedAmount: number; rate: number }> => {
+  const convertFromINR = async (amountINR: number, toCountry: string): Promise<{ convertedAmount: number; rate: number }> => {
+    const toCurrency = currencyMap[toCountry]?.code || 'USD';
+    
     setLoading(true);
     try {
       const result = await exchangeRateService.convertFromINR(amountINR, toCurrency);
@@ -54,8 +73,8 @@ export const useCurrencyConverter = () => {
 
   const convertCurrency = (amount: number, fromCountry: string, toCountry: string): number => {
     // This is a legacy method, kept for compatibility but not recommended for new code
-    const fromCurrency = getCurrencyInfo(fromCountry)?.code || 'USD';
-    const toCurrency = getCurrencyInfo(toCountry)?.code || 'USD';
+    const fromCurrency = currencyMap[fromCountry]?.code || 'USD';
+    const toCurrency = currencyMap[toCountry]?.code || 'USD';
     
     if (fromCurrency === toCurrency) return amount;
     
@@ -69,6 +88,10 @@ export const useCurrencyConverter = () => {
     
     const inrAmount = amount * fromRate;
     return inrAmount / toRate;
+  };
+
+  const getCurrencyInfo = (countryCode: string): CurrencyInfo => {
+    return currencyMap[countryCode] || { code: 'USD', symbol: '$', name: 'US Dollar' };
   };
 
   const formatCurrency = (amount: number, countryCode: string): string => {

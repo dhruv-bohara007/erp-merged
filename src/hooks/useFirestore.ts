@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { 
   collection, 
@@ -147,15 +148,6 @@ export interface Expense {
 
 export interface InventoryItem {
   id: string;
-  // New multi-currency fields
-  itemName?: string; // Primary item name field
-  unitPrice: number; // Price in company currency
-  rate: number; // Same as unitPrice, used for invoice generation
-  rateInInr?: number; // Converted price in INR
-  exchangeRateUsed?: number; // Exchange rate used for conversion
-  companyCurrency?: string; // Company's currency code
-  companyCountry?: string; // Company's country
-  // Existing fields for backward compatibility
   name: string;
   description: string;
   category: string;
@@ -163,6 +155,7 @@ export interface InventoryItem {
   currentStock: number;
   minStock: number;
   maxStock: number;
+  unitPrice: number;
   unitCost: number;
   unit: string;
   supplier: string;
@@ -695,26 +688,15 @@ export const useInventory = () => {
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
         console.log('Inventory snapshot received:', snapshot.docs.length, 'documents');
-        const inventoryData = snapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-            // Handle new multi-currency fields with fallbacks
-            itemName: data.itemName || data.name,
-            unitPrice: data.unitPrice || data.rate || 0,
-            rate: data.rate || data.unitPrice || 0,
-            rateInInr: data.rateInInr,
-            exchangeRateUsed: data.exchangeRateUsed,
-            companyCurrency: data.companyCurrency,
-            companyCountry: data.companyCountry,
-            createdAt: data.createdAt?.toDate(),
-            updatedAt: data.updatedAt?.toDate(),
-          };
-        }) as InventoryItem[];
+        const inventoryData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate(),
+          updatedAt: doc.data().updatedAt?.toDate(),
+        })) as InventoryItem[];
         
         // Sort by name in memory instead of using orderBy to avoid composite index
-        inventoryData.sort((a, b) => (a.itemName || a.name).localeCompare(b.itemName || b.name));
+        inventoryData.sort((a, b) => a.name.localeCompare(b.name));
         
         setInventory(inventoryData);
         setLoading(false);
