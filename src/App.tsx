@@ -28,7 +28,7 @@ const queryClient = new QueryClient();
 const AuthenticatedApp = () => {
   const { currentUser } = useAuth();
 
-  // If user is authenticated but on login/register page, redirect to their dashboard
+  // Always redirect to login if not authenticated
   const getDefaultRedirect = () => {
     if (!currentUser) return '/login';
     
@@ -48,15 +48,11 @@ const AuthenticatedApp = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Routes>
-        {/* Public routes */}
-        <Route path="/login" element={
-          currentUser ? <Navigate to={getDefaultRedirect()} replace /> : <LoginForm />
-        } />
-        <Route path="/register" element={
-          currentUser ? <Navigate to={getDefaultRedirect()} replace /> : <RegisterForm />
-        } />
+        {/* Public routes - Always accessible */}
+        <Route path="/login" element={<LoginForm />} />
+        <Route path="/register" element={<RegisterForm />} />
 
-        {/* Company Setup Route */}
+        {/* Company Setup Route - Only for authenticated company admins */}
         <Route path="/company-setup" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
             <CompanySignupForm />
@@ -236,14 +232,8 @@ const AuthenticatedApp = () => {
           </ProtectedRoute>
         } />
 
-        {/* Root redirect */}
-        <Route path="/" element={
-          currentUser ? (
-            <Navigate to={getDefaultRedirect()} replace />
-          ) : (
-            <Navigate to="/login" replace />
-          )
-        } />
+        {/* Root redirect - Always go to login first */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
 
         {/* 404 page */}
         <Route path="*" element={<NotFound />} />
