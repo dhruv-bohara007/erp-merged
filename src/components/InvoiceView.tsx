@@ -29,6 +29,18 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
     }
   };
 
+  // Function to format phone numbers with proper spacing
+  const formatPhoneNumber = (phoneNumber: string, countryCode: string) => {
+    if (!phoneNumber) return '';
+    
+    // Get country code from countryPhoneCodes
+    const countryInfo = countryPhoneCodes[countryCode];
+    const code = countryInfo?.code || '';
+    
+    // Ensure proper spacing between country code and phone number
+    return `${code} ${phoneNumber}`.trim();
+  };
+
   const handleDownloadPDF = async () => {
     try {
       // Use the stored country fields from the invoice with fallbacks
@@ -245,6 +257,21 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
               background: white;
               padding: 10px;
               margin-top: 10px;
+              margin-bottom: 15px;
+            }
+            .signature-details {
+              margin-top: 15px;
+              padding-top: 15px;
+              border-top: 1px solid #d8b4fe;
+            }
+            .signature-name {
+              font-weight: bold;
+              color: #374151;
+              margin-bottom: 5px;
+            }
+            .signature-position {
+              color: #6b7280;
+              font-style: italic;
             }
             
             /* Summary Section */
@@ -351,7 +378,7 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                     <div><strong>${invoice.companyName}</strong></div>
                     <div>${invoice.companyAddress}</div>
                     ${invoice.companyCity ? `<div>${invoice.companyCity}</div>` : ''}
-                    ${invoice.companyPhone ? `<div>📞 ${countryPhoneCodes[companyCountry]?.code || ''}${invoice.companyPhone}</div>` : ''}
+                    ${invoice.companyPhone ? `<div>📞 ${formatPhoneNumber(invoice.companyPhone, companyCountry)}</div>` : ''}
                     ${invoice.companyEmail ? `<div>📧 ${invoice.companyEmail}</div>` : ''}
                     ${invoice.companyWebsite ? `<div>🌐 ${invoice.companyWebsite}</div>` : ''}
                   </div>
@@ -395,6 +422,10 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                     <div class="signature-section">
                       <div class="section-title">✍️ Authorized Signatory</div>
                       <img src="${invoice.signatureUrl}" alt="Authorized Signatory" class="signature-image">
+                      <div class="signature-details">
+                        ${invoice.businessOwnerName ? `<div class="signature-name">${invoice.businessOwnerName}</div>` : ''}
+                        ${invoice.businessOwnerPosition ? `<div class="signature-position">${invoice.businessOwnerPosition}</div>` : ''}
+                      </div>
                     </div>
                   ` : ''}
                 </div>
@@ -408,7 +439,7 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                     <div class="section-title">👤 Contact Details</div>
                     <div><strong>${invoice.clientName}</strong></div>
                     <div>📧 ${invoice.clientEmail}</div>
-                    ${invoice.clientPhone ? `<div>📞 ${countryPhoneCodes[clientCountry]?.code || ''}${invoice.clientPhone}</div>` : ''}
+                    ${invoice.clientPhone ? `<div>📞 ${formatPhoneNumber(invoice.clientPhone, clientCountry)}</div>` : ''}
                   </div>
 
                   <div class="info-section">
@@ -735,7 +766,7 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                     {invoice.companyPhone && (
                       <p className="text-gray-600 text-lg flex items-center gap-2">
                         <Phone className="w-4 h-4" />
-                        {countryPhoneCodes[companyCountry]?.code || ''} {invoice.companyPhone}
+                        {formatPhoneNumber(invoice.companyPhone, companyCountry)}
                       </p>
                     )}
                     {invoice.companyEmail && (
@@ -827,15 +858,28 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                   </div>
                 )}
 
-                {/* Business Owner Signature - Updated heading */}
+                {/* Business Owner Signature - Updated with Name and Position */}
                 {invoice.signatureUrl && (
                   <div className="bg-purple-50 p-6 rounded-xl border border-purple-200">
                     <h4 className="font-bold mb-4 text-gray-900 text-lg">Authorized Signatory</h4>
                     <img 
                       src={invoice.signatureUrl} 
-                       alt="Authorized Signatory"
-                      className="max-w-48 h-24 object-contain border-2 rounded-lg bg-white p-3 shadow-sm"
+                      alt="Authorized Signatory"
+                      className="max-w-48 h-24 object-contain border-2 rounded-lg bg-white p-3 shadow-sm mb-4"
                     />
+                    {/* Business Owner Details */}
+                    <div className="mt-4 pt-4 border-t border-purple-200">
+                      {invoice.businessOwnerName && (
+                        <div className="font-semibold text-gray-900 text-base mb-2">
+                          {invoice.businessOwnerName}
+                        </div>
+                      )}
+                      {invoice.businessOwnerPosition && (
+                        <div className="text-gray-600 italic text-sm">
+                          {invoice.businessOwnerPosition}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -853,7 +897,7 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                   {invoice.clientPhone && (
                     <p className="text-gray-600 text-lg flex items-center gap-2 mt-2">
                       <Phone className="w-4 h-4" />
-                      {countryPhoneCodes[clientCountry]?.code || ''} {invoice.clientPhone}
+                      {formatPhoneNumber(invoice.clientPhone, clientCountry)}
                     </p>
                   )}
                 </div>
