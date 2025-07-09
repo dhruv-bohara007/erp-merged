@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2, Save } from 'lucide-react';
 import { useCompanyData } from '@/hooks/useCompanyData';
 import { countries } from '@/data/countries';
-import { currencyMap } from '@/hooks/useCurrencyConverter';
+import { countryCurrencyMapping, getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 import FileUploadButton from './FileUploadButton';
 
 const Settings = () => {
@@ -72,7 +72,7 @@ const Settings = () => {
     const updatedData = {
       ...companyData,
       ...formData,
-      companyCurrency: currencyMap[formData.country]?.code || 'USD'
+      companyCurrency: getCurrencyByCountry(formData.country).code
     };
 
     await saveCompanyData(updatedData);
@@ -247,7 +247,7 @@ const Settings = () => {
                   onValueChange={(value) => setFormData({
                     ...formData, 
                     country: value,
-                    companyCurrency: currencyMap[value]?.code || 'USD'
+                    companyCurrency: getCurrencyByCountry(value).code
                   })}
                 >
                   <SelectTrigger>
@@ -255,8 +255,8 @@ const Settings = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {countries.map((country) => (
-                      <SelectItem key={country.code} value={country.code}>
-                        {country.name}
+                      <SelectItem key={country.value} value={country.value}>
+                        {country.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
