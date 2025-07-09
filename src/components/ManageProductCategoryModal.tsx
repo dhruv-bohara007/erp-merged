@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +19,6 @@ interface ManageProductCategoryModalProps {
 type Step = 'category' | 'name' | 'version';
 
 const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryModalProps) => {
-  const navigate = useNavigate();
   const { toast } = useToast();
   const { currentUser } = useAuth();
   const { 
@@ -39,15 +37,6 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
   const [newVersion, setNewVersion] = useState('');
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
-
-  // Check authentication on mount
-  useEffect(() => {
-    if (!currentUser?.companyId) {
-      console.log('User not authenticated or missing company ID, redirecting to login');
-      navigate('/login');
-      return;
-    }
-  }, [currentUser, navigate]);
 
   const categories = [...new Set(productDefinitions.map(p => p.category))];
   const namesInCategory = productDefinitions
@@ -71,13 +60,12 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
   };
 
   const handleSave = () => {
-    // Just close the modal and navigate back to inventory
+    // Just close the modal without navigation
     toast({
       title: "Success",
       description: "Product definitions management completed",
     });
     handleClose();
-    navigate('/');
   };
 
   const handleCancel = () => {
@@ -86,17 +74,6 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
 
   const handleAddCategory = async () => {
     if (!newCategory.trim()) return;
-    
-    // Check authentication before performing operations
-    if (!currentUser?.companyId) {
-      toast({
-        title: "Authentication Error",
-        description: "Please log in again to continue",
-        variant: "destructive",
-      });
-      navigate('/login');
-      return;
-    }
     
     try {
       // Create a placeholder product definition for the new category
@@ -124,16 +101,6 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
   const handleAddName = async () => {
     if (!newName.trim() || !selectedCategory) return;
     
-    if (!currentUser?.companyId) {
-      toast({
-        title: "Authentication Error",
-        description: "Please log in again to continue",
-        variant: "destructive",
-      });
-      navigate('/login');
-      return;
-    }
-    
     try {
       await addProductDefinition({
         category: selectedCategory,
@@ -158,16 +125,6 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
 
   const handleAddVersion = async () => {
     if (!newVersion.trim() || !selectedCategory || !selectedName) return;
-    
-    if (!currentUser?.companyId) {
-      toast({
-        title: "Authentication Error",
-        description: "Please log in again to continue",
-        variant: "destructive",
-      });
-      navigate('/login');
-      return;
-    }
     
     try {
       await addProductDefinition({
@@ -194,16 +151,6 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
   const handleEdit = async (id: string, field: 'category' | 'name' | 'version', newValue: string) => {
     if (!newValue.trim()) return;
     
-    if (!currentUser?.companyId) {
-      toast({
-        title: "Authentication Error",
-        description: "Please log in again to continue",
-        variant: "destructive",
-      });
-      navigate('/login');
-      return;
-    }
-    
     try {
       const item = productDefinitions.find(p => p.id === id);
       if (!item) return;
@@ -229,16 +176,6 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this item?')) return;
-    
-    if (!currentUser?.companyId) {
-      toast({
-        title: "Authentication Error",
-        description: "Please log in again to continue",
-        variant: "destructive",
-      });
-      navigate('/login');
-      return;
-    }
     
     try {
       await deleteProductDefinition(id);

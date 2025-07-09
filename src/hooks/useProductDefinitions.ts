@@ -71,6 +71,18 @@ export const useProductDefinitions = () => {
     console.log('Creating new product definition with placeholder inventory item:', definition);
     
     try {
+      // Check if this exact combination already exists to prevent duplicates
+      const existingItem = inventory.find(item => 
+        item.productCategory === definition.category &&
+        item.itemName === definition.name &&
+        item.productVersion === definition.version
+      );
+
+      if (existingItem) {
+        console.log('Product definition already exists, skipping creation');
+        return;
+      }
+
       // Create a placeholder inventory item with minimal required fields
       await addInventoryItem({
         itemName: definition.name,
