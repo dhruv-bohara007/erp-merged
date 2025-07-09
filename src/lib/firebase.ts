@@ -2,6 +2,7 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { getStorage } from 'firebase/storage';
 
 // Check if we're in development mode
 const isDevelopment = import.meta.env.DEV;
@@ -25,6 +26,9 @@ export const db = getFirestore(app);
 
 // Initialize Auth
 export const auth = getAuth(app);
+
+// Initialize Storage
+export const storage = getStorage(app);
 
 // Note: Emulators are disabled to avoid connection issues
 // If you want to use emulators, make sure they're running on ports 9099 (Auth) and 8080 (Firestore)
