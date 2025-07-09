@@ -1,19 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { 
-  collection, 
-  doc, 
-  getDocs, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  onSnapshot,
-  Timestamp
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { useAuth } from '@/contexts/AuthContext';
+import { useInventory } from './useFirestore';
 
 export interface ProductDefinition {
   id: string;
@@ -29,102 +16,76 @@ export const useProductDefinitions = () => {
   const [productDefinitions, setProductDefinitions] = useState<ProductDefinition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { currentUser } = useAuth();
+  const { inventory, loading: inventoryLoading, addInventoryItem, updateInventoryItem, deleteInventoryItem } = useInventory();
 
   useEffect(() => {
-    console.log('useProductDefinitions: currentUser:', currentUser);
-    console.log('useProductDefinitions: currentUser.companyId:', currentUser?.companyId);
-    console.log('useProductDefinitions: currentUser.role:', currentUser?.role);
-
-    if (!currentUser) {
-      console.log('useProductDefinitions: No current user, clearing data');
-      setProductDefinitions([]);
-      setLoading(false);
-      setError('No authenticated user');
-      return;
-    }
-
-    if (!currentUser.companyId) {
-      console.log('useProductDefinitions: No company ID found for user');
-      setProductDefinitions([]);
-      setLoading(false);
-      setError('User has no company ID');
-      return;
-    }
-
-    if (currentUser.role !== 'company_admin' && currentUser.role !== 'super_admin') {
-      console.log('useProductDefinitions: User does not have required role:', currentUser.role);
-      setProductDefinitions([]);
-      setLoading(false);
-      setError('Insufficient permissions');
-      return;
-    }
-
-    console.log('Setting up product definitions listener for company:', currentUser.companyId);
+    console.log('useProductDefinitions: Deriving from inventory data');
     
-    const q = query(
-      collection(db, 'productDefinitions'), 
-      where('companyId', '==', currentUser.companyId)
-    );
-    
-    const unsubscribe = onSnapshot(q, 
-      (snapshot) => {
-        console.log('Product definitions snapshot received:', snapshot.docs.length, 'documents');
-        const definitionData = snapshot.docs.map(doc => {
-          const data = doc.data();
-          console.log('Product definition document:', doc.id, data);
-          return {
-            id: doc.id,
-            ...data,
-            createdAt: data.createdAt?.toDate(),
-            updatedAt: data.updatedAt?.toDate(),
-          };
-        }) as ProductDefinition[];
-        
-        // Sort by category, then name, then version
-        definitionData.sort((a, b) => {
-          if (a.category !== b.category) return a.category.localeCompare(b.category);
-          if (a.name !== b.name) return a.name.localeCompare(b.name);
-          return a.version.localeCompare(b.version);
-        });
-        
-        console.log('Final sorted product definitions:', definitionData);
-        setProductDefinitions(definitionData);
-        setLoading(false);
-        setError(null);
-      },
-      (err) => {
-        console.error('Error fetching product definitions:', err);
-        console.error('Error code:', err.code);
-        console.error('Error message:', err.message);
-        console.error('Current user when error occurred:', currentUser);
-        setError(`${err.code}: ${err.message}`);
-        setLoading(false);
-      }
-    );
-
-    return () => {
-      console.log('Cleaning up product definitions listener');
-      unsubscribe();
-    };
-  }, [currentUser?.companyId, currentUser?.role, currentUser?.uid]);
-
-  const addProductDefinition = async (definition: Omit<ProductDefinition, 'id' | 'createdAt' | 'updatedAt' | 'companyId'>) => {
-    if (!currentUser?.companyId) {
-      throw new Error('User company ID not found');
+    if (inventoryLoading) {
+      setLoading(true);
+      return;
     }
-
-    console.log('Adding product definition:', definition, 'for company:', currentUser.companyId);
 
     try {
-      const docRef = await addDoc(collection(db, 'productDefinitions'), {
-        ...definition,
-        companyId: currentUser.companyId,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
+      // Extract unique combinations of category, name, and version from inventory
+      const uniqueDefinitions = new Map();
+      
+      inventory.forEach(item => {
+        if (item.productCategory && item.itemName && item.productVersion) {
+          const key = `${item.productCategory}-${item.itemName}-${item.productVersion}`;
+          if (!uniqueDefinitions.has(key)) {
+            uniqueDefinitions.set(key, {
+              id: `${item.productCategory}-${item.itemName}-${item.productVersion}`.replace(/\s+/g, '-').toLowerCase(),
+              category: item.productCategory,
+              name: item.itemName,
+              version: item.productVersion,
+              companyId: item.companyId || '',
+              createdAt: item.createdAt || new Date(),
+              updatedAt: item.updatedAt || new Date(),
+            });
+          }
+        }
       });
-      console.log('Product definition added with ID:', docRef.id);
-      return docRef.id;
+
+      const definitionData = Array.from(uniqueDefinitions.values());
+      
+      // Sort by category, then name, then version
+      definitionData.sort((a, b) => {
+        if (a.category !== b.category) return a.category.localeCompare(b.category);
+        if (a.name !== b.name) return a.name.localeCompare(b.name);
+        return a.version.localeCompare(b.version);
+      });
+      
+      console.log('Final sorted product definitions from inventory:', definitionData);
+      setProductDefinitions(definitionData);
+      setLoading(false);
+      setError(null);
+    } catch (err) {
+      console.error('Error processing inventory data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to process inventory data');
+      setLoading(false);
+    }
+  }, [inventory, inventoryLoading]);
+
+  const addProductDefinition = async (definition: Omit<ProductDefinition, 'id' | 'createdAt' | 'updatedAt' | 'companyId'>) => {
+    console.log('Adding product definition by creating inventory item:', definition);
+
+    try {
+      // Create a placeholder inventory item with the new product definition
+      await addInventoryItem({
+        itemName: definition.name,
+        productCategory: definition.category,
+        productVersion: definition.version,
+        unitPrice: 0,
+        rate: 0,
+        rateInInr: 0,
+        exchangeRateUsed: 1,
+        companyCurrency: 'INR',
+        companyCountry: 'IN',
+        status: 'active'
+      });
+      
+      console.log('Product definition added via inventory item');
     } catch (err) {
       console.error('Error adding product definition:', err);
       throw new Error(err instanceof Error ? err.message : 'Failed to add product definition');
@@ -133,12 +94,23 @@ export const useProductDefinitions = () => {
 
   const updateProductDefinition = async (id: string, updates: Partial<ProductDefinition>) => {
     console.log('Updating product definition:', id, 'with updates:', updates);
+    
     try {
-      const docRef = doc(db, 'productDefinitions', id);
-      await updateDoc(docRef, {
-        ...updates,
-        updatedAt: Timestamp.now(),
-      });
+      // Find inventory items that match the old definition
+      const matchingItems = inventory.filter(item => 
+        `${item.productCategory}-${item.itemName}-${item.productVersion}`.replace(/\s+/g, '-').toLowerCase() === id
+      );
+
+      // Update all matching inventory items
+      const updatePromises = matchingItems.map(item => 
+        updateInventoryItem(item.id, {
+          productCategory: updates.category || item.productCategory,
+          itemName: updates.name || item.itemName,
+          productVersion: updates.version || item.productVersion,
+        })
+      );
+
+      await Promise.all(updatePromises);
       console.log('Product definition updated successfully');
     } catch (err) {
       console.error('Error updating product definition:', err);
@@ -148,8 +120,17 @@ export const useProductDefinitions = () => {
 
   const deleteProductDefinition = async (id: string) => {
     console.log('Deleting product definition:', id);
+    
     try {
-      await deleteDoc(doc(db, 'productDefinitions', id));
+      // Find inventory items that match the definition
+      const matchingItems = inventory.filter(item => 
+        `${item.productCategory}-${item.itemName}-${item.productVersion}`.replace(/\s+/g, '-').toLowerCase() === id
+      );
+
+      // Delete all matching inventory items
+      const deletePromises = matchingItems.map(item => deleteInventoryItem(item.id));
+      await Promise.all(deletePromises);
+      
       console.log('Product definition deleted successfully');
     } catch (err) {
       console.error('Error deleting product definition:', err);
