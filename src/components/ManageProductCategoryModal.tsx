@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -472,6 +471,19 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
     </div>
   );
 
+  const getStepDescription = () => {
+    switch (currentStep) {
+      case 'category':
+        return 'Manage product categories by adding new ones or editing existing categories. Select a category to continue to product names.';
+      case 'name':
+        return 'Add or manage product names within the selected category. Choose a product name to proceed to version management.';
+      case 'version':
+        return 'Add or manage versions for the selected product. You can create multiple versions for each product name.';
+      default:
+        return 'Navigate through the steps to manage your product definitions.';
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -482,6 +494,9 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
             {currentStep === 'name' && ' - Step 2: Product Names'}
             {currentStep === 'version' && ' - Step 3: Versions'}
           </DialogTitle>
+          <DialogDescription>
+            {getStepDescription()}
+          </DialogDescription>
         </DialogHeader>
         
         {loading ? (

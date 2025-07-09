@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,7 +14,7 @@ import {
 import { useInventory } from '@/hooks/useFirestore';
 import { useCompanyData } from '@/hooks/useCompanyData';
 import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
-import AddProductModal from './AddProductModal';
+import AddProductModalWrapper from './AddProductModalWrapper';
 import ManageProductCategoryModal from './ManageProductCategoryModal';
 
 const InventoryManagement = () => {
@@ -173,7 +172,7 @@ const InventoryManagement = () => {
         </CardContent>
       </Card>
 
-      <AddProductModal 
+      <AddProductModalWrapper 
         isOpen={isAddModalOpen} 
         onClose={() => setIsAddModalOpen(false)} 
       />
