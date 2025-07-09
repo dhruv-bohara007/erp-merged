@@ -1,27 +1,29 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { 
   Plus, 
   Package, 
   TrendingUp,
   Trash2,
-  Search
+  Search,
+  Settings
 } from 'lucide-react';
 import { useInventory } from '@/hooks/useFirestore';
 import { useCompanyData } from '@/hooks/useCompanyData';
 import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
 import AddProductModal from './AddProductModal';
+import ManageProductCategoryModal from './ManageProductCategoryModal';
 
 const InventoryManagement = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isManageCategoryModalOpen, setIsManageCategoryModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const { inventory, loading, deleteInventoryItem } = useInventory();
   const { companyData } = useCompanyData();
-  const { getCurrencyInfo } = useCurrencyConverter();
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this inventory item?')) {
@@ -34,22 +36,13 @@ const InventoryManagement = () => {
   };
 
   const filteredInventory = inventory.filter(item =>
-    item.itemName?.toLowerCase().includes(searchTerm.toLowerCase())
+    item.itemName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.productCategory?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.productVersion?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const totalItems = inventory.length;
-  const totalValue = inventory.reduce((sum, item) => {
-    const price = item.unitPrice || 0;
-    return sum + price;
-  }, 0);
   const totalValueINR = inventory.reduce((sum, item) => sum + (item.rateInInr || 0), 0);
-
-  const companyCurrency = getCurrencyInfo(companyData?.country || 'US');
-
-  const formatCurrency = (amount: number, countryCode: string) => {
-    const currencyInfo = getCurrencyInfo(countryCode);
-    return `${currencyInfo.symbol}${amount.toFixed(2)}`;
-  };
 
   const formatINR = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -73,14 +66,23 @@ const InventoryManagement = () => {
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Inventory Management</h1>
-        <Button onClick={() => setIsAddModalOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Product
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setIsManageCategoryModalOpen(true)}
+          >
+            <Settings className="w-4 h-4 mr-2" />
+            Manage Product Category
+          </Button>
+          <Button onClick={() => setIsAddModalOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Product
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Products</CardTitle>
@@ -94,23 +96,12 @@ const InventoryManagement = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Value ({companyCurrency.code})</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Value (INR)</CardTitle>
             <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalValue, companyData?.country || 'US')}</div>
-            <p className="text-xs text-muted-foreground">Total inventory value</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Value (INR)</CardTitle>
-            <TrendingUp className="h-4 w-4 text-purple-500" />
-          </CardHeader>
-          <CardContent>
             <div className="text-2xl font-bold">{formatINR(totalValueINR)}</div>
-            <p className="text-xs text-muted-foreground">Total value in INR</p>
+            <p className="text-xs text-muted-foreground">Total inventory value</p>
           </CardContent>
         </Card>
       </div>
@@ -137,9 +128,9 @@ const InventoryManagement = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Item Name</TableHead>
-                  <TableHead>Price ({companyCurrency.code})</TableHead>
-                  <TableHead>Price (INR)</TableHead>
-                  <TableHead>Exchange Rate</TableHead>
+                  <TableHead>Product Version</TableHead>
+                  <TableHead>Product Category</TableHead>
+                  <TableHead>Rate (INR)</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -151,16 +142,14 @@ const InventoryManagement = () => {
                         {item.itemName || 'Unknown Item'}
                       </div>
                     </TableCell>
-                    <TableCell className="font-medium">
-                      {formatCurrency(item.unitPrice || 0, item.companyCountry || 'US')}
+                    <TableCell>
+                      {item.productVersion || '-'}
+                    </TableCell>
+                    <TableCell>
+                      {item.productCategory || '-'}
                     </TableCell>
                     <TableCell className="font-medium">
                       {formatINR(item.rateInInr || 0)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        1 {item.companyCurrency || 'USD'} = ₹{(item.exchangeRateUsed || 1).toFixed(2)}
-                      </Badge>
                     </TableCell>
                     <TableCell>
                       <Button
@@ -187,6 +176,11 @@ const InventoryManagement = () => {
       <AddProductModal 
         isOpen={isAddModalOpen} 
         onClose={() => setIsAddModalOpen(false)} 
+      />
+
+      <ManageProductCategoryModal
+        isOpen={isManageCategoryModalOpen}
+        onClose={() => setIsManageCategoryModalOpen(false)}
       />
     </div>
   );

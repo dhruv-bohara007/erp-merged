@@ -1,13 +1,15 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 import { useInventory } from '@/hooks/useFirestore';
 import { useCompanyData } from '@/hooks/useCompanyData';
 import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
+import { useProductDefinitions } from '@/hooks/useProductDefinitions';
 import { useToast } from '@/hooks/use-toast';
 
 interface AddProductModalProps {
@@ -20,19 +22,46 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
   const { addInventoryItem } = useInventory();
   const { companyData } = useCompanyData();
   const { convertToINR, getCurrencyInfo, loading: currencyLoading } = useCurrencyConverter();
+  const { productDefinitions } = useProductDefinitions();
   
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    itemName: '',
+    category: '',
+    name: '',
+    version: '',
     rate: ''
   });
 
   const companyCurrency = getCurrencyInfo(companyData?.country || 'US');
 
+  // Get unique categories
+  const categories = [...new Set(productDefinitions.map(p => p.category))];
+  
+  // Get names for selected category
+  const namesForCategory = [...new Set(
+    productDefinitions
+      .filter(p => p.category === formData.category)
+      .map(p => p.name)
+  )];
+  
+  // Get versions for selected category and name
+  const versionsForName = productDefinitions
+    .filter(p => p.category === formData.category && p.name === formData.name)
+    .map(p => p.version);
+
+  // Reset dependent fields when parent selection changes
+  useEffect(() => {
+    setFormData(prev => ({ ...prev, name: '', version: '' }));
+  }, [formData.category]);
+
+  useEffect(() => {
+    setFormData(prev => ({ ...prev, version: '' }));
+  }, [formData.name]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.itemName || !formData.rate) {
+    if (!formData.category || !formData.name || !formData.version || !formData.rate) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -54,11 +83,13 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
     setLoading(true);
 
     try {
-      // Convert to INR using the same logic as invoice creation
+      // Convert to INR using the same logic as before
       const { amountInINR, rate: exchangeRate } = await convertToINR(rateValue, companyData?.country || 'US');
       
       await addInventoryItem({
-        itemName: formData.itemName,
+        itemName: formData.name,
+        productCategory: formData.category,
+        productVersion: formData.version,
         unitPrice: rateValue,
         rate: rateValue,
         rateInInr: amountInINR,
@@ -69,7 +100,9 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
       });
       
       setFormData({
-        itemName: '',
+        category: '',
+        name: '',
+        version: '',
         rate: ''
       });
       
@@ -93,7 +126,9 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
 
   const handleClose = () => {
     setFormData({
-      itemName: '',
+      category: '',
+      name: '',
+      version: '',
       rate: ''
     });
     onClose();
@@ -107,14 +142,59 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="itemName">Item Name</Label>
-            <Input
-              id="itemName"
-              value={formData.itemName}
-              onChange={(e) => setFormData({...formData, itemName: e.target.value})}
-              placeholder="Enter item name"
-              required
-            />
+            <Label htmlFor="category">Product Category</Label>
+            <Select value={formData.category} onValueChange={(value) => setFormData({...formData, category: value})}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="name">Product Name</Label>
+            <Select 
+              value={formData.name} 
+              onValueChange={(value) => setFormData({...formData, name: value})}
+              disabled={!formData.category}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a product name" />
+              </SelectTrigger>
+              <SelectContent>
+                {namesForCategory.map((name) => (
+                  <SelectItem key={name} value={name}>
+                    {name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="version">Product Version</Label>
+            <Select 
+              value={formData.version} 
+              onValueChange={(value) => setFormData({...formData, version: value})}
+              disabled={!formData.name}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a version" />
+              </SelectTrigger>
+              <SelectContent>
+                {versionsForName.map((version) => (
+                  <SelectItem key={version} value={version}>
+                    {version}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           
           <div>
