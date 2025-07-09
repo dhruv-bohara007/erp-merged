@@ -50,21 +50,27 @@ const EnhancedBusinessInfo: React.FC<EnhancedBusinessInfoProps> = ({
   const logoFileRef = useRef<HTMLInputElement>(null);
   const signatureFileRef = useRef<HTMLInputElement>(null);
 
-  // Auto-populate phone country code when country changes
-  const handleCountryChangeWithPhone = (countryValue: string) => {
-    const phoneCode = countryPhoneCodes[countryValue] || '+1';
-    
-    // If phone field is empty or only contains a country code, update it
-    const currentPhone = formData.phone || '';
-    const hasOnlyCountryCode = Object.values(countryPhoneCodes).some(code => 
-      currentPhone === code || currentPhone === code + ' '
-    );
-    
-    if (!currentPhone || hasOnlyCountryCode) {
-      onInputChange('phone', phoneCode + ' ');
+  const [selectedPhoneCode, setSelectedPhoneCode] = useState('+1');
+
+  // Extract phone number without country code
+  const getPhoneWithoutCode = (fullPhone: string) => {
+    const phoneCode = selectedPhoneCode;
+    if (fullPhone.startsWith(phoneCode)) {
+      return fullPhone.substring(phoneCode.length).trim();
     }
-    
-    onCountryChange(countryValue);
+    return fullPhone;
+  };
+
+  // Handle phone code change
+  const handlePhoneCodeChange = (code: string) => {
+    setSelectedPhoneCode(code);
+    const phoneWithoutCode = getPhoneWithoutCode(formData.phone || '');
+    onInputChange('phone', `${code} ${phoneWithoutCode}`.trim());
+  };
+
+  // Handle phone number change
+  const handlePhoneNumberChange = (value: string) => {
+    onInputChange('phone', `${selectedPhoneCode} ${value}`.trim());
   };
 
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -175,16 +181,32 @@ const EnhancedBusinessInfo: React.FC<EnhancedBusinessInfoProps> = ({
                 <Phone className="w-4 h-4 inline mr-1" />
                 Phone Number
               </Label>
-              <Input
-                id="phone"
-                value={formData.phone || ''}
-                onChange={(e) => onInputChange('phone', e.target.value)}
-                disabled={!isEditing}
-                placeholder={`${countryPhoneCodes[formData.country] || '+1'} 123 456 7890`}
-              />
-              <p className="text-xs text-gray-500">
-                Country code auto-populated based on selected country
-              </p>
+              <div className="flex gap-2">
+                <Select 
+                  value={selectedPhoneCode} 
+                  onValueChange={handlePhoneCodeChange}
+                  disabled={!isEditing}
+                >
+                  <SelectTrigger className="w-24">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(countryPhoneCodes).map(([country, code]) => (
+                      <SelectItem key={country} value={code}>
+                        {code}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  id="phone"
+                  value={getPhoneWithoutCode(formData.phone || '')}
+                  onChange={(e) => handlePhoneNumberChange(e.target.value)}
+                  disabled={!isEditing}
+                  placeholder="123 456 7890"
+                  className="flex-1"
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="website">Website</Label>
@@ -227,7 +249,7 @@ const EnhancedBusinessInfo: React.FC<EnhancedBusinessInfoProps> = ({
               <Label htmlFor="country">Country</Label>
               <Select 
                 value={formData.country || 'US'} 
-                onValueChange={handleCountryChangeWithPhone}
+                onValueChange={onCountryChange}
                 disabled={!isEditing}
               >
                 <SelectTrigger>
