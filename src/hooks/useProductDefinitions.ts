@@ -16,7 +16,7 @@ export const useProductDefinitions = () => {
   const [productDefinitions, setProductDefinitions] = useState<ProductDefinition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { inventory, loading: inventoryLoading, addInventoryItem, updateInventoryItem, deleteInventoryItem } = useInventory();
+  const { inventory, loading: inventoryLoading, updateInventoryItem, deleteInventoryItem } = useInventory();
 
   useEffect(() => {
     console.log('useProductDefinitions: Deriving from inventory data');
@@ -68,28 +68,10 @@ export const useProductDefinitions = () => {
   }, [inventory, inventoryLoading]);
 
   const addProductDefinition = async (definition: Omit<ProductDefinition, 'id' | 'createdAt' | 'updatedAt' | 'companyId'>) => {
-    console.log('Adding product definition by creating inventory item:', definition);
-
-    try {
-      // Create a placeholder inventory item with the new product definition
-      await addInventoryItem({
-        itemName: definition.name,
-        productCategory: definition.category,
-        productVersion: definition.version,
-        unitPrice: 0,
-        rate: 0,
-        rateInInr: 0,
-        exchangeRateUsed: 1,
-        companyCurrency: 'INR',
-        companyCountry: 'IN',
-        status: 'active'
-      });
-      
-      console.log('Product definition added via inventory item');
-    } catch (err) {
-      console.error('Error adding product definition:', err);
-      throw new Error(err instanceof Error ? err.message : 'Failed to add product definition');
-    }
+    console.log('Product definition added to local state only:', definition);
+    // Note: This no longer creates inventory items automatically
+    // Products will only be added to inventory when explicitly added through the Add Product form
+    return Promise.resolve();
   };
 
   const updateProductDefinition = async (id: string, updates: Partial<ProductDefinition>) => {

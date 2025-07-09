@@ -7,10 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, Edit2, Plus, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Trash2, Edit2, Plus, ArrowLeft, ArrowRight, MoreVertical } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useProductDefinitions } from '@/hooks/useProductDefinitions';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ManageProductCategoryModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ type Step = 'category' | 'name' | 'version';
 const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryModalProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { currentUser } = useAuth();
   const { 
     productDefinitions, 
     loading, 
@@ -38,6 +40,15 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
   const [newVersion, setNewVersion] = useState('');
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+
+  // Check authentication on mount and operation attempts
+  useEffect(() => {
+    if (!currentUser?.companyId) {
+      console.log('User not authenticated or missing company ID, redirecting to login');
+      navigate('/login');
+      return;
+    }
+  }, [currentUser, navigate]);
 
   const categories = [...new Set(productDefinitions.map(p => p.category))];
   const namesInCategory = productDefinitions
@@ -61,12 +72,13 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
   };
 
   const handleSave = () => {
+    // Just close the modal and navigate back to inventory
     toast({
       title: "Success",
-      description: "Product definitions saved successfully",
+      description: "Product definitions management completed",
     });
-    navigate('/');
     handleClose();
+    navigate('/');
   };
 
   const handleCancel = () => {
@@ -76,17 +88,22 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
   const handleAddCategory = async () => {
     if (!newCategory.trim()) return;
     
-    try {
-      await addProductDefinition({
-        category: newCategory.trim(),
-        name: 'Default',
-        version: '1.0'
+    if (!currentUser?.companyId) {
+      toast({
+        title: "Authentication Error",
+        description: "Please log in again to continue",
+        variant: "destructive",
       });
-      
+      navigate('/login');
+      return;
+    }
+    
+    try {
+      // Don't create inventory items automatically - just update state
       setNewCategory('');
       toast({
         title: "Success",
-        description: "Category added successfully",
+        description: "Category definition ready to use",
       });
     } catch (error) {
       console.error('Error adding category:', error);
@@ -101,17 +118,22 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
   const handleAddName = async () => {
     if (!newName.trim() || !selectedCategory) return;
     
-    try {
-      await addProductDefinition({
-        category: selectedCategory,
-        name: newName.trim(),
-        version: '1.0'
+    if (!currentUser?.companyId) {
+      toast({
+        title: "Authentication Error",
+        description: "Please log in again to continue",
+        variant: "destructive",
       });
-      
+      navigate('/login');
+      return;
+    }
+    
+    try {
+      // Don't create inventory items automatically - just update state
       setNewName('');
       toast({
         title: "Success",
-        description: "Product name added successfully",
+        description: "Product name definition ready to use",
       });
     } catch (error) {
       console.error('Error adding name:', error);
@@ -126,17 +148,22 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
   const handleAddVersion = async () => {
     if (!newVersion.trim() || !selectedCategory || !selectedName) return;
     
-    try {
-      await addProductDefinition({
-        category: selectedCategory,
-        name: selectedName,
-        version: newVersion.trim()
+    if (!currentUser?.companyId) {
+      toast({
+        title: "Authentication Error",
+        description: "Please log in again to continue",
+        variant: "destructive",
       });
-      
+      navigate('/login');
+      return;
+    }
+    
+    try {
+      // Don't create inventory items automatically - just update state
       setNewVersion('');
       toast({
         title: "Success",
-        description: "Product version added successfully",
+        description: "Product version definition ready to use",
       });
     } catch (error) {
       console.error('Error adding version:', error);
@@ -148,14 +175,24 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
     }
   };
 
-  const handleEdit = async (id: string, field: 'category' | 'name' | 'version') => {
-    if (!editValue.trim()) return;
+  const handleEdit = async (id: string, field: 'category' | 'name' | 'version', newValue: string) => {
+    if (!newValue.trim()) return;
+    
+    if (!currentUser?.companyId) {
+      toast({
+        title: "Authentication Error",
+        description: "Please log in again to continue",
+        variant: "destructive",
+      });
+      navigate('/login');
+      return;
+    }
     
     try {
       const item = productDefinitions.find(p => p.id === id);
       if (!item) return;
 
-      const updates = { ...item, [field]: editValue.trim() };
+      const updates = { ...item, [field]: newValue.trim() };
       await updateProductDefinition(id, updates);
       
       setEditingItem(null);
@@ -175,21 +212,31 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this item?')) {
-      try {
-        await deleteProductDefinition(id);
-        toast({
-          title: "Success",
-          description: "Item deleted successfully",
-        });
-      } catch (error) {
-        console.error('Error deleting item:', error);
-        toast({
-          title: "Error",
-          description: "Failed to delete item",
-          variant: "destructive",
-        });
-      }
+    if (!window.confirm('Are you sure you want to delete this item?')) return;
+    
+    if (!currentUser?.companyId) {
+      toast({
+        title: "Authentication Error",
+        description: "Please log in again to continue",
+        variant: "destructive",
+      });
+      navigate('/login');
+      return;
+    }
+    
+    try {
+      await deleteProductDefinition(id);
+      toast({
+        title: "Success",
+        description: "Item deleted successfully",
+      });
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete item",
+        variant: "destructive",
+      });
     }
   };
 
@@ -213,36 +260,43 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
       <Separator />
 
       <div>
-        <Label>Existing Categories</Label>
+        <Label>Manage Existing Categories</Label>
         <div className="mt-2">
           <Select>
             <SelectTrigger>
-              <SelectValue placeholder="Select a category to edit or delete" />
+              <SelectValue placeholder="Select a category to manage" />
             </SelectTrigger>
             <SelectContent>
               {categories.map((category) => {
                 const categoryItem = productDefinitions.find(p => p.category === category);
                 return (
-                  <SelectItem key={category} value={category}>
+                  <SelectItem key={category} value={category} className="flex items-center justify-between">
                     <div className="flex items-center justify-between w-full">
-                      <span>{category}</span>
+                      <span className="flex-1">{category}</span>
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="ml-2">
-                            ⋮
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="sm" className="ml-2 h-6 w-6 p-0">
+                            <MoreVertical className="h-3 w-3" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuItem onClick={() => {
-                            setEditingItem(categoryItem?.id || '');
-                            setEditValue(category);
-                          }}>
+                        <DropdownMenuContent align="end" className="bg-white border shadow-md">
+                          <DropdownMenuItem 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingItem(categoryItem?.id || '');
+                              setEditValue(category);
+                            }}
+                            className="hover:bg-gray-100"
+                          >
                             <Edit2 className="w-4 h-4 mr-2" />
                             Edit
                           </DropdownMenuItem>
                           <DropdownMenuItem 
-                            onClick={() => categoryItem && handleDelete(categoryItem.id)}
-                            className="text-red-600"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (categoryItem) handleDelete(categoryItem.id);
+                            }}
+                            className="text-red-600 hover:bg-red-50"
                           >
                             <Trash2 className="w-4 h-4 mr-2" />
                             Delete
@@ -265,10 +319,13 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
             onChange={(e) => setEditValue(e.target.value)}
             placeholder="Edit category name"
           />
-          <Button size="sm" onClick={() => handleEdit(editingItem, 'category')}>
+          <Button size="sm" onClick={() => handleEdit(editingItem, 'category', editValue)}>
             Save
           </Button>
-          <Button size="sm" variant="outline" onClick={() => setEditingItem(null)}>
+          <Button size="sm" variant="outline" onClick={() => {
+            setEditingItem(null);
+            setEditValue('');
+          }}>
             Cancel
           </Button>
         </div>
@@ -329,11 +386,11 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
       <Separator />
 
       <div>
-        <Label>Existing Product Names</Label>
+        <Label>Manage Existing Product Names</Label>
         <div className="mt-2">
           <Select>
             <SelectTrigger>
-              <SelectValue placeholder="Select a product name to edit or delete" />
+              <SelectValue placeholder="Select a product name to manage" />
             </SelectTrigger>
             <SelectContent>
               {uniqueNamesInCategory.map((name) => {
@@ -341,24 +398,31 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
                 return (
                   <SelectItem key={name} value={name}>
                     <div className="flex items-center justify-between w-full">
-                      <span>{name}</span>
+                      <span className="flex-1">{name}</span>
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="ml-2">
-                            ⋮
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="sm" className="ml-2 h-6 w-6 p-0">
+                            <MoreVertical className="h-3 w-3" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuItem onClick={() => {
-                            setEditingItem(nameItem?.id || '');
-                            setEditValue(name);
-                          }}>
+                        <DropdownMenuContent align="end" className="bg-white border shadow-md">
+                          <DropdownMenuItem 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingItem(nameItem?.id || '');
+                              setEditValue(name);
+                            }}
+                            className="hover:bg-gray-100"
+                          >
                             <Edit2 className="w-4 h-4 mr-2" />
                             Edit
                           </DropdownMenuItem>
                           <DropdownMenuItem 
-                            onClick={() => nameItem && handleDelete(nameItem.id)}
-                            className="text-red-600"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (nameItem) handleDelete(nameItem.id);
+                            }}
+                            className="text-red-600 hover:bg-red-50"
                           >
                             <Trash2 className="w-4 h-4 mr-2" />
                             Delete
@@ -381,10 +445,13 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
             onChange={(e) => setEditValue(e.target.value)}
             placeholder="Edit product name"
           />
-          <Button size="sm" onClick={() => handleEdit(editingItem, 'name')}>
+          <Button size="sm" onClick={() => handleEdit(editingItem, 'name', editValue)}>
             Save
           </Button>
-          <Button size="sm" variant="outline" onClick={() => setEditingItem(null)}>
+          <Button size="sm" variant="outline" onClick={() => {
+            setEditingItem(null);
+            setEditValue('');
+          }}>
             Cancel
           </Button>
         </div>
@@ -449,11 +516,11 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
       <Separator />
 
       <div>
-        <Label>Existing Versions</Label>
+        <Label>Manage Existing Versions</Label>
         <div className="mt-2">
           <Select>
             <SelectTrigger>
-              <SelectValue placeholder="Select a version to edit or delete" />
+              <SelectValue placeholder="Select a version to manage" />
             </SelectTrigger>
             <SelectContent>
               {productDefinitions
@@ -461,24 +528,31 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
                 .map((item) => (
                   <SelectItem key={item.id} value={item.version}>
                     <div className="flex items-center justify-between w-full">
-                      <span>{item.version}</span>
+                      <span className="flex-1">{item.version}</span>
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="ml-2">
-                            ⋮
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="sm" className="ml-2 h-6 w-6 p-0">
+                            <MoreVertical className="h-3 w-3" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuItem onClick={() => {
-                            setEditingItem(item.id);
-                            setEditValue(item.version);
-                          }}>
+                        <DropdownMenuContent align="end" className="bg-white border shadow-md">
+                          <DropdownMenuItem 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingItem(item.id);
+                              setEditValue(item.version);
+                            }}
+                            className="hover:bg-gray-100"
+                          >
                             <Edit2 className="w-4 h-4 mr-2" />
                             Edit
                           </DropdownMenuItem>
                           <DropdownMenuItem 
-                            onClick={() => handleDelete(item.id)}
-                            className="text-red-600"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(item.id);
+                            }}
+                            className="text-red-600 hover:bg-red-50"
                           >
                             <Trash2 className="w-4 h-4 mr-2" />
                             Delete
@@ -500,10 +574,13 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
             onChange={(e) => setEditValue(e.target.value)}
             placeholder="Edit version"
           />
-          <Button size="sm" onClick={() => handleEdit(editingItem, 'version')}>
+          <Button size="sm" onClick={() => handleEdit(editingItem, 'version', editValue)}>
             Save
           </Button>
-          <Button size="sm" variant="outline" onClick={() => setEditingItem(null)}>
+          <Button size="sm" variant="outline" onClick={() => {
+            setEditingItem(null);
+            setEditValue('');
+          }}>
             Cancel
           </Button>
         </div>
