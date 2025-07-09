@@ -147,6 +147,7 @@ export interface Expense {
 
 export interface InventoryItem {
   id: string;
+  companyId: string;
   itemName: string;
   productCategory?: string;
   productVersion?: string;
