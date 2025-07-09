@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -47,6 +48,11 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
     .filter(p => p.category === selectedCategory && p.name === selectedName)
     .map(p => p.version);
 
+  // Reset dependent fields when parent selection changes
+  useEffect(() => {
+    setSelectedName('');
+  }, [selectedCategory]);
+
   const handleClose = () => {
     setCurrentStep('category');
     setSelectedCategory('');
@@ -60,7 +66,6 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
   };
 
   const handleSave = () => {
-    // Just close the modal without navigation
     toast({
       title: "Success",
       description: "Product definitions management completed",
@@ -76,7 +81,6 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
     if (!newCategory.trim()) return;
     
     try {
-      // Create a placeholder product definition for the new category
       await addProductDefinition({
         category: newCategory.trim(),
         name: 'Default Product',
@@ -196,6 +200,22 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
   const renderCategoryStep = () => (
     <div className="space-y-4">
       <div>
+        <Label htmlFor="categorySelect">Select Category</Label>
+        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select a category" />
+          </SelectTrigger>
+          <SelectContent>
+            {categories.map((category) => (
+              <SelectItem key={category} value={category}>
+                {category}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
         <Label htmlFor="newCategory">Add New Category</Label>
         <div className="flex gap-2 mt-1">
           <Input
@@ -219,74 +239,60 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
             const categoryItem = productDefinitions.find(p => p.category === category);
             return (
               <div key={category} className="flex items-center justify-between p-2 border rounded">
-                <span className="flex-1">{category}</span>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                      <MoreVertical className="h-3 w-3" />
+                {editingItem === categoryItem?.id ? (
+                  <div className="flex gap-2 flex-1">
+                    <Input
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      placeholder="Edit category name"
+                    />
+                    <Button size="sm" onClick={() => handleEdit(editingItem, 'category', editValue)}>
+                      Save
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="bg-white border shadow-md">
-                    <DropdownMenuItem 
-                      onClick={() => {
-                        setEditingItem(categoryItem?.id || '');
-                        setEditValue(category);
-                      }}
-                      className="hover:bg-gray-100"
-                    >
-                      <Edit2 className="w-4 h-4 mr-2" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      onClick={() => {
-                        if (categoryItem) handleDelete(categoryItem.id);
-                      }}
-                      className="text-red-600 hover:bg-red-50"
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                    <Button size="sm" variant="outline" onClick={() => {
+                      setEditingItem(null);
+                      setEditValue('');
+                    }}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <span className="flex-1">{category}</span>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                          <MoreVertical className="h-3 w-3" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="bg-white border shadow-md z-50">
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            setEditingItem(categoryItem?.id || '');
+                            setEditValue(category);
+                          }}
+                          className="hover:bg-gray-100"
+                        >
+                          <Edit2 className="w-4 h-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            if (categoryItem) handleDelete(categoryItem.id);
+                          }}
+                          className="text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </>
+                )}
               </div>
             );
           })}
         </div>
-      </div>
-
-      {editingItem && (
-        <div className="flex gap-2">
-          <Input
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
-            placeholder="Edit category name"
-          />
-          <Button size="sm" onClick={() => handleEdit(editingItem, 'category', editValue)}>
-            Save
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => {
-            setEditingItem(null);
-            setEditValue('');
-          }}>
-            Cancel
-          </Button>
-        </div>
-      )}
-
-      <div>
-        <Label htmlFor="categorySelect">Select Category to Continue</Label>
-        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select a category" />
-          </SelectTrigger>
-          <SelectContent>
-            {categories.map((category) => (
-              <SelectItem key={category} value={category}>
-                {category}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       <div className="flex justify-between">
@@ -308,6 +314,22 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <span className="text-sm text-muted-foreground">Category: {selectedCategory}</span>
+      </div>
+
+      <div>
+        <Label htmlFor="nameSelect">Select Product Name</Label>
+        <Select value={selectedName} onValueChange={setSelectedName}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select a product name" />
+          </SelectTrigger>
+          <SelectContent>
+            {uniqueNamesInCategory.map((name) => (
+              <SelectItem key={name} value={name}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div>
@@ -334,74 +356,60 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
             const nameItem = productDefinitions.find(p => p.category === selectedCategory && p.name === name);
             return (
               <div key={name} className="flex items-center justify-between p-2 border rounded">
-                <span className="flex-1">{name}</span>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                      <MoreVertical className="h-3 w-3" />
+                {editingItem === nameItem?.id ? (
+                  <div className="flex gap-2 flex-1">
+                    <Input
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      placeholder="Edit product name"
+                    />
+                    <Button size="sm" onClick={() => handleEdit(editingItem, 'name', editValue)}>
+                      Save
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="bg-white border shadow-md">
-                    <DropdownMenuItem 
-                      onClick={() => {
-                        setEditingItem(nameItem?.id || '');
-                        setEditValue(name);
-                      }}
-                      className="hover:bg-gray-100"
-                    >
-                      <Edit2 className="w-4 h-4 mr-2" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      onClick={() => {
-                        if (nameItem) handleDelete(nameItem.id);
-                      }}
-                      className="text-red-600 hover:bg-red-50"
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                    <Button size="sm" variant="outline" onClick={() => {
+                      setEditingItem(null);
+                      setEditValue('');
+                    }}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <span className="flex-1">{name}</span>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                          <MoreVertical className="h-3 w-3" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="bg-white border shadow-md z-50">
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            setEditingItem(nameItem?.id || '');
+                            setEditValue(name);
+                          }}
+                          className="hover:bg-gray-100"
+                        >
+                          <Edit2 className="w-4 h-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            if (nameItem) handleDelete(nameItem.id);
+                          }}
+                          className="text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </>
+                )}
               </div>
             );
           })}
         </div>
-      </div>
-
-      {editingItem && (
-        <div className="flex gap-2">
-          <Input
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
-            placeholder="Edit product name"
-          />
-          <Button size="sm" onClick={() => handleEdit(editingItem, 'name', editValue)}>
-            Save
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => {
-            setEditingItem(null);
-            setEditValue('');
-          }}>
-            Cancel
-          </Button>
-        </div>
-      )}
-
-      <div>
-        <Label htmlFor="nameSelect">Select Product Name to Continue</Label>
-        <Select value={selectedName} onValueChange={setSelectedName}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select a product name" />
-          </SelectTrigger>
-          <SelectContent>
-            {uniqueNamesInCategory.map((name) => (
-              <SelectItem key={name} value={name}>
-                {name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       <div className="flex justify-between">
@@ -430,6 +438,22 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
       </div>
 
       <div>
+        <Label>Select Version</Label>
+        <Select value="" onValueChange={() => {}}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select a version" />
+          </SelectTrigger>
+          <SelectContent>
+            {versionsForName.map((version) => (
+              <SelectItem key={version} value={version}>
+                {version}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
         <Label htmlFor="newVersion">Add New Version</Label>
         <div className="flex gap-2 mt-1">
           <Input
@@ -453,56 +477,58 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
             .filter(p => p.category === selectedCategory && p.name === selectedName)
             .map((item) => (
               <div key={item.id} className="flex items-center justify-between p-2 border rounded">
-                <span className="flex-1">{item.version}</span>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                      <MoreVertical className="h-3 w-3" />
+                {editingItem === item.id ? (
+                  <div className="flex gap-2 flex-1">
+                    <Input
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      placeholder="Edit version"
+                    />
+                    <Button size="sm" onClick={() => handleEdit(editingItem, 'version', editValue)}>
+                      Save
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="bg-white border shadow-md">
-                    <DropdownMenuItem 
-                      onClick={() => {
-                        setEditingItem(item.id);
-                        setEditValue(item.version);
-                      }}
-                      className="hover:bg-gray-100"
-                    >
-                      <Edit2 className="w-4 h-4 mr-2" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      onClick={() => handleDelete(item.id)}
-                      className="text-red-600 hover:bg-red-50"
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                    <Button size="sm" variant="outline" onClick={() => {
+                      setEditingItem(null);
+                      setEditValue('');
+                    }}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <span className="flex-1">{item.version}</span>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                          <MoreVertical className="h-3 w-3" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="bg-white border shadow-md z-50">
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            setEditingItem(item.id);
+                            setEditValue(item.version);
+                          }}
+                          className="hover:bg-gray-100"
+                        >
+                          <Edit2 className="w-4 h-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleDelete(item.id)}
+                          className="text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </>
+                )}
               </div>
             ))}
         </div>
       </div>
-
-      {editingItem && (
-        <div className="flex gap-2">
-          <Input
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
-            placeholder="Edit version"
-          />
-          <Button size="sm" onClick={() => handleEdit(editingItem, 'version', editValue)}>
-            Save
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => {
-            setEditingItem(null);
-            setEditValue('');
-          }}>
-            Cancel
-          </Button>
-        </div>
-      )}
 
       <div className="flex justify-between">
         <Button variant="outline" onClick={() => setCurrentStep('name')}>
@@ -523,11 +549,11 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
   const getStepDescription = () => {
     switch (currentStep) {
       case 'category':
-        return 'Manage product categories by adding new ones or editing existing categories. Select a category to continue to product names.';
+        return 'Select an existing category or add a new one to continue to product names.';
       case 'name':
-        return 'Add or manage product names within the selected category. Choose a product name to proceed to version management.';
+        return 'Select an existing product name or add a new one within the selected category to proceed to version management.';
       case 'version':
-        return 'Add or manage versions for the selected product. You can create multiple versions for each product name.';
+        return 'Select an existing version or add new versions for the selected product.';
       default:
         return 'Navigate through the steps to manage your product definitions.';
     }

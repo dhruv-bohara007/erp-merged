@@ -40,7 +40,12 @@ const InventoryManagement = () => {
     }
   };
 
-  const filteredInventory = inventory.filter(item =>
+  // Filter to only show active products (products with rates > 0 and status = 'active')
+  const activeInventory = inventory.filter(item => 
+    item.status === 'active' && (item.rateInInr || 0) > 0
+  );
+
+  const filteredInventory = activeInventory.filter(item =>
     item.itemName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.productCategory?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.productVersion?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -59,8 +64,8 @@ const InventoryManagement = () => {
     }
   });
 
-  const totalItems = inventory.length;
-  const totalValueINR = inventory.reduce((sum, item) => sum + (item.rateInInr || 0), 0);
+  const totalItems = activeInventory.length;
+  const totalValueINR = activeInventory.reduce((sum, item) => sum + (item.rateInInr || 0), 0);
 
   const formatINR = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -108,7 +113,7 @@ const InventoryManagement = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalItems}</div>
-            <p className="text-xs text-muted-foreground">Products in inventory</p>
+            <p className="text-xs text-muted-foreground">Active products in inventory</p>
           </CardContent>
         </Card>
 
@@ -201,7 +206,7 @@ const InventoryManagement = () => {
             </Table>
           ) : (
             <div className="text-center py-8 text-gray-500">
-              {searchTerm ? 'No products match your search.' : 'No products yet. Click "Add Product" to get started.'}
+              {searchTerm ? 'No active products match your search.' : 'No active products yet. Click "Add Product" to get started.'}
             </div>
           )}
         </CardContent>
