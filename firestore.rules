@@ -106,35 +106,15 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
     }
 
-    // PRODUCT DEFINITIONS: Enhanced rules to fix permission issues
+    // PRODUCT DEFINITIONS: only accessible by users from the same company (simplified to match other collections)
     match /productDefinitions/{definitionId} {
-      // Allow authenticated users with company admin role to read their company's product definitions
-      allow read: if request.auth != null && 
-        request.auth.uid != null && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        (getUserData().role == 'company_admin' || getUserData().role == 'super_admin') &&
+      allow read, write: if isCompanyAdmin() && 
         (resource == null || resource.data.companyId == getUserData().companyId);
       
-      // Allow company admin to create product definitions for their company
-      allow create: if request.auth != null && 
-        request.auth.uid != null && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        getUserData().role == 'company_admin' &&
-        getUserData().companyId != null &&
+      allow create: if isCompanyAdmin() &&
         request.resource.data.companyId == getUserData().companyId;
       
-      // Allow company admin to update/delete their company's product definitions
-      allow update, delete: if request.auth != null && 
-        request.auth.uid != null && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        getUserData().role == 'company_admin' &&
-        resource.data.companyId == getUserData().companyId;
-      
-      // Super admin has full access
-      allow read, write: if request.auth != null && 
-        request.auth.uid != null && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        getUserData().role == 'super_admin';
+      allow read, write: if isSuperAdmin();
     }
 
     // GST RETURNS: only accessible by users from the same company
