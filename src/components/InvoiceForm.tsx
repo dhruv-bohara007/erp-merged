@@ -13,7 +13,7 @@ import { useTaxCalculations } from '@/hooks/useTaxCalculations';
 import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import { useInventory } from '@/hooks/useInventory';
+import { useInventory } from '@/hooks/useFirestore';
 
 const InvoiceForm = () => {
   const navigate = useNavigate();
