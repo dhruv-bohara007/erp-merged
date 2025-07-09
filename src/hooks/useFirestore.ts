@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { 
   collection, 
@@ -68,6 +69,9 @@ export interface Invoice {
   };
   companyAddress: string;
   ownerSignatureUrl?: string;
+  // Business owner fields
+  businessOwnerName?: string;
+  businessOwnerPosition?: string;
   // Client snapshot fields
   clientAddress: string;
   clientTaxInfo?: {
@@ -218,6 +222,9 @@ export const useInvoices = () => {
             companyBankDetails: data.companyBankDetails,
             companyAddress: data.companyAddress || '',
             ownerSignatureUrl: data.ownerSignatureUrl,
+            // Handle business owner fields with fallbacks
+            businessOwnerName: data.businessOwnerName,
+            businessOwnerPosition: data.businessOwnerPosition,
             // Handle client snapshot fields with fallbacks
             clientAddress: data.clientAddress || '',
             clientPhone: data.clientPhone,
@@ -255,7 +262,7 @@ export const useInvoices = () => {
     return () => unsubscribe();
   }, [currentUser?.companyId]);
 
-  const addInvoice = async (invoice: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt' | 'companyCountry' | 'clientCountry' | 'companyId' | 'companyName' | 'companyLogoUrl' | 'companyEmail' | 'companyWebsite' | 'companyPhone' | 'companyCity' | 'companyTaxInfo' | 'companyBankDetails' | 'companyAddress' | 'ownerSignatureUrl' | 'clientAddress' | 'clientPhone' | 'clientPincode' | 'clientTaxInfo' | 'bankInfo' | 'logoUrl' | 'signatureUrl' | 'clientName' | 'clientEmail' | 'clientState'>) => {
+  const addInvoice = async (invoice: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt' | 'companyCountry' | 'clientCountry' | 'companyId' | 'companyName' | 'companyLogoUrl' | 'companyEmail' | 'companyWebsite' | 'companyPhone' | 'companyCity' | 'companyTaxInfo' | 'companyBankDetails' | 'companyAddress' | 'ownerSignatureUrl' | 'businessOwnerName' | 'businessOwnerPosition' | 'clientAddress' | 'clientPhone' | 'clientPincode' | 'clientTaxInfo' | 'bankInfo' | 'logoUrl' | 'signatureUrl' | 'clientName' | 'clientEmail' | 'clientState'>) => {
     if (!currentUser?.companyId) {
       throw new Error('User company ID not found');
     }
@@ -290,6 +297,9 @@ export const useInvoices = () => {
       const signatureUrl = companyData?.signatureUrl;
       const ownerSignatureUrl = companyData?.ownerSignatureUrl;
       const companyLogoUrl = companyData?.logo;
+      // Business owner fields
+      const businessOwnerName = companyData?.businessOwnerName;
+      const businessOwnerPosition = companyData?.businessOwnerPosition;
       
       // Fetch client document to get all required client fields
       const clientDoc = await getDoc(doc(db, 'clients', invoice.clientId));
@@ -371,6 +381,12 @@ export const useInvoices = () => {
       if (companyLogoUrl) {
         invoiceData.companyLogoUrl = companyLogoUrl;
       }
+      if (businessOwnerName) {
+        invoiceData.businessOwnerName = businessOwnerName;
+      }
+      if (businessOwnerPosition) {
+        invoiceData.businessOwnerPosition = businessOwnerPosition;
+      }
       if (clientPhone) {
         invoiceData.clientPhone = clientPhone;
       }
@@ -383,7 +399,7 @@ export const useInvoices = () => {
 
       const docRef = await addDoc(collection(db, 'invoices'), invoiceData);
       
-      console.log('Invoice created with complete company and client snapshot data including email, website, and tax information');
+      console.log('Invoice created with complete company and client snapshot data including business owner information');
       return docRef.id;
     } catch (err) {
       console.error('Error adding invoice:', err);
