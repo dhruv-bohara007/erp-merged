@@ -175,49 +175,52 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
               font-size: 14px;
             }
 
-            /* Two Column Layout - Compact */
+            /* Two Column Layout - Ultra Compact for first page */
             .two-column {
               display: grid;
               grid-template-columns: 1fr 1fr;
-              gap: 20px;
-              margin: 15px 0;
+              gap: 15px;
+              margin: 10px 0;
               page-break-inside: avoid;
             }
             
-            /* Card Styles - Compact for first page */
+            /* Card Styles - Ultra Compact for first page */
             .info-card {
               background: white;
-              border: 2px solid #e5e7eb;
-              border-radius: 12px;
+              border: 1px solid #e5e7eb;
+              border-radius: 8px;
               overflow: hidden;
-              box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+              box-shadow: 0 1px 2px rgba(0,0,0,0.05);
             }
             .card-header {
-              padding: 15px;
-              font-size: 16px;
+              padding: 8px 12px;
+              font-size: 14px;
               font-weight: bold;
               color: #1f2937;
-              border-bottom: 2px solid #e5e7eb;
+              border-bottom: 1px solid #e5e7eb;
             }
             .company-header { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); }
             .client-header { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); }
             
-            .card-content { padding: 15px; }
+            .card-content { padding: 10px; }
             .info-section {
-              margin-bottom: 15px;
-              padding: 12px;
+              margin-bottom: 8px;
+              padding: 6px;
               background: #f9fafb;
-              border-radius: 6px;
+              border-radius: 4px;
               border: 1px solid #e5e7eb;
+            }
+            .info-section:last-child {
+              margin-bottom: 0;
             }
             .section-title {
               font-weight: bold;
               color: #374151;
-              margin-bottom: 8px;
-              font-size: 14px;
+              margin-bottom: 4px;
+              font-size: 12px;
               display: flex;
               align-items: center;
-              gap: 6px;
+              gap: 4px;
             }
             
             /* Phone number formatting with consistent alignment */
@@ -228,22 +231,23 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
               word-spacing: 2px;
             }
             
-            /* Table Styles - Compact */
+            /* Table Styles - Ultra Compact */
             .bank-table, .items-table {
               width: 100%;
               border-collapse: collapse;
-              margin: 10px 0;
+              margin: 4px 0;
               background: white;
-              border-radius: 6px;
+              border-radius: 4px;
               overflow: hidden;
               border: 1px solid #e5e7eb;
             }
             .bank-table th, .bank-table td,
             .items-table th, .items-table td {
-              padding: 8px 12px;
+              padding: 4px 8px;
               text-align: left;
               border-bottom: 1px solid #e5e7eb;
-              font-size: 13px;
+              font-size: 11px;
+              line-height: 1.2;
             }
             .bank-table th, .items-table th {
               background: #f9fafb;
@@ -261,40 +265,42 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
             .items-table td:nth-child(3),
             .items-table td:nth-child(4) { text-align: right; }
             
-            /* Signature Section - Compact */
+            /* Signature Section - Ultra Compact */
             .signature-section {
-              margin-top: 15px;
-              padding: 12px;
+              margin-top: 6px;
+              padding: 6px;
               background: linear-gradient(135deg, #faf5ff 0%, #e9d5ff 100%);
-              border-radius: 6px;
+              border-radius: 4px;
               border: 1px solid #d8b4fe;
             }
             .signature-image {
-              max-width: 150px;
-              height: 60px;
-              object-contain;
-              border: 2px solid white;
-              border-radius: 6px;
+              max-width: 100px;
+              height: 40px;
+              object-fit: contain;
+              border: 1px solid white;
+              border-radius: 4px;
               background: white;
-              padding: 8px;
-              margin-top: 8px;
-              margin-bottom: 10px;
+              padding: 4px;
+              margin-top: 4px;
+              margin-bottom: 6px;
             }
             .signature-details {
-              margin-top: 10px;
-              padding-top: 10px;
+              margin-top: 6px;
+              padding-top: 6px;
               border-top: 1px solid #d8b4fe;
             }
             .signature-name {
               font-weight: bold;
               color: #374151;
-              margin-bottom: 4px;
-              font-size: 14px;
+              margin-bottom: 2px;
+              font-size: 11px;
+              line-height: 1.2;
             }
             .signature-position {
               color: #6b7280;
               font-style: italic;
-              font-size: 12px;
+              font-size: 10px;
+              line-height: 1.2;
             }
             
             /* Summary Section */
@@ -414,10 +420,10 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                 <div class="card-content">
                   <div class="info-section">
                     <div class="section-title">📍 Contact Details</div>
-                    <div style="font-size: 14px; line-height: 1.4;"><strong>${invoice.companyName}</strong></div>
-                    <div style="font-size: 13px; line-height: 1.3;">${invoice.companyAddress}</div>
-                    ${invoice.companyCity ? `<div style="font-size: 13px; line-height: 1.3;">${invoice.companyCity}</div>` : ''}
-                    <div style="font-size: 13px; line-height: 1.3;"><strong>Country:</strong> ${(() => {
+                    <div style="font-size: 11px; line-height: 1.2;"><strong>${invoice.companyName}</strong></div>
+                    <div style="font-size: 10px; line-height: 1.1;">${invoice.companyAddress}</div>
+                    ${invoice.companyCity ? `<div style="font-size: 10px; line-height: 1.1;">${invoice.companyCity}</div>` : ''}
+                    <div style="font-size: 10px; line-height: 1.1;"><strong>Country:</strong> ${(() => {
                       const countryNames = {
                         'US': 'United States', 'IN': 'India', 'GB': 'United Kingdom', 'DE': 'Germany',
                         'FR': 'France', 'IT': 'Italy', 'ES': 'Spain', 'NL': 'Netherlands', 'CA': 'Canada',
@@ -427,15 +433,15 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                       };
                       return countryNames[companyCountry] || companyCountry;
                     })()}</div>
-                    ${invoice.companyPhone ? `<div style="font-size: 13px; line-height: 1.3;">📞 <span class="phone-number">${formatPhoneNumber(invoice.companyPhone, companyCountry)}</span></div>` : ''}
-                    ${invoice.companyEmail ? `<div style="font-size: 13px; line-height: 1.3;">📧 ${invoice.companyEmail}</div>` : ''}
-                    ${invoice.companyWebsite ? `<div style="font-size: 13px; line-height: 1.3;">🌐 ${invoice.companyWebsite}</div>` : ''}
+                    ${invoice.companyPhone ? `<div style="font-size: 10px; line-height: 1.1;">📞 <span class="phone-number">${formatPhoneNumber(invoice.companyPhone, companyCountry)}</span></div>` : ''}
+                    ${invoice.companyEmail ? `<div style="font-size: 10px; line-height: 1.1;">📧 ${invoice.companyEmail}</div>` : ''}
+                    ${invoice.companyWebsite ? `<div style="font-size: 10px; line-height: 1.1;">🌐 ${invoice.companyWebsite}</div>` : ''}
                   </div>
 
                   ${invoice.companyTaxInfo && (invoice.companyTaxInfo.primaryType && invoice.companyTaxInfo.primaryId) ? `
                     <div class="info-section">
                       <div class="section-title">🏛️ Tax Information</div>
-                      <div><strong>${invoice.companyTaxInfo.primaryType}:</strong> ${invoice.companyTaxInfo.primaryId}</div>
+                      <div style="font-size: 10px; line-height: 1.1;"><strong>${invoice.companyTaxInfo.primaryType}:</strong> ${invoice.companyTaxInfo.primaryId}</div>
                     </div>
                   ` : ''}
 
@@ -486,22 +492,22 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                 <div class="card-content">
                   <div class="info-section">
                     <div class="section-title">👤 Contact Details</div>
-                    <div style="font-size: 14px; line-height: 1.4;"><strong>${invoice.clientName}</strong></div>
-                    <div style="font-size: 13px; line-height: 1.3;">📧 ${invoice.clientEmail}</div>
-                    ${invoice.clientPhone ? `<div style="font-size: 13px; line-height: 1.3;">📞 <span class="phone-number">${formatPhoneNumber(invoice.clientPhone, clientCountry)}</span></div>` : ''}
+                    <div style="font-size: 11px; line-height: 1.2;"><strong>${invoice.clientName}</strong></div>
+                    <div style="font-size: 10px; line-height: 1.1;">📧 ${invoice.clientEmail}</div>
+                    ${invoice.clientPhone ? `<div style="font-size: 10px; line-height: 1.1;">📞 <span class="phone-number">${formatPhoneNumber(invoice.clientPhone, clientCountry)}</span></div>` : ''}
                   </div>
 
                   <div class="info-section">
                     <div class="section-title">📍 Address</div>
-                    ${invoice.clientAddress ? `<div style="font-size: 13px; line-height: 1.3;">${invoice.clientAddress}</div>` : ''}
-                    ${invoice.clientState ? `<div style="font-size: 13px; line-height: 1.3;">State: ${invoice.clientState}</div>` : ''}
-                    ${invoice.clientPincode ? `<div style="font-size: 13px; line-height: 1.3;">Pincode: ${invoice.clientPincode}</div>` : ''}
+                    ${invoice.clientAddress ? `<div style="font-size: 10px; line-height: 1.1;">${invoice.clientAddress}</div>` : ''}
+                    ${invoice.clientState ? `<div style="font-size: 10px; line-height: 1.1;">State: ${invoice.clientState}</div>` : ''}
+                    ${invoice.clientPincode ? `<div style="font-size: 10px; line-height: 1.1;">Pincode: ${invoice.clientPincode}</div>` : ''}
                   </div>
 
                   ${invoice.clientTaxInfo?.id ? `
                     <div class="info-section">
                       <div class="section-title">🏛️ Tax Information</div>
-                      <div style="font-size: 13px; line-height: 1.3;"><strong>${invoice.clientTaxInfo.type || 'Tax ID'}:</strong> ${invoice.clientTaxInfo.id}</div>
+                      <div style="font-size: 10px; line-height: 1.1;"><strong>${invoice.clientTaxInfo.type || 'Tax ID'}:</strong> ${invoice.clientTaxInfo.id}</div>
                     </div>
                   ` : ''}
                 </div>
