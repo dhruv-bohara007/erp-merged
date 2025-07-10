@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -153,15 +154,29 @@ const ClientManagement = () => {
     return client.gstin || 'N/A';
   };
 
+  // Calculate client-specific metrics from invoices
+  const getClientMetrics = (clientId: string) => {
+    const clientInvoices = invoices.filter(invoice => invoice.clientId === clientId);
+    const totalAmount = clientInvoices.reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
+    const outstandingAmount = clientInvoices
+      .filter(invoice => invoice.status === 'sent' || invoice.status === 'draft' || invoice.status === 'overdue')
+      .reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
+    
+    return {
+      invoiceCount: clientInvoices.length,
+      totalAmount,
+      outstandingAmount
+    };
+  };
+
   // Calculate dynamic metrics from Firestore data
   const calculateClientMetrics = () => {
     const totalRevenue = invoices
-      .filter(invoice => invoice.status === 'paid')
-      .reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
+      .reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
 
     const outstandingAmount = invoices
       .filter(invoice => invoice.status === 'sent' || invoice.status === 'draft' || invoice.status === 'overdue')
-      .reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
+      .reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
 
     return { totalRevenue, outstandingAmount };
   };
@@ -280,78 +295,82 @@ const ClientManagement = () => {
               <TableRow>
                 <TableHead>Client Name</TableHead>
                 <TableHead>Contact</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Tax Details</TableHead>
+                <TableHead>Invoices</TableHead>
+                <TableHead>Total Amount</TableHead>
+                <TableHead>Outstanding</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredClients.map((client) => (
-                <TableRow key={client.id}>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{client.name}</div>
-                      <div className="text-sm text-gray-500 flex items-center mt-1">
-                        <MapPin className="w-3 h-3 mr-1" />
-                        {client.address.substring(0, 30)}...
+              {filteredClients.map((client) => {
+                const clientMetrics = getClientMetrics(client.id);
+                return (
+                  <TableRow key={client.id}>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{client.name}</div>
+                        <div className="text-sm text-gray-500 flex items-center mt-1">
+                          <MapPin className="w-3 h-3 mr-1" />
+                          {client.address.substring(0, 30)}...
+                        </div>
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <div className="flex items-center text-sm">
-                        <Mail className="w-3 h-3 mr-2 text-gray-400" />
-                        {client.email}
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="flex items-center text-sm">
+                          <Mail className="w-3 h-3 mr-2 text-gray-400" />
+                          {client.email}
+                        </div>
+                        <div className="flex items-center text-sm">
+                          <Phone className="w-3 h-3 mr-2 text-gray-400" />
+                          {client.phone}
+                        </div>
                       </div>
-                      <div className="flex items-center text-sm">
-                        <Phone className="w-3 h-3 mr-2 text-gray-400" />
-                        {client.phone}
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-center">
+                        <div className="font-medium">{clientMetrics.invoiceCount}</div>
+                        <div className="text-xs text-gray-500">invoices</div>
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <div className="text-sm flex items-center">
-                        <Globe className="w-3 h-3 mr-1 text-gray-400" />
-                        {getCountryName(client.country || 'IN')}
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium">
+                        {formatIndianCurrency(clientMetrics.totalAmount)}
                       </div>
-                      <div className="text-sm">{client.city}</div>
-                      <div className="text-xs text-gray-500">{client.state} - {client.pincode}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <div className="text-xs text-gray-500">{getTaxLabel(client)}</div>
-                      <div className="font-mono text-sm">{getTaxId(client)}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={client.status === 'active' ? 'default' : 'secondary'}>
-                      {client.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleEditClient(client)}
-                      >
-                        <Edit className="w-3 h-3" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleDeleteClient(client.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium text-orange-600">
+                        {formatIndianCurrency(clientMetrics.outstandingAmount)}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={client.status === 'active' ? 'default' : 'secondary'}>
+                        {client.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleEditClient(client)}
+                        >
+                          <Edit className="w-3 h-3" />
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDeleteClient(client.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
