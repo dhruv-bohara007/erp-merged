@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -30,13 +29,13 @@ const ProfitabilityReports = () => {
     }).format(amount);
   };
 
-  // Calculate monthly P&L data
+  // Calculate monthly P&L data using totalAmountINR consistently
   const monthlyPnL = (() => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const currentYear = new Date().getFullYear();
     
     return months.map((month, index) => {
-      // Revenue from paid invoices
+      // Revenue from paid invoices using totalAmountINR
       const monthRevenue = invoices
         .filter(invoice => {
           if (invoice.status !== 'paid') return false;
@@ -45,7 +44,7 @@ const ProfitabilityReports = () => {
           const date = new Date(invoiceDate);
           return date.getMonth() === index && date.getFullYear() === currentYear;
         })
-        .reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+        .reduce((sum, inv) => sum + (inv.totalAmountINR || inv.totalAmount || 0), 0);
 
       // Expenses for the month
       const monthExpenses = expenses
@@ -68,7 +67,7 @@ const ProfitabilityReports = () => {
     });
   })();
 
-  // Calculate client profitability
+  // Calculate client profitability using totalAmountINR consistently
   const clientProfitability = (() => {
     const clientMap = new Map();
     
@@ -76,7 +75,7 @@ const ProfitabilityReports = () => {
       const clientInvoices = invoices.filter(inv => inv.clientId === client.id && inv.status === 'paid');
       const clientExpenses = expenses.filter(exp => exp.clientId === client.id);
       
-      const revenue = clientInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+      const revenue = clientInvoices.reduce((sum, inv) => sum + (inv.totalAmountINR || inv.totalAmount || 0), 0);
       const expenseAmount = clientExpenses.reduce((sum, exp) => sum + exp.amount, 0);
       const profit = revenue - expenseAmount;
       const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
@@ -114,10 +113,10 @@ const ProfitabilityReports = () => {
     }));
   })();
 
-  // Calculate totals
+  // Calculate totals using totalAmountINR consistently
   const totalRevenue = invoices
     .filter(inv => inv.status === 'paid')
-    .reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+    .reduce((sum, inv) => sum + (inv.totalAmountINR || inv.totalAmount || 0), 0);
   
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
   const totalProfit = totalRevenue - totalExpenses;

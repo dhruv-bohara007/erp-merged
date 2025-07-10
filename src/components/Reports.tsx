@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,7 +35,7 @@ const Reports = () => {
     );
   }
 
-  // Calculate monthly revenue data
+  // Calculate monthly revenue data using totalAmountINR consistently
   const monthlyRevenue = (() => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const currentYear = new Date().getFullYear();
@@ -54,7 +53,7 @@ const Reports = () => {
       
       return {
         month,
-        revenue: paidInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0),
+        revenue: paidInvoices.reduce((sum, inv) => sum + (inv.totalAmountINR || inv.totalAmount || 0), 0),
         invoices: monthInvoices.length,
         paid: paidInvoices.length,
         unpaid: unpaidInvoices.length
@@ -62,14 +61,14 @@ const Reports = () => {
     });
   })();
 
-  // Calculate client reports
+  // Calculate client reports using totalAmountINR consistently
   const clientReports = (() => {
     const clientMap = new Map();
     
     clients.forEach(client => {
       const clientInvoices = invoices.filter(inv => inv.clientId === client.id);
       const paidInvoices = clientInvoices.filter(inv => inv.status === 'paid');
-      const revenue = paidInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+      const revenue = paidInvoices.reduce((sum, inv) => sum + (inv.totalAmountINR || inv.totalAmount || 0), 0);
       
       // Calculate average payment days
       const paidInvoicesWithDates = paidInvoices.filter(inv => inv.issueDate && inv.updatedAt);
@@ -95,7 +94,7 @@ const Reports = () => {
     return Array.from(clientMap.values()).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
   })();
 
-  // Calculate aging report
+  // Calculate aging report using totalAmountINR consistently
   const agingReport = (() => {
     const unpaidInvoices = invoices.filter(inv => inv.status !== 'paid');
     const currentDate = new Date();
@@ -117,13 +116,13 @@ const Reports = () => {
       
       return {
         ...range,
-        amount: rangeInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0),
+        amount: rangeInvoices.reduce((sum, inv) => sum + (inv.totalAmountINR || inv.totalAmount || 0), 0),
         count: rangeInvoices.length
       };
     });
   })();
 
-  // Calculate GST summary
+  // Calculate GST summary using totalAmountINR consistently
   const gstSummary = (() => {
     const paidInvoices = invoices.filter(inv => inv.status === 'paid');
     
@@ -134,7 +133,8 @@ const Reports = () => {
     // TDS is typically 10% of total invoice value for certain transactions
     const tdsDeducted = paidInvoices.reduce((sum, inv) => {
       // Assuming TDS is deducted on invoices above certain threshold
-      return sum + (inv.totalAmount > 30000 ? inv.totalAmount * 0.01 : 0);
+      const invoiceTotal = inv.totalAmountINR || inv.totalAmount || 0;
+      return sum + (invoiceTotal > 30000 ? invoiceTotal * 0.01 : 0);
     }, 0);
 
     return [

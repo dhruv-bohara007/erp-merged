@@ -7,15 +7,15 @@ const ReportsMetrics = () => {
   const { invoices } = useInvoices();
   const { clients } = useClients();
 
-  // Calculate dynamic metrics
+  // Calculate dynamic metrics using totalAmountINR for consistency
   const totalRevenue = invoices
     .filter(invoice => invoice.status === 'paid')
-    .reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
+    .reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
 
   const totalInvoices = invoices.length;
 
   const averageInvoiceValue = totalInvoices > 0 
-    ? invoices.reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0) / totalInvoices 
+    ? invoices.reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0) / totalInvoices 
     : 0;
 
   const activeClients = clients.filter(client => client.status === 'active').length;

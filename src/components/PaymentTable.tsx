@@ -10,12 +10,15 @@ import {
   IndianRupee
 } from 'lucide-react';
 import { Payment } from '@/hooks/useFirestore';
+import { useInvoices } from '@/hooks/useFirestore';
 
 interface PaymentTableProps {
   payments: Payment[];
 }
 
 const PaymentTable = ({ payments }: PaymentTableProps) => {
+  const { invoices } = useInvoices();
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed': return 'bg-green-100 text-green-800';
@@ -37,6 +40,19 @@ const PaymentTable = ({ payments }: PaymentTableProps) => {
       case 'cheque': return <IndianRupee className="w-4 h-4" />;
       default: return <IndianRupee className="w-4 h-4" />;
     }
+  };
+
+  // Get invoice amount for display
+  const getInvoiceAmount = (invoiceId: string) => {
+    const invoice = invoices.find(inv => inv.id === invoiceId);
+    if (!invoice) return 0;
+    
+    // Only show invoice amount if the invoice is marked as paid
+    if (invoice.status === 'paid') {
+      return invoice.totalAmountINR || invoice.totalAmount || 0;
+    }
+    
+    return 0;
   };
 
   return (
@@ -61,41 +77,45 @@ const PaymentTable = ({ payments }: PaymentTableProps) => {
               </TableCell>
             </TableRow>
           ) : (
-            payments.map((payment) => (
-              <TableRow key={payment.id}>
-                <TableCell>
-                  <div className="font-medium">{payment.invoiceNumber}</div>
-                </TableCell>
-                <TableCell>
-                  <div className="font-medium">{payment.clientName}</div>
-                </TableCell>
-                <TableCell>
-                  <div className="font-medium">₹{payment.amount.toLocaleString()}</div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    {getPaymentMethodIcon(payment.paymentMethod)}
-                    <span className="capitalize">{payment.paymentMethod.toUpperCase()}</span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center text-sm">
-                    <Calendar className="w-3 h-3 mr-1 text-gray-400" />
-                    {payment.paymentDate.toLocaleDateString()}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge className={getStatusColor(payment.status)}>
-                    {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="text-sm text-gray-500">
-                    {payment.notes || '-'}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))
+            payments.map((payment) => {
+              const invoiceAmount = getInvoiceAmount(payment.invoiceId);
+              
+              return (
+                <TableRow key={payment.id}>
+                  <TableCell>
+                    <div className="font-medium">{payment.invoiceNumber}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium">{payment.clientName}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium">₹{invoiceAmount.toLocaleString()}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      {getPaymentMethodIcon(payment.paymentMethod)}
+                      <span className="capitalize">{payment.paymentMethod.toUpperCase()}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center text-sm">
+                      <Calendar className="w-3 h-3 mr-1 text-gray-400" />
+                      {payment.paymentDate.toLocaleDateString()}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={getStatusColor(payment.status)}>
+                      {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm text-gray-500">
+                      {payment.notes || '-'}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })
           )}
         </TableBody>
       </Table>
