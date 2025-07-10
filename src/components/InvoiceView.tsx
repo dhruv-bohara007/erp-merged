@@ -158,12 +158,11 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
               color: #6b7280;
             }
 
-            /* Dates Section */
+            /* Dates Section - Compact */
             .dates-section {
-              display: flex;
               gap: 40px;
-              margin: 15px 0;
-              padding: 25px;
+              margin: 10px 0;
+              padding: 15px;
               background: #f9fafb;
               border-radius: 8px;
               page-break-inside: avoid;
@@ -171,21 +170,21 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
             .date-item {
               display: flex;
               align-items: center;
-              gap: 10px;
+              gap: 8px;
               font-weight: 600;
-              font-size: 16px;
+              font-size: 14px;
             }
 
-            /* Two Column Layout */
+            /* Two Column Layout - Compact */
             .two-column {
               display: grid;
               grid-template-columns: 1fr 1fr;
-              gap: 30px;
-              margin: 25px 0;
+              gap: 20px;
+              margin: 15px 0;
               page-break-inside: avoid;
             }
             
-            /* Card Styles */
+            /* Card Styles - Compact for first page */
             .info-card {
               background: white;
               border: 2px solid #e5e7eb;
@@ -194,8 +193,8 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
               box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             }
             .card-header {
-              padding: 20px;
-              font-size: 18px;
+              padding: 15px;
+              font-size: 16px;
               font-weight: bold;
               color: #1f2937;
               border-bottom: 2px solid #e5e7eb;
@@ -203,22 +202,22 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
             .company-header { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); }
             .client-header { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); }
             
-            .card-content { padding: 25px; }
+            .card-content { padding: 15px; }
             .info-section {
-              margin-bottom: 25px;
-              padding: 20px;
+              margin-bottom: 15px;
+              padding: 12px;
               background: #f9fafb;
-              border-radius: 8px;
+              border-radius: 6px;
               border: 1px solid #e5e7eb;
             }
             .section-title {
               font-weight: bold;
               color: #374151;
-              margin-bottom: 12px;
-              font-size: 16px;
+              margin-bottom: 8px;
+              font-size: 14px;
               display: flex;
               align-items: center;
-              gap: 8px;
+              gap: 6px;
             }
             
             /* Phone number formatting with consistent alignment */
@@ -229,21 +228,22 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
               word-spacing: 2px;
             }
             
-            /* Table Styles */
+            /* Table Styles - Compact */
             .bank-table, .items-table {
               width: 100%;
               border-collapse: collapse;
-              margin: 15px 0;
+              margin: 10px 0;
               background: white;
-              border-radius: 8px;
+              border-radius: 6px;
               overflow: hidden;
               border: 1px solid #e5e7eb;
             }
             .bank-table th, .bank-table td,
             .items-table th, .items-table td {
-              padding: 12px 16px;
+              padding: 8px 12px;
               text-align: left;
               border-bottom: 1px solid #e5e7eb;
+              font-size: 13px;
             }
             .bank-table th, .items-table th {
               background: #f9fafb;
@@ -261,38 +261,40 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
             .items-table td:nth-child(3),
             .items-table td:nth-child(4) { text-align: right; }
             
-            /* Signature Section */
+            /* Signature Section - Compact */
             .signature-section {
-              margin-top: 25px;
-              padding: 20px;
+              margin-top: 15px;
+              padding: 12px;
               background: linear-gradient(135deg, #faf5ff 0%, #e9d5ff 100%);
-              border-radius: 8px;
+              border-radius: 6px;
               border: 1px solid #d8b4fe;
             }
             .signature-image {
-              max-width: 200px;
-              height: 80px;
+              max-width: 150px;
+              height: 60px;
               object-contain;
               border: 2px solid white;
-              border-radius: 8px;
+              border-radius: 6px;
               background: white;
-              padding: 10px;
-              margin-top: 10px;
-              margin-bottom: 15px;
+              padding: 8px;
+              margin-top: 8px;
+              margin-bottom: 10px;
             }
             .signature-details {
-              margin-top: 15px;
-              padding-top: 15px;
+              margin-top: 10px;
+              padding-top: 10px;
               border-top: 1px solid #d8b4fe;
             }
             .signature-name {
               font-weight: bold;
               color: #374151;
-              margin-bottom: 5px;
+              margin-bottom: 4px;
+              font-size: 14px;
             }
             .signature-position {
               color: #6b7280;
               font-style: italic;
+              font-size: 12px;
             }
             
             /* Summary Section */
@@ -412,10 +414,10 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                 <div class="card-content">
                   <div class="info-section">
                     <div class="section-title">📍 Contact Details</div>
-                    <div><strong>${invoice.companyName}</strong></div>
-                    <div>${invoice.companyAddress}</div>
-                    ${invoice.companyCity ? `<div>${invoice.companyCity}</div>` : ''}
-                    <div><strong>Country:</strong> ${(() => {
+                    <div style="font-size: 14px; line-height: 1.4;"><strong>${invoice.companyName}</strong></div>
+                    <div style="font-size: 13px; line-height: 1.3;">${invoice.companyAddress}</div>
+                    ${invoice.companyCity ? `<div style="font-size: 13px; line-height: 1.3;">${invoice.companyCity}</div>` : ''}
+                    <div style="font-size: 13px; line-height: 1.3;"><strong>Country:</strong> ${(() => {
                       const countryNames = {
                         'US': 'United States', 'IN': 'India', 'GB': 'United Kingdom', 'DE': 'Germany',
                         'FR': 'France', 'IT': 'Italy', 'ES': 'Spain', 'NL': 'Netherlands', 'CA': 'Canada',
@@ -425,9 +427,9 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                       };
                       return countryNames[companyCountry] || companyCountry;
                     })()}</div>
-                    ${invoice.companyPhone ? `<div>📞 <span class="phone-number">${formatPhoneNumber(invoice.companyPhone, companyCountry)}</span></div>` : ''}
-                    ${invoice.companyEmail ? `<div>📧 ${invoice.companyEmail}</div>` : ''}
-                    ${invoice.companyWebsite ? `<div>🌐 ${invoice.companyWebsite}</div>` : ''}
+                    ${invoice.companyPhone ? `<div style="font-size: 13px; line-height: 1.3;">📞 <span class="phone-number">${formatPhoneNumber(invoice.companyPhone, companyCountry)}</span></div>` : ''}
+                    ${invoice.companyEmail ? `<div style="font-size: 13px; line-height: 1.3;">📧 ${invoice.companyEmail}</div>` : ''}
+                    ${invoice.companyWebsite ? `<div style="font-size: 13px; line-height: 1.3;">🌐 ${invoice.companyWebsite}</div>` : ''}
                   </div>
 
                   ${invoice.companyTaxInfo && (invoice.companyTaxInfo.primaryType && invoice.companyTaxInfo.primaryId) ? `
@@ -484,22 +486,22 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                 <div class="card-content">
                   <div class="info-section">
                     <div class="section-title">👤 Contact Details</div>
-                    <div><strong>${invoice.clientName}</strong></div>
-                    <div>📧 ${invoice.clientEmail}</div>
-                    ${invoice.clientPhone ? `<div>📞 <span class="phone-number">${formatPhoneNumber(invoice.clientPhone, clientCountry)}</span></div>` : ''}
+                    <div style="font-size: 14px; line-height: 1.4;"><strong>${invoice.clientName}</strong></div>
+                    <div style="font-size: 13px; line-height: 1.3;">📧 ${invoice.clientEmail}</div>
+                    ${invoice.clientPhone ? `<div style="font-size: 13px; line-height: 1.3;">📞 <span class="phone-number">${formatPhoneNumber(invoice.clientPhone, clientCountry)}</span></div>` : ''}
                   </div>
 
                   <div class="info-section">
                     <div class="section-title">📍 Address</div>
-                    ${invoice.clientAddress ? `<div>${invoice.clientAddress}</div>` : ''}
-                    ${invoice.clientState ? `<div>State: ${invoice.clientState}</div>` : ''}
-                    ${invoice.clientPincode ? `<div>Pincode: ${invoice.clientPincode}</div>` : ''}
+                    ${invoice.clientAddress ? `<div style="font-size: 13px; line-height: 1.3;">${invoice.clientAddress}</div>` : ''}
+                    ${invoice.clientState ? `<div style="font-size: 13px; line-height: 1.3;">State: ${invoice.clientState}</div>` : ''}
+                    ${invoice.clientPincode ? `<div style="font-size: 13px; line-height: 1.3;">Pincode: ${invoice.clientPincode}</div>` : ''}
                   </div>
 
                   ${invoice.clientTaxInfo?.id ? `
                     <div class="info-section">
                       <div class="section-title">🏛️ Tax Information</div>
-                      <div><strong>${invoice.clientTaxInfo.type || 'Tax ID'}:</strong> ${invoice.clientTaxInfo.id}</div>
+                      <div style="font-size: 13px; line-height: 1.3;"><strong>${invoice.clientTaxInfo.type || 'Tax ID'}:</strong> ${invoice.clientTaxInfo.id}</div>
                     </div>
                   ` : ''}
                 </div>
