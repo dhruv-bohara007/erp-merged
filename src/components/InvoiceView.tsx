@@ -394,8 +394,8 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
               </div>
             </div>
 
-            <!-- Dates Section (First page only) -->
-            <div class="dates-section no-page-break invoice-meta">
+            <!-- Dates Section (First page only) - Same line display -->
+            <div class="dates-section no-page-break invoice-meta" style="display: flex; justify-content: space-between; align-items: center;">
               <div class="date-item">
                 <strong>Issue Date:</strong> ${invoice.issueDate?.toLocaleDateString() || 'N/A'}
               </div>
@@ -506,8 +506,12 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
               </div>
             </div>
 
-            <!-- Invoice Items (Optimized for single page) -->
-            <div class="info-card no-page-break">
+          </div>
+
+          <!-- Second Page: Invoice Items and Terms -->
+          <div class="container page-break-before">
+            <!-- Invoice Items -->
+            <div class="info-card">
               <div class="card-header" style="background: linear-gradient(135deg, #faf5ff 0%, #e9d5ff 100%);">Invoice Items</div>
               <div class="card-content">
                 <table class="items-table">
@@ -602,9 +606,9 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
               </div>
             </div>
 
-            <!-- Notes and Terms (Concise format) -->
+            <!-- Notes and Terms (Second page) -->
             ${(invoice.notes || invoice.terms) ? `
-              <div class="notes-section no-page-break">
+              <div class="notes-section">
                 ${invoice.notes ? `
                   <div style="margin-bottom: 15px;">
                     <div class="section-title">📝 Notes</div>
