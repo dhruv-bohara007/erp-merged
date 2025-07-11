@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -50,7 +51,7 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [amountAlreadyPaidCompanyCurrency, setAmountAlreadyPaidCompanyCurrency] = useState(0);
   const { addPayment, payments } = usePayments();
-  const { invoices } = useInvoices();
+  const { invoices, updateInvoice } = useInvoices();
 
   const form = useForm<PaymentFormData>({
     resolver: zodResolver(paymentSchema),
@@ -147,6 +148,20 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
 
       console.log('Converted amount in INR:', convertedAmountINR);
 
+      // Convert payment amount to client currency
+      const clientCurrency = getCurrencyByCountry(selectedInvoice.clientCountry || 'IN').code;
+      let amountInClientCurrency = paymentAmount;
+      
+      if (companyCurrency !== clientCurrency) {
+        console.log('Converting payment amount from', companyCurrency, 'to', clientCurrency, ':', paymentAmount);
+        
+        // First convert to INR, then to client currency
+        const { convertedAmount } = await exchangeRateService.convertFromINR(convertedAmountINR, clientCurrency);
+        amountInClientCurrency = convertedAmount;
+        
+        console.log('Converted amount in client currency:', amountInClientCurrency);
+      }
+
       // Calculate pending amount in INR
       const totalAmountINR = selectedInvoice.totalAmountINR || selectedInvoice.totalAmount || 0;
       const invoicePayments = payments.filter(p => p.invoiceId === selectedInvoice.id);
@@ -218,11 +233,24 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
         // Payment specific amounts in original currency
         originalPaymentAmount: paymentAmount,
         originalCurrency: companyCurrency,
+        
+        // New field: amount paid by client in client currency
+        amountPaidByClient: amountInClientCurrency,
       });
 
       console.log('Filtered payment data:', paymentData);
 
       await addPayment(paymentData);
+
+      // Update the invoice's amountPaidByClient field
+      const currentAmountPaidByClient = selectedInvoice.amountPaidByClient || 0;
+      const newAmountPaidByClient = currentAmountPaidByClient + amountInClientCurrency;
+      
+      await updateInvoice(selectedInvoice.id, {
+        amountPaidByClient: newAmountPaidByClient
+      });
+
+      console.log('Updated invoice amountPaidByClient:', newAmountPaidByClient);
 
       toast({
         title: "Success",

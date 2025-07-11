@@ -40,6 +40,7 @@ export interface Invoice {
   companyAmount: number;
   clientCurrency: string;
   clientAmount: number;
+  amountPaidByClient: number; // New field with default 0
   conversionRate?: {
     companyToINR: number;
     INRToClient: number;
@@ -82,7 +83,7 @@ export interface Invoice {
   bankInfo?: object;
   logoUrl?: string;
   signatureUrl?: string;
-  status: 'draft' | 'sent' | 'paid' | 'overdue';
+  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'pending';
   issueDate: Date;
   dueDate: Date;
   notes?: string;
@@ -140,6 +141,7 @@ export interface Payment {
   pendingAmountINR?: number;
   originalPaymentAmount?: number;
   originalCurrency?: string;
+  amountPaidByClient?: number; // New field with default 0
   createdAt: Date;
 }
 
@@ -202,6 +204,28 @@ export const useInvoices = () => {
         console.log('Invoices snapshot received:', snapshot.docs.length, 'documents');
         const invoiceData = snapshot.docs.map(doc => {
           const data = doc.data();
+          
+          // Determine status based on amountPaidByClient and due date
+          const amountPaidByClient = data.amountPaidByClient || 0;
+          const clientAmount = data.clientAmount || data.totalAmount || 0;
+          const dueDate = data.dueDate?.toDate() || new Date();
+          const isOverdue = new Date() > dueDate;
+          
+          let status = data.status || 'draft';
+          
+          // Apply status determination logic only if not draft
+          if (status !== 'draft') {
+            if (amountPaidByClient === 0 && !isOverdue) {
+              status = 'sent';
+            } else if (amountPaidByClient > 0 && !isOverdue && amountPaidByClient < clientAmount) {
+              status = 'pending';
+            } else if (amountPaidByClient < clientAmount && isOverdue) {
+              status = 'overdue';
+            } else if (amountPaidByClient >= clientAmount) {
+              status = 'paid';
+            }
+          }
+          
           return {
             id: doc.id,
             ...data,
@@ -211,6 +235,7 @@ export const useInvoices = () => {
             companyAmount: data.companyAmount || data.totalAmount || 0,
             clientCurrency: data.clientCurrency || 'INR',
             clientAmount: data.clientAmount || data.totalAmount || 0,
+            amountPaidByClient: amountPaidByClient, // New field
             // Handle country fields with fallbacks
             companyCountry: data.companyCountry || 'IN',
             clientCountry: data.clientCountry || 'IN',
@@ -241,6 +266,7 @@ export const useInvoices = () => {
               ...data.conversionRate,
               timestamp: data.conversionRate.timestamp?.toDate?.() || new Date()
             } : undefined,
+            status, // Use determined status
             issueDate: data.issueDate?.toDate(),
             dueDate: data.dueDate?.toDate(),
             createdAt: data.createdAt?.toDate(),
@@ -552,6 +578,7 @@ export const usePayments = () => {
         const paymentData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
+          amountPaidByClient: doc.data().amountPaidByClient || 0, // New field
           paymentDate: doc.data().paymentDate?.toDate(),
           createdAt: doc.data().createdAt?.toDate(),
         })) as Payment[];
@@ -582,6 +609,7 @@ export const usePayments = () => {
       const docRef = await addDoc(collection(db, 'payments'), {
         ...payment,
         companyId: currentUser.companyId,
+        amountPaidByClient: payment.amountPaidByClient || 0, // Ensure new field is included
         paymentDate: Timestamp.fromDate(payment.paymentDate),
         createdAt: Timestamp.now(),
       });
