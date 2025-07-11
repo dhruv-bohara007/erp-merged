@@ -28,7 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { usePayments } from '@/hooks/useFirestore';
 import { useInvoices } from '@/hooks/useFirestore';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@/hooks/use-toast';
 import { exchangeRateService } from '@/services/exchangeRateService';
 import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 
@@ -62,21 +62,34 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
     },
   });
 
+  // Watch invoiceId to update selected invoice
+  const watchedInvoiceId = form.watch('invoiceId');
+
   // Update selected invoice when invoiceId changes
   useEffect(() => {
-    const invoiceId = form.watch('invoiceId');
-    if (invoiceId) {
-      const invoice = invoices.find(inv => inv.id === invoiceId);
+    if (watchedInvoiceId) {
+      const invoice = invoices.find(inv => inv.id === watchedInvoiceId);
       setSelectedInvoice(invoice);
     } else {
       setSelectedInvoice(null);
     }
-  }, [form.watch('invoiceId'), invoices]);
+  }, [watchedInvoiceId, invoices]);
 
   const getCompanyCurrencySymbol = (invoice: any) => {
     if (!invoice) return '$';
     const currencyInfo = getCurrencyByCountry(invoice.companyCountry || 'US');
     return currencyInfo.symbol;
+  };
+
+  // Helper function to filter out undefined values from an object
+  const filterUndefinedValues = (obj: any): any => {
+    const filtered: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        filtered[key] = value;
+      }
+    }
+    return filtered;
   };
 
   const onSubmit = async (data: PaymentFormData) => {
@@ -94,7 +107,7 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
 
       console.log('Processing payment for invoice:', selectedInvoice);
       
-      // Convert payment amount to INR
+      // Convert payment amount to INR - only called once on submit
       const paymentAmount = parseFloat(data.amount);
       if (isNaN(paymentAmount) || paymentAmount <= 0) {
         toast({
@@ -110,7 +123,7 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
       
       console.log('Converting payment amount from', companyCurrency, 'to INR:', paymentAmount);
       
-      // Convert to INR
+      // Convert to INR - API call only happens here
       const { amountInINR: convertedAmountINR } = await exchangeRateService.convertToINR(
         paymentAmount, 
         companyCurrency
@@ -124,8 +137,8 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
 
       console.log('Total amount INR:', totalAmountINR, 'Pending amount INR:', pendingAmountINR);
 
-      // Prepare payment data with all invoice fields copied
-      const paymentData = {
+      // Prepare payment data with all invoice fields copied, filtering out undefined values
+      const paymentData = filterUndefinedValues({
         // Payment specific fields
         invoiceId: data.invoiceId,
         invoiceNumber: selectedInvoice.invoiceNumber,
@@ -136,7 +149,7 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
         paymentDate: new Date(data.paymentDate),
         status: 'completed' as const,
         
-        // Copy all invoice fields
+        // Copy all invoice fields - only if they are defined
         clientEmail: selectedInvoice.clientEmail,
         clientState: selectedInvoice.clientState,
         clientPhone: selectedInvoice.clientPhone,
@@ -184,7 +197,9 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
         // Payment specific amounts in original currency
         originalPaymentAmount: paymentAmount,
         originalCurrency: companyCurrency,
-      };
+      });
+
+      console.log('Filtered payment data:', paymentData);
 
       await addPayment(paymentData);
 
