@@ -49,7 +49,8 @@ interface PaymentModalProps {
 const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
-  const { addPayment } = usePayments();
+  const [amountAlreadyPaid, setAmountAlreadyPaid] = useState(0);
+  const { addPayment, payments } = usePayments();
   const { invoices } = useInvoices();
 
   const form = useForm<PaymentFormData>({
@@ -70,10 +71,30 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
     if (watchedInvoiceId) {
       const invoice = invoices.find(inv => inv.id === watchedInvoiceId);
       setSelectedInvoice(invoice);
+      
+      // Calculate amount already paid for this invoice
+      if (invoice) {
+        const invoicePayments = payments.filter(p => p.invoiceId === invoice.id);
+        const totalPaid = invoicePayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+        
+        // Convert back to company currency for display
+        const companyCurrency = getCurrencyByCountry(invoice.companyCountry || 'US').code;
+        // For now, we'll show the INR amount - in a real scenario, you'd convert back
+        setAmountAlreadyPaid(totalPaid);
+      }
     } else {
       setSelectedInvoice(null);
+      setAmountAlreadyPaid(0);
     }
-  }, [watchedInvoiceId, invoices]);
+  }, [watchedInvoiceId, invoices, payments]);
+
+  // Filter invoices to show only those with pending payments
+  const invoicesWithPendingPayments = invoices.filter(invoice => {
+    const invoicePayments = payments.filter(p => p.invoiceId === invoice.id);
+    const totalPaid = invoicePayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    const totalAmount = invoice.totalAmountINR || invoice.totalAmount || 0;
+    return totalPaid < totalAmount;
+  });
 
   const getCompanyCurrencySymbol = (invoice: any) => {
     if (!invoice) return '$';
@@ -133,9 +154,12 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
 
       // Calculate pending amount in INR
       const totalAmountINR = selectedInvoice.totalAmountINR || selectedInvoice.totalAmount || 0;
-      const pendingAmountINR = totalAmountINR - convertedAmountINR;
+      const pendingAmountINR = totalAmountINR - (amountAlreadyPaid + convertedAmountINR);
 
       console.log('Total amount INR:', totalAmountINR, 'Pending amount INR:', pendingAmountINR);
+
+      // Determine status based on pending amount
+      const paymentStatus = pendingAmountINR <= 0 ? 'completed' : 'pending';
 
       // Prepare payment data with all invoice fields copied, filtering out undefined values
       const paymentData = filterUndefinedValues({
@@ -147,7 +171,7 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
         amount: convertedAmountINR, // Store converted INR amount
         paymentMethod: data.paymentMethod,
         paymentDate: new Date(data.paymentDate),
-        status: 'completed' as const,
+        status: paymentStatus,
         
         // Copy all invoice fields - only if they are defined
         clientEmail: selectedInvoice.clientEmail,
@@ -192,7 +216,7 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
         terms: selectedInvoice.terms,
         
         // Add pending amount calculation
-        pendingAmountINR: pendingAmountINR,
+        pendingAmountINR: Math.max(0, pendingAmountINR),
         
         // Payment specific amounts in original currency
         originalPaymentAmount: paymentAmount,
@@ -244,7 +268,7 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {invoices.map((invoice) => {
+                      {invoicesWithPendingPayments.map((invoice) => {
                         const currencySymbol = getCompanyCurrencySymbol(invoice);
                         const displayAmount = invoice.companyAmount || invoice.totalAmount || 0;
                         return (
@@ -259,6 +283,22 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
                 </FormItem>
               )}
             />
+
+            {selectedInvoice && (
+              <FormItem>
+                <FormLabel>
+                  Amount Already Paid ({getCompanyCurrencySymbol(selectedInvoice)})
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    type="text"
+                    value={`₹${amountAlreadyPaid.toLocaleString()}`}
+                    readOnly
+                    className="bg-gray-50"
+                  />
+                </FormControl>
+              </FormItem>
+            )}
 
             <FormField
               control={form.control}

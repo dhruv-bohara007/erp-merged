@@ -42,17 +42,17 @@ const PaymentTable = ({ payments }: PaymentTableProps) => {
     }
   };
 
-  // Get invoice amount for display
-  const getInvoiceAmount = (invoiceId: string) => {
+  // Calculate payment timing relative to due date
+  const getPaymentTiming = (paymentDate: Date, invoiceId: string) => {
     const invoice = invoices.find(inv => inv.id === invoiceId);
-    if (!invoice) return 0;
+    if (!invoice || !invoice.dueDate) return '-';
     
-    // Only show invoice amount if the invoice is marked as paid
-    if (invoice.status === 'paid') {
-      return invoice.totalAmountINR || invoice.totalAmount || 0;
-    }
+    const diffTime = paymentDate.getTime() - invoice.dueDate.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    return 0;
+    if (diffDays === 0) return 'On due date';
+    if (diffDays > 0) return `${diffDays} days after due date`;
+    return `${Math.abs(diffDays)} days before due date`;
   };
 
   return (
@@ -62,9 +62,10 @@ const PaymentTable = ({ payments }: PaymentTableProps) => {
           <TableRow>
             <TableHead>Invoice #</TableHead>
             <TableHead>Client</TableHead>
-            <TableHead>Amount</TableHead>
+            <TableHead>Amount Paid (INR)</TableHead>
             <TableHead>Payment Method</TableHead>
             <TableHead>Date</TableHead>
+            <TableHead>Pending Payment (INR)</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Notes</TableHead>
           </TableRow>
@@ -72,14 +73,12 @@ const PaymentTable = ({ payments }: PaymentTableProps) => {
         <TableBody>
           {payments.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+              <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                 No payments found
               </TableCell>
             </TableRow>
           ) : (
             payments.map((payment) => {
-              const invoiceAmount = getInvoiceAmount(payment.invoiceId);
-              
               return (
                 <TableRow key={payment.id}>
                   <TableCell>
@@ -89,12 +88,12 @@ const PaymentTable = ({ payments }: PaymentTableProps) => {
                     <div className="font-medium">{payment.clientName}</div>
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium">₹{invoiceAmount.toLocaleString()}</div>
+                    <div className="font-medium">₹{payment.amount?.toLocaleString() || '0'}</div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       {getPaymentMethodIcon(payment.paymentMethod)}
-                      <span className="capitalize">{payment.paymentMethod.toUpperCase()}</span>
+                      <span className="capitalize">{payment.paymentMethod.replace('_', ' ').toUpperCase()}</span>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -104,13 +103,16 @@ const PaymentTable = ({ payments }: PaymentTableProps) => {
                     </div>
                   </TableCell>
                   <TableCell>
+                    <div className="font-medium">₹{(payment.pendingAmountINR || 0).toLocaleString()}</div>
+                  </TableCell>
+                  <TableCell>
                     <Badge className={getStatusColor(payment.status)}>
                       {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     <div className="text-sm text-gray-500">
-                      {payment.notes || '-'}
+                      {getPaymentTiming(payment.paymentDate, payment.invoiceId)}
                     </div>
                   </TableCell>
                 </TableRow>

@@ -137,6 +137,9 @@ export interface Payment {
   paymentDate: Date;
   status: 'completed' | 'pending' | 'failed';
   notes?: string;
+  pendingAmountINR?: number;
+  originalPaymentAmount?: number;
+  originalCurrency?: string;
   createdAt: Date;
 }
 
