@@ -160,8 +160,8 @@ export const initializeCollections = async () => {
     const invoiceRef = await addDoc(collection(db, 'invoices'), sampleInvoice);
     console.log('Invoice added with ID:', invoiceRef.id);
 
-    // Sample Payment Data - now includes amountPaidByClient field
-    const samplePayment: Omit<Payment, 'id'> = {
+    // Sample Payment Data - change type to exclude 'id' and 'createdAt' only
+    const samplePayment: Omit<Payment, 'id' | 'createdAt'> = {
       invoiceId: invoiceRef.id,
       invoiceNumber: 'INV-2024-001',
       clientId: clientRefs[0].id,
@@ -178,8 +178,6 @@ export const initializeCollections = async () => {
       },
       notes: 'Partial payment received',
       amountPaidByClient: 59000,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now()
     };
 
     // Add Payment

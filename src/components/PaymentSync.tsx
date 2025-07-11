@@ -27,6 +27,7 @@ const PaymentSync = () => {
             paymentDate: invoice.updatedAt || new Date(),
             status: 'completed',
             notes: 'Auto-created from paid invoice',
+            amountPaidByClient: invoice.clientAmount || invoice.totalAmount || 0, // Add required field
           });
           console.log(`Created payment record for invoice ${invoice.invoiceNumber}`);
         } catch (error) {
