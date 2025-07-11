@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -49,7 +48,7 @@ interface PaymentModalProps {
 const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
-  const [amountAlreadyPaid, setAmountAlreadyPaid] = useState(0);
+  const [amountAlreadyPaidCompanyCurrency, setAmountAlreadyPaidCompanyCurrency] = useState(0);
   const { addPayment, payments } = usePayments();
   const { invoices } = useInvoices();
 
@@ -72,28 +71,24 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
       const invoice = invoices.find(inv => inv.id === watchedInvoiceId);
       setSelectedInvoice(invoice);
       
-      // Calculate amount already paid for this invoice
+      // Calculate amount already paid for this invoice in company currency
       if (invoice) {
         const invoicePayments = payments.filter(p => p.invoiceId === invoice.id);
-        const totalPaid = invoicePayments.reduce((sum, p) => sum + (p.amount || 0), 0);
-        
-        // Convert back to company currency for display
-        const companyCurrency = getCurrencyByCountry(invoice.companyCountry || 'US').code;
-        // For now, we'll show the INR amount - in a real scenario, you'd convert back
-        setAmountAlreadyPaid(totalPaid);
+        const totalPaidCompanyCurrency = invoicePayments.reduce((sum, p) => sum + (p.originalPaymentAmount || 0), 0);
+        setAmountAlreadyPaidCompanyCurrency(totalPaidCompanyCurrency);
       }
     } else {
       setSelectedInvoice(null);
-      setAmountAlreadyPaid(0);
+      setAmountAlreadyPaidCompanyCurrency(0);
     }
   }, [watchedInvoiceId, invoices, payments]);
 
   // Filter invoices to show only those with pending payments
   const invoicesWithPendingPayments = invoices.filter(invoice => {
     const invoicePayments = payments.filter(p => p.invoiceId === invoice.id);
-    const totalPaid = invoicePayments.reduce((sum, p) => sum + (p.amount || 0), 0);
-    const totalAmount = invoice.totalAmountINR || invoice.totalAmount || 0;
-    return totalPaid < totalAmount;
+    const totalPaidINR = invoicePayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    const totalAmountINR = invoice.totalAmountINR || invoice.totalAmount || 0;
+    return totalPaidINR < totalAmountINR;
   });
 
   const getCompanyCurrencySymbol = (invoice: any) => {
@@ -106,7 +101,7 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
   const filterUndefinedValues = (obj: any): any => {
     const filtered: any = {};
     for (const [key, value] of Object.entries(obj)) {
-      if (value !== undefined) {
+      if (value !== undefined && value !== null) {
         filtered[key] = value;
       }
     }
@@ -154,9 +149,11 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
 
       // Calculate pending amount in INR
       const totalAmountINR = selectedInvoice.totalAmountINR || selectedInvoice.totalAmount || 0;
-      const pendingAmountINR = totalAmountINR - (amountAlreadyPaid + convertedAmountINR);
+      const invoicePayments = payments.filter(p => p.invoiceId === selectedInvoice.id);
+      const totalAlreadyPaidINR = invoicePayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+      const pendingAmountINR = totalAmountINR - (totalAlreadyPaidINR + convertedAmountINR);
 
-      console.log('Total amount INR:', totalAmountINR, 'Pending amount INR:', pendingAmountINR);
+      console.log('Total amount INR:', totalAmountINR, 'Already paid INR:', totalAlreadyPaidINR, 'Pending amount INR:', pendingAmountINR);
 
       // Determine status based on pending amount
       const paymentStatus = pendingAmountINR <= 0 ? 'completed' : 'pending';
@@ -292,7 +289,7 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
                 <FormControl>
                   <Input
                     type="text"
-                    value={`₹${amountAlreadyPaid.toLocaleString()}`}
+                    value={`${getCompanyCurrencySymbol(selectedInvoice)}${amountAlreadyPaidCompanyCurrency.toLocaleString()}`}
                     readOnly
                     className="bg-gray-50"
                   />

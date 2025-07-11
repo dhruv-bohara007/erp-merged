@@ -1,5 +1,7 @@
 
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { 
   Calendar, 
@@ -7,17 +9,75 @@ import {
   Banknote,
   Smartphone,
   Building,
-  IndianRupee
+  IndianRupee,
+  History
 } from 'lucide-react';
 import { Payment } from '@/hooks/useFirestore';
 import { useInvoices } from '@/hooks/useFirestore';
+import PaymentHistoryModal from './PaymentHistoryModal';
+import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 
 interface PaymentTableProps {
   payments: Payment[];
 }
 
+interface GroupedPayment {
+  invoiceId: string;
+  invoiceNumber: string;
+  clientName: string;
+  totalAmountPaid: number;
+  latestPaymentDate: Date;
+  latestPaymentMethod: string;
+  pendingAmountINR: number;
+  status: string;
+  paymentTiming: string;
+  companyCountry?: string;
+}
+
 const PaymentTable = ({ payments }: PaymentTableProps) => {
   const { invoices } = useInvoices();
+  const [paymentHistoryModal, setPaymentHistoryModal] = useState({
+    open: false,
+    invoiceId: '',
+    invoiceNumber: '',
+    companyCountry: ''
+  });
+
+  // Group payments by invoice to avoid duplicates
+  const groupedPayments: GroupedPayment[] = payments.reduce((acc, payment) => {
+    const existingGroup = acc.find(group => group.invoiceId === payment.invoiceId);
+    
+    if (existingGroup) {
+      // Update existing group with accumulated data
+      existingGroup.totalAmountPaid += payment.amount || 0;
+      if (payment.paymentDate > existingGroup.latestPaymentDate) {
+        existingGroup.latestPaymentDate = payment.paymentDate;
+        existingGroup.latestPaymentMethod = payment.paymentMethod;
+      }
+    } else {
+      // Create new group
+      const invoice = invoices.find(inv => inv.id === payment.invoiceId);
+      const totalInvoiceAmount = invoice?.totalAmountINR || invoice?.totalAmount || 0;
+      const invoicePayments = payments.filter(p => p.invoiceId === payment.invoiceId);
+      const totalPaid = invoicePayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+      const pendingAmount = Math.max(0, totalInvoiceAmount - totalPaid);
+      
+      acc.push({
+        invoiceId: payment.invoiceId,
+        invoiceNumber: payment.invoiceNumber,
+        clientName: payment.clientName,
+        totalAmountPaid: payment.amount || 0,
+        latestPaymentDate: payment.paymentDate,
+        latestPaymentMethod: payment.paymentMethod,
+        pendingAmountINR: pendingAmount,
+        status: pendingAmount > 0 ? 'pending' : 'completed',
+        paymentTiming: getPaymentTiming(payment.paymentDate, payment.invoiceId, invoice),
+        companyCountry: invoice?.companyCountry
+      });
+    }
+    
+    return acc;
+  }, [] as GroupedPayment[]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -43,8 +103,7 @@ const PaymentTable = ({ payments }: PaymentTableProps) => {
   };
 
   // Calculate payment timing relative to due date
-  const getPaymentTiming = (paymentDate: Date, invoiceId: string) => {
-    const invoice = invoices.find(inv => inv.id === invoiceId);
+  const getPaymentTiming = (paymentDate: Date, invoiceId: string, invoice?: any) => {
     if (!invoice || !invoice.dueDate) return '-';
     
     const diffTime = paymentDate.getTime() - invoice.dueDate.getTime();
@@ -55,73 +114,102 @@ const PaymentTable = ({ payments }: PaymentTableProps) => {
     return `${Math.abs(diffDays)} days before due date`;
   };
 
+  const handleViewPaymentHistory = (invoiceId: string, invoiceNumber: string, companyCountry?: string) => {
+    setPaymentHistoryModal({
+      open: true,
+      invoiceId,
+      invoiceNumber,
+      companyCountry: companyCountry || ''
+    });
+  };
+
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Invoice #</TableHead>
-            <TableHead>Client</TableHead>
-            <TableHead>Amount Paid (INR)</TableHead>
-            <TableHead>Payment Method</TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead>Pending Payment (INR)</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Notes</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {payments.length === 0 ? (
+    <>
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={8} className="text-center py-8 text-gray-500">
-                No payments found
-              </TableCell>
+              <TableHead>Invoice #</TableHead>
+              <TableHead>Client</TableHead>
+              <TableHead>Amount Paid (INR)</TableHead>
+              <TableHead>Payment Method</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Pending Payment (INR)</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Notes</TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
-          ) : (
-            payments.map((payment) => {
-              return (
-                <TableRow key={payment.id}>
+          </TableHeader>
+          <TableBody>
+            {groupedPayments.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                  No payments found
+                </TableCell>
+              </TableRow>
+            ) : (
+              groupedPayments.map((group) => (
+                <TableRow key={group.invoiceId}>
                   <TableCell>
-                    <div className="font-medium">{payment.invoiceNumber}</div>
+                    <div className="font-medium">{group.invoiceNumber}</div>
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium">{payment.clientName}</div>
+                    <div className="font-medium">{group.clientName}</div>
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium">₹{payment.amount?.toLocaleString() || '0'}</div>
+                    <div className="font-medium">₹{group.totalAmountPaid.toLocaleString()}</div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      {getPaymentMethodIcon(payment.paymentMethod)}
-                      <span className="capitalize">{payment.paymentMethod.replace('_', ' ').toUpperCase()}</span>
+                      {getPaymentMethodIcon(group.latestPaymentMethod)}
+                      <span className="capitalize">{group.latestPaymentMethod.replace('_', ' ').toUpperCase()}</span>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center text-sm">
                       <Calendar className="w-3 h-3 mr-1 text-gray-400" />
-                      {payment.paymentDate.toLocaleDateString()}
+                      {group.latestPaymentDate.toLocaleDateString()}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium">₹{(payment.pendingAmountINR || 0).toLocaleString()}</div>
+                    <div className="font-medium">₹{group.pendingAmountINR.toLocaleString()}</div>
                   </TableCell>
                   <TableCell>
-                    <Badge className={getStatusColor(payment.status)}>
-                      {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
+                    <Badge className={getStatusColor(group.status)}>
+                      {group.status.charAt(0).toUpperCase() + group.status.slice(1)}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     <div className="text-sm text-gray-500">
-                      {getPaymentTiming(payment.paymentDate, payment.invoiceId)}
+                      {group.paymentTiming}
                     </div>
                   </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewPaymentHistory(group.invoiceId, group.invoiceNumber, group.companyCountry)}
+                    >
+                      <History className="w-4 h-4 mr-1" />
+                      History
+                    </Button>
+                  </TableCell>
                 </TableRow>
-              );
-            })
-          )}
-        </TableBody>
-      </Table>
-    </div>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      <PaymentHistoryModal
+        open={paymentHistoryModal.open}
+        onOpenChange={(open) => setPaymentHistoryModal(prev => ({ ...prev, open }))}
+        invoiceId={paymentHistoryModal.invoiceId}
+        invoiceNumber={paymentHistoryModal.invoiceNumber}
+        payments={payments}
+        companyCountry={paymentHistoryModal.companyCountry}
+      />
+    </>
   );
 };
 

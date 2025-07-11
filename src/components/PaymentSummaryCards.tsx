@@ -11,24 +11,28 @@ interface PaymentSummaryCardsProps {
 const PaymentSummaryCards = ({ payments }: PaymentSummaryCardsProps) => {
   const { invoices } = useInvoices();
 
-  // Calculate Total Received from paid invoices (not payments)
-  const totalReceived = invoices
-    .filter(invoice => invoice.status === 'paid')
-    .reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
+  // Calculate Total Received from payments (sum of all payment amounts in INR)
+  const totalReceived = payments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
 
-  // Calculate Pending from outstanding invoices (draft, sent, overdue)
-  const pendingAmount = invoices
-    .filter(invoice => ['draft', 'sent', 'overdue'].includes(invoice.status))
-    .reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
+  // Calculate Pending from outstanding invoices minus payments made
+  const pendingAmount = invoices.reduce((total, invoice) => {
+    if (['draft', 'sent', 'overdue'].includes(invoice.status)) {
+      const invoiceTotal = invoice.totalAmountINR || invoice.totalAmount || 0;
+      const invoicePayments = payments.filter(p => p.invoiceId === invoice.id);
+      const totalPaid = invoicePayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+      return total + Math.max(0, invoiceTotal - totalPaid);
+    }
+    return total;
+  }, 0);
   
-  // Calculate this month's revenue from paid invoices (current month)
-  const thisMonthRevenue = invoices.filter(invoice => {
-    if (!invoice.createdAt || invoice.status !== 'paid') return false;
-    const invoiceDate = new Date(invoice.createdAt);
+  // Calculate this month's revenue from payments (current month)
+  const thisMonthRevenue = payments.filter(payment => {
+    if (!payment.paymentDate) return false;
+    const paymentDate = new Date(payment.paymentDate);
     const currentDate = new Date();
-    return invoiceDate.getMonth() === currentDate.getMonth() && 
-           invoiceDate.getFullYear() === currentDate.getFullYear();
-  }).reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
+    return paymentDate.getMonth() === currentDate.getMonth() && 
+           paymentDate.getFullYear() === currentDate.getFullYear();
+  }).reduce((sum, payment) => sum + (payment.amount || 0), 0);
 
   // Format currency to 2 decimal places
   const formatINR = (amount: number) => {
