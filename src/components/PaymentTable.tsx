@@ -43,6 +43,18 @@ const PaymentTable = ({ payments }: PaymentTableProps) => {
     companyCountry: ''
   });
 
+  // Calculate payment timing relative to due date - moved before usage
+  const getPaymentTiming = (paymentDate: Date, invoiceId: string, invoice?: any) => {
+    if (!invoice || !invoice.dueDate) return '-';
+    
+    const diffTime = paymentDate.getTime() - invoice.dueDate.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'On due date';
+    if (diffDays > 0) return `${diffDays} days after due date`;
+    return `${Math.abs(diffDays)} days before due date`;
+  };
+
   // Group payments by invoice to avoid duplicates
   const groupedPayments: GroupedPayment[] = payments.reduce((acc, payment) => {
     const existingGroup = acc.find(group => group.invoiceId === payment.invoiceId);
@@ -100,18 +112,6 @@ const PaymentTable = ({ payments }: PaymentTableProps) => {
       case 'cheque': return <IndianRupee className="w-4 h-4" />;
       default: return <IndianRupee className="w-4 h-4" />;
     }
-  };
-
-  // Calculate payment timing relative to due date
-  const getPaymentTiming = (paymentDate: Date, invoiceId: string, invoice?: any) => {
-    if (!invoice || !invoice.dueDate) return '-';
-    
-    const diffTime = paymentDate.getTime() - invoice.dueDate.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) return 'On due date';
-    if (diffDays > 0) return `${diffDays} days after due date`;
-    return `${Math.abs(diffDays)} days before due date`;
   };
 
   const handleViewPaymentHistory = (invoiceId: string, invoiceNumber: string, companyCountry?: string) => {
