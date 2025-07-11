@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -26,18 +26,17 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { usePayments } from '@/hooks/useFirestore';
 import { useInvoices } from '@/hooks/useFirestore';
 import { toast } from '@/components/ui/use-toast';
+import { exchangeRateService } from '@/services/exchangeRateService';
+import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 
 const paymentSchema = z.object({
   invoiceId: z.string().min(1, 'Please select an invoice'),
-  amount: z.number().min(0.01, 'Amount must be greater than 0'),
+  amount: z.string().min(1, 'Amount is required'),
   paymentMethod: z.string().min(1, 'Please select a payment method'),
   paymentDate: z.string().min(1, 'Payment date is required'),
-  status: z.enum(['completed', 'pending', 'failed']),
-  notes: z.string().optional(),
 });
 
 type PaymentFormData = z.infer<typeof paymentSchema>;
@@ -49,6 +48,7 @@ interface PaymentModalProps {
 
 const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const { addPayment } = usePayments();
   const { invoices } = useInvoices();
 
@@ -56,19 +56,33 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
     resolver: zodResolver(paymentSchema),
     defaultValues: {
       invoiceId: '',
-      amount: 0,
+      amount: '',
       paymentMethod: '',
       paymentDate: new Date().toISOString().split('T')[0],
-      status: 'completed',
-      notes: '',
     },
   });
+
+  // Update selected invoice when invoiceId changes
+  useEffect(() => {
+    const invoiceId = form.watch('invoiceId');
+    if (invoiceId) {
+      const invoice = invoices.find(inv => inv.id === invoiceId);
+      setSelectedInvoice(invoice);
+    } else {
+      setSelectedInvoice(null);
+    }
+  }, [form.watch('invoiceId'), invoices]);
+
+  const getCompanyCurrencySymbol = (invoice: any) => {
+    if (!invoice) return '$';
+    const currencyInfo = getCurrencyByCountry(invoice.companyCountry || 'US');
+    return currencyInfo.symbol;
+  };
 
   const onSubmit = async (data: PaymentFormData) => {
     try {
       setIsSubmitting(true);
       
-      const selectedInvoice = invoices.find(inv => inv.id === data.invoiceId);
       if (!selectedInvoice) {
         toast({
           title: "Error",
@@ -78,17 +92,101 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
         return;
       }
 
-      await addPayment({
+      console.log('Processing payment for invoice:', selectedInvoice);
+      
+      // Convert payment amount to INR
+      const paymentAmount = parseFloat(data.amount);
+      if (isNaN(paymentAmount) || paymentAmount <= 0) {
+        toast({
+          title: "Error",
+          description: "Please enter a valid payment amount",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Get company currency from invoice
+      const companyCurrency = getCurrencyByCountry(selectedInvoice.companyCountry || 'US').code;
+      
+      console.log('Converting payment amount from', companyCurrency, 'to INR:', paymentAmount);
+      
+      // Convert to INR
+      const { amountInINR: convertedAmountINR } = await exchangeRateService.convertToINR(
+        paymentAmount, 
+        companyCurrency
+      );
+
+      console.log('Converted amount in INR:', convertedAmountINR);
+
+      // Calculate pending amount in INR
+      const totalAmountINR = selectedInvoice.totalAmountINR || selectedInvoice.totalAmount || 0;
+      const pendingAmountINR = totalAmountINR - convertedAmountINR;
+
+      console.log('Total amount INR:', totalAmountINR, 'Pending amount INR:', pendingAmountINR);
+
+      // Prepare payment data with all invoice fields copied
+      const paymentData = {
+        // Payment specific fields
         invoiceId: data.invoiceId,
         invoiceNumber: selectedInvoice.invoiceNumber,
         clientId: selectedInvoice.clientId,
         clientName: selectedInvoice.clientName,
-        amount: data.amount,
+        amount: convertedAmountINR, // Store converted INR amount
         paymentMethod: data.paymentMethod,
         paymentDate: new Date(data.paymentDate),
-        status: data.status,
-        notes: data.notes,
-      });
+        status: 'completed' as const,
+        
+        // Copy all invoice fields
+        clientEmail: selectedInvoice.clientEmail,
+        clientState: selectedInvoice.clientState,
+        clientPhone: selectedInvoice.clientPhone,
+        clientPincode: selectedInvoice.clientPincode,
+        items: selectedInvoice.items,
+        subtotal: selectedInvoice.subtotal,
+        cgst: selectedInvoice.cgst,
+        sgst: selectedInvoice.sgst,
+        igst: selectedInvoice.igst,
+        totalGst: selectedInvoice.totalGst,
+        totalAmount: selectedInvoice.totalAmount,
+        totalAmountINR: selectedInvoice.totalAmountINR,
+        companyCurrency: selectedInvoice.companyCurrency,
+        companyAmount: selectedInvoice.companyAmount,
+        clientCurrency: selectedInvoice.clientCurrency,
+        clientAmount: selectedInvoice.clientAmount,
+        conversionRate: selectedInvoice.conversionRate,
+        companyCountry: selectedInvoice.companyCountry,
+        clientCountry: selectedInvoice.clientCountry,
+        companyName: selectedInvoice.companyName,
+        companyLogoUrl: selectedInvoice.companyLogoUrl,
+        companyEmail: selectedInvoice.companyEmail,
+        companyWebsite: selectedInvoice.companyWebsite,
+        companyPhone: selectedInvoice.companyPhone,
+        companyCity: selectedInvoice.companyCity,
+        companyTaxInfo: selectedInvoice.companyTaxInfo,
+        companyBankDetails: selectedInvoice.companyBankDetails,
+        companyAddress: selectedInvoice.companyAddress,
+        ownerSignatureUrl: selectedInvoice.ownerSignatureUrl,
+        businessOwnerName: selectedInvoice.businessOwnerName,
+        businessOwnerPosition: selectedInvoice.businessOwnerPosition,
+        clientAddress: selectedInvoice.clientAddress,
+        clientTaxInfo: selectedInvoice.clientTaxInfo,
+        bankInfo: selectedInvoice.bankInfo,
+        logoUrl: selectedInvoice.logoUrl,
+        signatureUrl: selectedInvoice.signatureUrl,
+        issueDate: selectedInvoice.issueDate,
+        dueDate: selectedInvoice.dueDate,
+        notes: selectedInvoice.notes,
+        terms: selectedInvoice.terms,
+        
+        // Add pending amount calculation
+        pendingAmountINR: pendingAmountINR,
+        
+        // Payment specific amounts in original currency
+        originalPaymentAmount: paymentAmount,
+        originalCurrency: companyCurrency,
+      };
+
+      await addPayment(paymentData);
 
       toast({
         title: "Success",
@@ -98,6 +196,7 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
       form.reset();
       onOpenChange(false);
     } catch (error) {
+      console.error('Payment recording error:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to record payment",
@@ -130,11 +229,15 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {invoices.map((invoice) => (
-                        <SelectItem key={invoice.id} value={invoice.id}>
-                          {invoice.invoiceNumber} - {invoice.clientName} - ₹{(invoice.totalAmount || 0).toLocaleString()}
-                        </SelectItem>
-                      ))}
+                      {invoices.map((invoice) => {
+                        const currencySymbol = getCompanyCurrencySymbol(invoice);
+                        const displayAmount = invoice.companyAmount || invoice.totalAmount || 0;
+                        return (
+                          <SelectItem key={invoice.id} value={invoice.id}>
+                            {invoice.invoiceNumber} - {invoice.clientName} - {currencySymbol}{displayAmount.toLocaleString()}
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -147,14 +250,14 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
               name="amount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Amount (₹)</FormLabel>
+                  <FormLabel>
+                    Amount ({selectedInvoice ? getCompanyCurrencySymbol(selectedInvoice) : '$'})
+                  </FormLabel>
                   <FormControl>
                     <Input
-                      type="number"
-                      step="0.01"
+                      type="text"
                       placeholder="Enter amount"
                       {...field}
-                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                     />
                   </FormControl>
                   <FormMessage />
@@ -198,43 +301,6 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
                   <FormLabel>Payment Date</FormLabel>
                   <FormControl>
                     <Input type="date" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Status</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="failed">Failed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes (Optional)</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Add any notes..." {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
