@@ -1,4 +1,3 @@
-
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { Company, Client, Payment, GSTReturn, TDSRecord } from '../types/firestore';
@@ -89,7 +88,7 @@ export const initializeCollections = async () => {
       console.log('Client added with ID:', clientRef.id);
     }
 
-    // Sample Invoice Data - now includes ALL required fields
+    // Sample Invoice Data - now includes ALL required fields including amountPaidByClient
     const sampleInvoice: Omit<Invoice, 'id'> = {
       companyId: companyRef.id,
       invoiceNumber: 'INV-2024-001',
@@ -111,6 +110,7 @@ export const initializeCollections = async () => {
       igst: 0,
       totalGst: 18000,
       totalAmount: 118000,
+      amountPaidByClient: 0,
       // Currency fields
       totalAmountINR: 118000,
       companyCurrency: 'INR',

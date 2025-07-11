@@ -235,7 +235,7 @@ export const useInvoices = () => {
         const invoiceData = snapshot.docs.map(doc => {
           const data = doc.data();
           
-          // Process invoice with status determination
+          // Process invoice with all required fields first
           const processedInvoice = {
             id: doc.id,
             ...data,
@@ -281,9 +281,11 @@ export const useInvoices = () => {
             dueDate: data.dueDate?.toDate(),
             createdAt: data.createdAt?.toDate(),
             updatedAt: data.updatedAt?.toDate(),
+            // Initialize status field to avoid error
+            status: data.status || 'draft'
           };
 
-          // Determine status based on new logic
+          // Now determine status based on new logic after all fields are set
           processedInvoice.status = determineInvoiceStatus(processedInvoice);
           
           return processedInvoice;
