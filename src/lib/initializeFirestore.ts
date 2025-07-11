@@ -1,4 +1,3 @@
-
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { Company, Client, Payment, GSTReturn, TDSRecord } from '../types/firestore';
@@ -89,7 +88,7 @@ export const initializeCollections = async () => {
       console.log('Client added with ID:', clientRef.id);
     }
 
-    // Sample Invoice Data - now includes ALL required fields
+    // Sample Invoice Data - now includes ALL required fields including amountPaidByClient
     const sampleInvoice: Omit<Invoice, 'id'> = {
       companyId: companyRef.id,
       invoiceNumber: 'INV-2024-001',
@@ -117,6 +116,7 @@ export const initializeCollections = async () => {
       companyAmount: 118000,
       clientCurrency: 'INR',
       clientAmount: 118000,
+      amountPaidByClient: 0,
       conversionRate: {
         companyToINR: 1,
         INRToClient: 1,
@@ -160,7 +160,7 @@ export const initializeCollections = async () => {
     const invoiceRef = await addDoc(collection(db, 'invoices'), sampleInvoice);
     console.log('Invoice added with ID:', invoiceRef.id);
 
-    // Sample Payment Data
+    // Sample Payment Data - now includes amountPaidByClient field
     const samplePayment: Omit<Payment, 'id'> = {
       invoiceId: invoiceRef.id,
       invoiceNumber: 'INV-2024-001',
@@ -177,6 +177,7 @@ export const initializeCollections = async () => {
         ifscCode: 'HDFC0001234'
       },
       notes: 'Partial payment received',
+      amountPaidByClient: 59000,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
     };

@@ -299,6 +299,7 @@ const InvoiceForm = () => {
         companyAmount: currencyAmounts.companyAmount,
         clientCurrency: clientCurrency.code,
         clientAmount: currencyAmounts.clientAmount,
+        amountPaidByClient: 0, // Initialize with default value
         conversionRate: {
           companyToINR: currencyAmounts.companyToINRRate,
           INRToClient: currencyAmounts.INRToClientRate,
