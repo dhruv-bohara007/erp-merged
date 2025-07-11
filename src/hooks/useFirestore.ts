@@ -128,77 +128,15 @@ export interface Client {
 
 export interface Payment {
   id: string;
-  // Invoice copy fields
   invoiceId: string;
   invoiceNumber: string;
   clientId: string;
   clientName: string;
-  clientEmail?: string;
-  clientState?: string;
-  clientPhone?: string;
-  clientPincode?: string;
-  clientAddress?: string;
-  clientCountry?: string;
-  clientCurrency?: string;
-  clientAmount?: number;
-  clientTaxInfo?: {
-    id: string;
-    type: string;
-  };
-  companyId?: string;
-  companyName?: string;
-  companyCountry?: string;
-  companyCurrency?: string;
-  companyAmount?: number;
-  companyAddress?: string;
-  companyEmail?: string;
-  companyWebsite?: string;
-  companyPhone?: string;
-  companyCity?: string;
-  companyTaxInfo?: {
-    primaryType: string;
-    primaryId: string;
-    secondaryId?: string;
-    gstin?: string;
-  };
-  companyBankDetails?: {
-    accountNumber: string;
-    ifscCode: string;
-    bankName: string;
-    accountHolderName: string;
-  };
-  companyLogoUrl?: string;
-  businessOwnerName?: string;
-  businessOwnerPosition?: string;
-  ownerSignatureUrl?: string;
-  logoUrl?: string;
-  signatureUrl?: string;
-  bankInfo?: object;
-  items?: InvoiceItem[];
-  subtotal?: number;
-  cgst?: number;
-  sgst?: number;
-  igst?: number;
-  totalGst?: number;
-  totalAmount?: number;
-  totalAmountINR?: number;
-  conversionRate?: {
-    companyToINR: number;
-    INRToClient: number;
-    timestamp: Date;
-  };
-  issueDate?: Date;
-  dueDate?: Date;
-  terms?: string;
-  notes?: string;
-  status?: 'draft' | 'sent' | 'paid' | 'overdue';
-  // Payment-specific fields
-  amount: number; // Converted INR amount
-  paymentAmount?: number; // Original entered amount
-  paymentCurrency?: string; // Currency used for payment
-  pendingAmountINR?: number; // Pending amount in INR
+  amount: number;
   paymentMethod: string;
   paymentDate: Date;
+  status: 'completed' | 'pending' | 'failed';
+  notes?: string;
   createdAt: Date;
 }
 
@@ -612,12 +550,6 @@ export const usePayments = () => {
           id: doc.id,
           ...doc.data(),
           paymentDate: doc.data().paymentDate?.toDate(),
-          issueDate: doc.data().issueDate?.toDate(),
-          dueDate: doc.data().dueDate?.toDate(),
-          conversionRate: doc.data().conversionRate ? {
-            ...doc.data().conversionRate,
-            timestamp: doc.data().conversionRate.timestamp?.toDate?.() || new Date()
-          } : undefined,
           createdAt: doc.data().createdAt?.toDate(),
         })) as Payment[];
         
@@ -648,12 +580,6 @@ export const usePayments = () => {
         ...payment,
         companyId: currentUser.companyId,
         paymentDate: Timestamp.fromDate(payment.paymentDate),
-        issueDate: payment.issueDate ? Timestamp.fromDate(payment.issueDate) : undefined,
-        dueDate: payment.dueDate ? Timestamp.fromDate(payment.dueDate) : undefined,
-        conversionRate: payment.conversionRate ? {
-          ...payment.conversionRate,
-          timestamp: Timestamp.fromDate(payment.conversionRate.timestamp)
-        } : undefined,
         createdAt: Timestamp.now(),
       });
       return docRef.id;
