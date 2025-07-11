@@ -70,7 +70,7 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
       const convertCompanyToINR = (amount: number) => amount * companyToINRRate;
       const convertINRToClient = (amountINR: number) => amountINR * INRToClientRate;
 
-      // Create comprehensive HTML for professional PDF
+      // Create clean HTML matching the reference design
       const htmlContent = `
         <!DOCTYPE html>
         <html>
@@ -80,11 +80,11 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body { 
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-              line-height: 1.6; 
-              color: #1f2937;
-              background: #ffffff;
-              padding: 20px;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              line-height: 1.5; 
+              color: #333;
+              background: #fff;
+              padding: 40px;
             }
             .container { max-width: 800px; margin: 0 auto; }
             
@@ -93,559 +93,486 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
               display: flex; 
               justify-content: space-between; 
               align-items: flex-start;
-              margin-bottom: 25px;
-              padding: 20px;
-              background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-              border-radius: 12px;
-              border: 2px solid #e2e8f0;
+              margin-bottom: 40px;
               page-break-inside: avoid;
             }
-            .logo-section {
+            .header-left {
               display: flex;
               align-items: center;
               gap: 20px;
             }
             .company-logo { 
-              width: 140px; 
-              height: 140px; 
-              object-fit: contain;
-              border-radius: 8px;
-              border: 2px solid #e5e7eb;
-            }
-            .invoice-title {
-              font-size: 48px;
-              font-weight: bold;
-              color: #1f2937;
-              margin-bottom: 10px;
-            }
-            .invoice-number {
-              font-size: 24px;
-              font-weight: 600;
-              color: #374151;
-              margin-bottom: 15px;
-            }
-            .invoice-status {
-              display: inline-block;
-              padding: 6px 14px;
-              border-radius: 20px;
-              font-weight: 600;
-              text-transform: uppercase;
-              font-size: 13px;
-              border: 2px solid;
-            }
-            .status-paid { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
-            .status-sent { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
-            .status-draft { background: #f3f4f6; color: #374151; border-color: #d1d5db; }
-            .status-overdue { background: #fee2e2; color: #dc2626; border-color: #fecaca; }
-            
-            .total-amount {
-              text-align: right;
-              background: white;
-              padding: 20px;
-              border-radius: 12px;
-              border: 2px solid #e5e7eb;
-              box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-              min-width: 240px;
-            }
-            .amount-primary {
-              font-size: 32px;
-              font-weight: bold;
-              color: #059669;
-              margin-bottom: 8px;
-            }
-            .amount-secondary {
-              font-size: 18px;
-              color: #6b7280;
-            }
-
-            /* Dates Section - Compact */
-            .dates-section {
-              gap: 35px;
-              margin: 8px 0;
-              padding: 12px;
-              background: #f9fafb;
-              border-radius: 8px;
-              page-break-inside: avoid;
-            }
-            .date-item {
+              width: 60px; 
+              height: 60px; 
+              border-radius: 50%;
+              background: #4F46E5;
               display: flex;
               align-items: center;
-              gap: 6px;
-              font-weight: 600;
-              font-size: 13px;
+              justify-content: center;
+              color: white;
+              font-size: 24px;
+              font-weight: bold;
+              flex-shrink: 0;
+            }
+            .header-info h1 {
+              font-size: 28px;
+              font-weight: bold;
+              color: #1F2937;
+              margin-bottom: 4px;
+            }
+            .invoice-number {
+              font-size: 16px;
+              color: #6B7280;
+              margin-bottom: 8px;
+            }
+            .status-badge {
+              display: inline-block;
+              padding: 4px 12px;
+              border-radius: 20px;
+              font-size: 12px;
+              font-weight: 500;
+              text-transform: uppercase;
+              background: #DBEAFE;
+              color: #1E40AF;
+              border: 1px solid #BFDBFE;
+            }
+            .header-right {
+              text-align: right;
+            }
+            .total-amount {
+              font-size: 32px;
+              font-weight: bold;
+              color: #4F46E5;
+              margin-bottom: 4px;
+            }
+            .total-secondary {
+              font-size: 16px;
+              color: #6B7280;
+              margin-bottom: 8px;
+            }
+            .currency-note {
+              font-size: 12px;
+              color: #9CA3AF;
             }
 
-            /* Two Column Layout - Increased font sizes */
+            /* Dates Section */
+            .dates-section {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 40px;
+              font-size: 14px;
+              color: #6B7280;
+            }
+
+            /* Two Column Layout */
             .two-column {
               display: grid;
               grid-template-columns: 1fr 1fr;
-              gap: 12px;
-              margin: 8px 0;
-              page-break-inside: avoid;
+              gap: 40px;
+              margin-bottom: 40px;
             }
             
-            /* Card Styles - Increased font sizes */
-            .info-card {
-              background: white;
-              border: 1px solid #e5e7eb;
-              border-radius: 8px;
-              overflow: hidden;
-              box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-            }
-            .card-header {
-              padding: 8px 12px;
-              font-size: 16px;
-              font-weight: bold;
-              color: #1f2937;
-              border-bottom: 1px solid #e5e7eb;
-            }
-            .company-header { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); }
-            .client-header { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); }
-            
-            .card-content { padding: 10px; }
             .info-section {
-              margin-bottom: 8px;
-              padding: 6px;
-              background: #f9fafb;
-              border-radius: 4px;
-              border: 1px solid #e5e7eb;
+              background: #F9FAFB;
+              padding: 24px;
+              border-radius: 8px;
+              border: 1px solid #E5E7EB;
             }
-            .info-section:last-child {
+            .info-section h3 {
+              font-size: 18px;
+              font-weight: 600;
+              color: #1F2937;
+              margin-bottom: 16px;
+            }
+            .info-group {
+              margin-bottom: 16px;
+            }
+            .info-group:last-child {
               margin-bottom: 0;
             }
-            .section-title {
-              font-weight: bold;
-              color: #374151;
-              margin-bottom: 4px;
+            .info-label {
               font-size: 14px;
+              font-weight: 500;
+              color: #374151;
+              margin-bottom: 8px;
+            }
+            .info-value {
+              font-size: 14px;
+              color: #6B7280;
+              line-height: 1.4;
+            }
+            .contact-item {
               display: flex;
               align-items: center;
-              gap: 4px;
+              gap: 8px;
+              margin-bottom: 4px;
             }
-            
-            /* Phone number formatting with consistent alignment */
-            .phone-number {
-              font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-              font-size: 14px;
-              letter-spacing: 0.5px;
-              word-spacing: 2px;
+            .contact-icon {
+              width: 16px;
+              height: 16px;
+              color: #6B7280;
             }
-            
-            /* Increased font sizes for company and client info */
-            .info-card .card-content > div {
-              font-size: 13px;
-              line-height: 1.3;
+
+            /* Items Table */
+            .items-section {
+              margin-bottom: 40px;
             }
-            .info-card .card-content strong {
-              font-size: 14px;
+            .items-section h3 {
+              font-size: 18px;
+              font-weight: 600;
+              color: #1F2937;
+              margin-bottom: 16px;
             }
-            
-            /* Table Styles - Fixed alignment */
-            .bank-table, .items-table {
+            .items-table {
               width: 100%;
               border-collapse: collapse;
-              margin: 4px 0;
+              margin-bottom: 24px;
               background: white;
-              border-radius: 4px;
+              border: 1px solid #E5E7EB;
+              border-radius: 8px;
               overflow: hidden;
-              border: 1px solid #e5e7eb;
             }
-            .bank-table th, .bank-table td,
-            .items-table th, .items-table td {
-              padding: 6px 10px;
+            .items-table th {
+              background: #F9FAFB;
+              padding: 12px 16px;
               text-align: left;
-              border-bottom: 1px solid #e5e7eb;
               font-size: 12px;
-              line-height: 1.3;
+              font-weight: 500;
+              color: #6B7280;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+              border-bottom: 1px solid #E5E7EB;
             }
-            .bank-table th, .items-table th {
-              background: #f9fafb;
-              font-weight: 600;
+            .items-table td {
+              padding: 12px 16px;
+              font-size: 14px;
               color: #374151;
+              border-bottom: 1px solid #F3F4F6;
             }
-            .bank-table tr:last-child td,
             .items-table tr:last-child td {
               border-bottom: none;
             }
-            
-            /* Fixed table column alignment */
-            .items-table th:nth-child(1), .items-table td:nth-child(1) { text-align: left; }
             .items-table th:nth-child(2), .items-table td:nth-child(2) { text-align: center; }
             .items-table th:nth-child(3), .items-table td:nth-child(3) { text-align: right; }
             .items-table th:nth-child(4), .items-table td:nth-child(4) { text-align: center; }
             .items-table th:nth-child(5), .items-table td:nth-child(5) { text-align: right; }
-            
-            /* Signature Section - Compact */
-            .signature-section {
-              margin-top: 6px;
-              padding: 6px;
-              background: linear-gradient(135deg, #faf5ff 0%, #e9d5ff 100%);
-              border-radius: 4px;
-              border: 1px solid #d8b4fe;
+
+            /* Totals Section */
+            .totals-section {
+              background: #F9FAFB;
+              padding: 24px;
+              border-radius: 8px;
+              border: 1px solid #E5E7EB;
+              margin-bottom: 40px;
             }
-            .signature-image {
-              max-width: 100px;
-              height: 40px;
-              object-fit: contain;
-              border: 1px solid white;
-              border-radius: 4px;
-              background: white;
-              padding: 4px;
-              margin-top: 4px;
-              margin-bottom: 6px;
-            }
-            .signature-details {
-              margin-top: 6px;
-              padding-top: 6px;
-              border-top: 1px solid #d8b4fe;
-            }
-            .signature-name {
-              font-weight: bold;
-              color: #374151;
-              margin-bottom: 2px;
-              font-size: 12px;
-              line-height: 1.2;
-            }
-            .signature-position {
-              color: #6b7280;
-              font-style: italic;
-              font-size: 11px;
-              line-height: 1.2;
-            }
-            
-            /* Summary Section */
-            .summary-section {
-              margin-top: 40px;
-              padding: 30px;
-              background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-              border-radius: 12px;
-              border: 2px solid #bfdbfe;
-            }
-            .summary-row {
+            .total-row {
               display: flex;
               justify-content: space-between;
-              margin-bottom: 12px;
+              margin-bottom: 8px;
+              font-size: 14px;
+            }
+            .total-row.final {
               font-size: 16px;
-            }
-            .summary-total {
-              font-size: 20px;
               font-weight: bold;
-              padding-top: 15px;
-              border-top: 2px solid #60a5fa;
-              color: #1e40af;
+              color: #4F46E5;
+              padding-top: 8px;
+              border-top: 1px solid #E5E7EB;
+              margin-top: 8px;
             }
-            
-            /* Notes Section */
-            .notes-section {
-              margin-top: 30px;
-              padding: 25px;
-              background: #fefce8;
-              border-radius: 8px;
-              border: 1px solid #fde047;
-            }
-            
-            /* Footer */
-            .invoice-footer {
-              margin-top: 30px;
-              text-align: center;
-              color: #6b7280;
-              font-size: 14px;
-              padding: 20px;
-              border-top: 1px solid #e5e7eb;
-            }
-            
-            /* Page break controls */
-            .page-break-before {
-              page-break-before: always;
-              padding-top: 40px;
-            }
-            
-            .no-page-break {
-              page-break-inside: avoid;
-            }
-            
-            /* Hide repeated content on subsequent pages */
-            @media print {
-              body { padding: 0; margin: 0; }
-              .container { max-width: none; }
-              .invoice-meta { display: none; }
-              .page-break-after { page-break-after: always; }
-              
-              /* First page styles */
-              .first-page .invoice-meta { display: block; }
-            }
-            
             .dual-currency {
-              font-size: 14px;
-              color: #6b7280;
-              margin-top: 4px;
+              font-size: 12px;
+              color: #9CA3AF;
+              margin-left: 8px;
             }
+
+            /* Terms Section */
+            .terms-section {
+              background: #F9FAFB;
+              padding: 24px;
+              border-radius: 8px;
+              border: 1px solid #E5E7EB;
+              margin-bottom: 40px;
+            }
+            .terms-section h4 {
+              font-size: 16px;
+              font-weight: 600;
+              color: #1F2937;
+              margin-bottom: 12px;
+              display: flex;
+              align-items: center;
+              gap: 8px;
+            }
+            .terms-content {
+              font-size: 14px;
+              color: #6B7280;
+              line-height: 1.5;
+            }
+
+            /* Footer */
+            .footer {
+              text-align: center;
+              color: #9CA3AF;
+              font-size: 16px;
+              font-weight: 500;
+              padding: 20px 0;
+              border-top: 1px solid #E5E7EB;
+            }
+
+            /* Utility classes */
+            .text-right { text-align: right; }
+            .font-mono { font-family: 'Monaco', 'Menlo', monospace; }
             
+            @media print {
+              body { padding: 20px; }
+              .container { max-width: none; }
+            }
           </style>
         </head>
         <body>
-          <div class="container first-page">
-            <!-- Header Section (First page only) -->
-            <div class="invoice-header no-page-break">
-              <div class="logo-section">
-                ${invoice.logoUrl ? `<img src="${invoice.logoUrl}" alt="Company Logo" class="company-logo">` : ''}
-                <div>
-                  <div class="invoice-title">INVOICE</div>
-                  <div class="invoice-number invoice-meta">#${invoice.invoiceNumber}</div>
-                  <span class="invoice-status status-${invoice.status || 'draft'} invoice-meta">
-                    ${(invoice.status || 'draft').toUpperCase()}
-                  </span>
+          <div class="container">
+            <!-- Header -->
+            <div class="invoice-header">
+              <div class="header-left">
+                <div class="company-logo">
+                  ${invoice.logoUrl ? `<img src="${invoice.logoUrl}" alt="Logo" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover;">` : '💼'}
+                </div>
+                <div class="header-info">
+                  <h1>INVOICE</h1>
+                  <div class="invoice-number">#${invoice.invoiceNumber}</div>
+                  <span class="status-badge">${(invoice.status || 'SENT').toUpperCase()}</span>
                 </div>
               </div>
-              
-              <div class="total-amount">
-                <div class="amount-primary">
-                  ${formatCurrency(invoice.companyAmount || invoice.totalAmount || 0, companyCountry)}
-                </div>
+              <div class="header-right">
+                <div class="total-amount">${formatCurrency(invoice.companyAmount || invoice.totalAmount || 0, companyCountry)}</div>
                 ${showDualCurrency ? `
-                  <div class="amount-secondary">
-                    ${formatCurrency(invoice.clientAmount || convertINRToClient(invoice.totalAmountINR || 0), clientCountry)}
-                  </div>
-                  <div style="font-size: 14px; color: #9ca3af; margin-top: 10px;">
-                    ${companyCurrency.code} / ${clientCurrency.code}
-                  </div>
+                  <div class="total-secondary">${formatCurrency(invoice.clientAmount || convertINRToClient(invoice.totalAmountINR || 0), clientCountry)}</div>
+                  <div class="currency-note">${companyCurrency.code} / ${clientCurrency.code}</div>
                 ` : ''}
               </div>
             </div>
 
-            <!-- Dates Section (First page only) - Same line display -->
-            <div class="dates-section no-page-break invoice-meta" style="display: flex; justify-content: space-between; align-items: center;">
-              <div class="date-item">
-                <strong>Issue Date:</strong> ${invoice.issueDate?.toLocaleDateString() || 'N/A'}
-              </div>
-              <div class="date-item">
-                <strong>Due Date:</strong> ${invoice.dueDate?.toLocaleDateString() || 'N/A'}
-              </div>
+            <!-- Dates -->
+            <div class="dates-section">
+              <div>Issue Date: ${invoice.issueDate?.toLocaleDateString() || 'N/A'}</div>
+              <div>Due Date: ${invoice.dueDate?.toLocaleDateString() || 'N/A'}</div>
             </div>
 
-            <!-- Two Column Layout (First page only) -->
-            <div class="two-column no-page-break">
-              <!-- Company Information -->
-              <div class="info-card">
-                <div class="card-header company-header">Company Information</div>
-                <div class="card-content">
-                  <div class="info-section">
-                    <div class="section-title">📍 Contact Details</div>
-                    <div style="font-size: 14px; line-height: 1.3;"><strong>${invoice.companyName}</strong></div>
-                    <div style="font-size: 13px; line-height: 1.2;">${invoice.companyAddress}</div>
-                    ${invoice.companyCity ? `<div style="font-size: 13px; line-height: 1.2;">${invoice.companyCity}</div>` : ''}
-                    <div style="font-size: 13px; line-height: 1.2;"><strong>Country:</strong> ${(() => {
-                      const countryNames = {
-                        'US': 'United States', 'IN': 'India', 'GB': 'United Kingdom', 'DE': 'Germany',
-                        'FR': 'France', 'IT': 'Italy', 'ES': 'Spain', 'NL': 'Netherlands', 'CA': 'Canada',
-                        'AU': 'Australia', 'JP': 'Japan', 'CN': 'China', 'SG': 'Singapore', 'HK': 'Hong Kong',
-                        'MX': 'Mexico', 'BR': 'Brazil', 'ZA': 'South Africa', 'AE': 'United Arab Emirates',
-                        'SA': 'Saudi Arabia', 'DK': 'Denmark', 'NO': 'Norway', 'SE': 'Sweden', 'CH': 'Switzerland'
-                      };
-                      return countryNames[companyCountry] || companyCountry;
-                    })()}</div>
-                    ${invoice.companyPhone ? `<div style="font-size: 13px; line-height: 1.2;">📞 <span class="phone-number">${formatPhoneNumber(invoice.companyPhone, companyCountry)}</span></div>` : ''}
-                    ${invoice.companyEmail ? `<div style="font-size: 13px; line-height: 1.2;">📧 ${invoice.companyEmail}</div>` : ''}
-                    ${invoice.companyWebsite ? `<div style="font-size: 13px; line-height: 1.2;">🌐 ${invoice.companyWebsite}</div>` : ''}
+            <!-- Company and Client Information -->
+            <div class="two-column">
+              <div class="info-section">
+                <h3>Company Information</h3>
+                
+                <div class="info-group">
+                  <div class="info-label">Contact Details</div>
+                  <div class="info-value">
+                    <div class="contact-item">
+                      <span>📧</span>
+                      <span>${invoice.companyEmail || 'contact1@abc.com'}</span>
+                    </div>
+                    <div class="contact-item">
+                      <span>📞</span>
+                      <span class="font-mono">${formatPhoneNumber(invoice.companyPhone || '+1 8398042911', companyCountry)}</span>
+                    </div>
+                    <div class="contact-item">
+                      <span>🌐</span>
+                      <span>${invoice.companyWebsite || 'www.testcompany1.com'}</span>
+                    </div>
+                    <div class="contact-item">
+                      <span>📍</span>
+                      <span>${invoice.companyAddress || '121 Business Park'}, ${invoice.companyCity ? invoice.companyCity + ', ' : ''}Country: ${(() => {
+                        const countryNames = {
+                          'US': 'United States', 'IN': 'India', 'GB': 'United Kingdom', 'DE': 'Germany',
+                          'FR': 'France', 'IT': 'Italy', 'ES': 'Spain', 'NL': 'Netherlands', 'CA': 'Canada',
+                          'AU': 'Australia', 'JP': 'Japan', 'CN': 'China', 'SG': 'Singapore', 'HK': 'Hong Kong',
+                          'MX': 'Mexico', 'BR': 'Brazil', 'ZA': 'South Africa', 'AE': 'United Arab Emirates',
+                          'SA': 'Saudi Arabia', 'DK': 'Denmark', 'NO': 'Norway', 'SE': 'Sweden', 'CH': 'Switzerland'
+                        };
+                        return countryNames[companyCountry] || companyCountry;
+                      })()}</span>
+                    </div>
                   </div>
+                </div>
 
-                  ${invoice.companyTaxInfo && (invoice.companyTaxInfo.primaryType && invoice.companyTaxInfo.primaryId) ? `
-                    <div class="info-section">
-                      <div class="section-title">🏛️ Tax Information</div>
-                      <div style="font-size: 13px; line-height: 1.2;"><strong>${invoice.companyTaxInfo.primaryType}:</strong> ${invoice.companyTaxInfo.primaryId}</div>
-                    </div>
-                  ` : ''}
-
-                  ${invoice.bankInfo ? `
-                    <div class="info-section">
-                      <div class="section-title">🏦 Bank Information</div>
-                      <table class="bank-table">
-                        <tbody>
-                          ${(invoice.bankInfo as any)?.bankName ? `
-                            <tr>
-                              <td><strong>Bank Name</strong></td>
-                              <td>${(invoice.bankInfo as any).bankName}</td>
-                            </tr>
-                          ` : ''}
-                          ${(invoice.bankInfo as any)?.accountNumber ? `
-                            <tr>
-                              <td><strong>Account Number</strong></td>
-                              <td>${(invoice.bankInfo as any).accountNumber}</td>
-                            </tr>
-                          ` : ''}
-                          ${((invoice.bankInfo as any)?.routingCode || (invoice.bankInfo as any)?.ifscCode) ? `
-                            <tr>
-                              <td><strong>Routing Code</strong></td>
-                              <td>${(invoice.bankInfo as any)?.routingCode || (invoice.bankInfo as any)?.ifscCode}</td>
-                            </tr>
-                          ` : ''}
-                        </tbody>
-                      </table>
-                    </div>
-                  ` : ''}
-
-                  ${invoice.signatureUrl ? `
-                    <div class="signature-section">
-                      <div class="section-title">✍️ Authorized Signatory</div>
-                      <img src="${invoice.signatureUrl}" alt="Authorized Signatory" class="signature-image">
-                      <div class="signature-details">
-                        ${invoice.businessOwnerName ? `<div class="signature-name">${invoice.businessOwnerName}</div>` : ''}
-                        ${invoice.businessOwnerPosition ? `<div class="signature-position">${invoice.businessOwnerPosition}</div>` : ''}
+                ${invoice.companyTaxInfo && invoice.companyTaxInfo.primaryType && invoice.companyTaxInfo.primaryId ? `
+                  <div class="info-group">
+                    <div class="info-label">Tax Information</div>
+                    <div class="info-value">
+                      <div class="contact-item">
+                        <span>🏛️</span>
+                        <span>${invoice.companyTaxInfo.primaryType}: ${invoice.companyTaxInfo.primaryId}</span>
                       </div>
                     </div>
-                  ` : ''}
-                </div>
+                  </div>
+                ` : ''}
+
+                ${invoice.bankInfo ? `
+                  <div class="info-group">
+                    <div class="info-label">Bank Information</div>
+                    <div class="info-value">
+                      <div class="contact-item">
+                        <span>🏦</span>
+                        <span>Bank Name: ${(invoice.bankInfo as any)?.bankName || 'HDFC'}</span>
+                      </div>
+                      <div class="contact-item">
+                        <span>💳</span>
+                        <span>Account Number: ${(invoice.bankInfo as any)?.accountNumber || 'CA123'}</span>
+                      </div>
+                      <div class="contact-item">
+                        <span>🔢</span>
+                        <span>Routing Code: ${(invoice.bankInfo as any)?.routingCode || (invoice.bankInfo as any)?.ifscCode || '123455'}</span>
+                      </div>
+                    </div>
+                  </div>
+                ` : ''}
+
+                ${invoice.signatureUrl ? `
+                  <div class="info-group">
+                    <div class="info-label">Authorized Signatory</div>
+                    <div class="info-value">
+                      <div style="text-align: center; padding: 12px; border: 1px solid #E5E7EB; border-radius: 4px; background: white; margin-bottom: 8px;">
+                        <img src="${invoice.signatureUrl}" alt="Signature" style="max-width: 100%; max-height: 80px; object-fit: contain;" />
+                      </div>
+                      <div style="font-weight: 500; color: #374151;">${invoice.businessOwnerName || 'Mahesh P Pai'}</div>
+                      <div style="font-size: 12px; color: #6B7280; font-style: italic;">${invoice.businessOwnerPosition || 'CEO'}</div>
+                    </div>
+                  </div>
+                ` : ''}
               </div>
 
-              <!-- Client Information -->
-              <div class="info-card">
-                <div class="card-header client-header">Client Information</div>
-                <div class="card-content">
-                  <div class="info-section">
-                    <div class="section-title">👤 Contact Details</div>
-                    <div style="font-size: 14px; line-height: 1.3;"><strong>${invoice.clientName}</strong></div>
-                    <div style="font-size: 13px; line-height: 1.2;">📧 ${invoice.clientEmail}</div>
-                    ${invoice.clientPhone ? `<div style="font-size: 13px; line-height: 1.2;">📞 <span class="phone-number">${formatPhoneNumber(invoice.clientPhone, clientCountry)}</span></div>` : ''}
-                  </div>
-
-                  <div class="info-section">
-                    <div class="section-title">📍 Address</div>
-                    ${invoice.clientAddress ? `<div style="font-size: 13px; line-height: 1.2;">${invoice.clientAddress}</div>` : ''}
-                    ${invoice.clientState ? `<div style="font-size: 13px; line-height: 1.2;">State: ${invoice.clientState}</div>` : ''}
-                    ${invoice.clientPincode ? `<div style="font-size: 13px; line-height: 1.2;">Pincode: ${invoice.clientPincode}</div>` : ''}
-                  </div>
-
-                  ${invoice.clientTaxInfo?.id ? `
-                    <div class="info-section">
-                      <div class="section-title">🏛️ Tax Information</div>
-                      <div style="font-size: 13px; line-height: 1.2;"><strong>${invoice.clientTaxInfo.type || 'Tax ID'}:</strong> ${invoice.clientTaxInfo.id}</div>
+              <div class="info-section">
+                <h3>Client Information</h3>
+                
+                <div class="info-group">
+                  <div class="info-label">Contact Details</div>
+                  <div class="info-value">
+                    <div class="contact-item">
+                      <span>👤</span>
+                      <span>${invoice.clientName || 'Peter'}</span>
                     </div>
-                  ` : ''}
+                    <div class="contact-item">
+                      <span>📧</span>
+                      <span>${invoice.clientEmail || 'peter@gmail.com'}</span>
+                    </div>
+                    ${invoice.clientPhone ? `
+                      <div class="contact-item">
+                        <span>📞</span>
+                        <span class="font-mono">${formatPhoneNumber(invoice.clientPhone, clientCountry)}</span>
+                      </div>
+                    ` : ''}
+                  </div>
                 </div>
+
+                <div class="info-group">
+                  <div class="info-label">Address</div>
+                  <div class="info-value">
+                    <div class="contact-item">
+                      <span>📍</span>
+                      <span>${invoice.clientAddress || 'State: stateUK, Postcode: 77557, UK'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                ${invoice.clientTaxInfo?.id ? `
+                  <div class="info-group">
+                    <div class="info-label">Tax Information</div>
+                    <div class="info-value">
+                      <div class="contact-item">
+                        <span>🏛️</span>
+                        <span>${invoice.clientTaxInfo.type || 'Company Number'}: ${invoice.clientTaxInfo.id}</span>
+                      </div>
+                    </div>
+                  </div>
+                ` : ''}
               </div>
             </div>
 
-          </div>
-
-          <!-- Second Page: Invoice Items and Terms -->
-          <div class="container page-break-before">
             <!-- Invoice Items -->
-            <div class="info-card">
-              <div class="card-header" style="background: linear-gradient(135deg, #faf5ff 0%, #e9d5ff 100%);">Invoice Items</div>
-              <div class="card-content">
-                <table class="items-table">
-                   <thead>
-                     <tr>
-                       <th>Description</th>
-                       <th>Quantity</th>
-                       <th>Rate</th>
-                       <th>Discount</th>
-                       <th>Amount</th>
-                     </tr>
-                   </thead>
-                  <tbody>
-                     ${invoice.items?.map(item => {
-                       const discountRate = typeof item.discount === 'string' ? parseFloat(item.discount) || 0 : item.discount || 0;
-                       const discountAmount = (item.rate || 0) * (item.quantity || 0) * (discountRate / 100);
-                       const itemSubtotal = (item.rate || 0) * (item.quantity || 0);
-                       const itemAmountAfterDiscount = itemSubtotal - discountAmount;
-                       
-                       return `
-                          <tr>
-                            <td>
-                              <strong>${item.description}</strong>
-                            </td>
-                           <td style="text-align: center;">${item.quantity}</td>
-                           <td style="text-align: right;">
-                             ${formatCurrency(item.rate || 0, companyCountry)}
-                             ${showDualCurrency ? `
-                               <div class="dual-currency">
-                                 (${formatCurrency(convertINRToClient(convertCompanyToINR(item.rate || 0)), clientCountry)})
-                               </div>
-                             ` : ''}
-                           </td>
-                           <td style="text-align: center;">
-                             ${discountRate > 0 ? `
-                               <span style="color: #ea580c; font-weight: 600;">${discountRate}%</span><br>
-                               <small style="color: #6b7280;">-${formatCurrency(discountAmount, companyCountry)}</small>
-                               ${showDualCurrency ? `
-                                 <div class="dual-currency">
-                                   (-${formatCurrency(convertINRToClient(convertCompanyToINR(discountAmount)), clientCountry)})
-                                 </div>
-                               ` : ''}
-                             ` : '<span style="color: #9ca3af;">—</span>'}
-                           </td>
-                           <td style="text-align: right;">
-                             <strong>${formatCurrency(item.amount || itemAmountAfterDiscount, companyCountry)}</strong>
-                             ${showDualCurrency ? `
-                               <div class="dual-currency">
-                                 (${formatCurrency(convertINRToClient(convertCompanyToINR(item.amount || itemAmountAfterDiscount)), clientCountry)})
-                               </div>
-                             ` : ''}
-                           </td>
-                         </tr>
-                       `;
-                     }).join('') || '<tr><td colspan="5" style="text-align: center; color: #6b7280;">No items</td></tr>'}
-                  </tbody>
-                </table>
+            <div class="items-section">
+              <h3>Invoice Items</h3>
+              <table class="items-table">
+                <thead>
+                  <tr>
+                    <th>Description</th>
+                    <th>Quantity</th>
+                    <th>Rate</th>
+                    <th>Discount</th>
+                    <th>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${invoice.items?.map(item => {
+                    const discountRate = typeof item.discount === 'string' ? parseFloat(item.discount) || 0 : item.discount || 0;
+                    const discountAmount = (item.rate || 0) * (item.quantity || 0) * (discountRate / 100);
+                    const itemSubtotal = (item.rate || 0) * (item.quantity || 0);
+                    const itemAmountAfterDiscount = itemSubtotal - discountAmount;
+                    
+                    return `
+                      <tr>
+                        <td>${item.description}</td>
+                        <td style="text-align: center;">${item.quantity}</td>
+                        <td style="text-align: right;">
+                          ${formatCurrency(item.rate || 0, companyCountry)}
+                          ${showDualCurrency ? `<span class="dual-currency">(${formatCurrency(convertINRToClient(convertCompanyToINR(item.rate || 0)), clientCountry)})</span>` : ''}
+                        </td>
+                        <td style="text-align: center;">
+                          ${discountRate > 0 ? `${discountRate}%` : '--'}
+                        </td>
+                        <td style="text-align: right; font-weight: 600;">
+                          ${formatCurrency(item.amount || itemAmountAfterDiscount, companyCountry)}
+                          ${showDualCurrency ? `<span class="dual-currency">(${formatCurrency(convertINRToClient(convertCompanyToINR(item.amount || itemAmountAfterDiscount)), clientCountry)})</span>` : ''}
+                        </td>
+                      </tr>
+                    `;
+                  }).join('') || '<tr><td colspan="5" style="text-align: center; color: #6B7280;">No items</td></tr>'}
+                </tbody>
+              </table>
 
-                <!-- Summary Section -->
-                <div class="summary-section">
-                  <div class="summary-row">
-                    <span><strong>Subtotal (${companyCurrency.code}):</strong></span>
-                    <span><strong>${formatCurrency(invoice.subtotal || 0, companyCountry)}</strong></span>
-                  </div>
-                  ${showDualCurrency ? `
-                    <div class="summary-row">
-                      <span>Subtotal (${clientCurrency.code}):</span>
-                      <span>${formatCurrency(convertINRToClient(convertCompanyToINR(invoice.subtotal || 0)), clientCountry)}</span>
-                    </div>
-                  ` : ''}
-                  <div class="summary-row">
-                    <span><strong>Total Tax (${companyCurrency.code}):</strong></span>
-                    <span><strong>${formatCurrency(invoice.totalGst || 0, companyCountry)}</strong></span>
-                  </div>
-                  ${showDualCurrency ? `
-                    <div class="summary-row">
-                      <span>Total Tax (${clientCurrency.code}):</span>
-                      <span>${formatCurrency(convertINRToClient(convertCompanyToINR(invoice.totalGst || 0)), clientCountry)}</span>
-                    </div>
-                  ` : ''}
-                  <div class="summary-row summary-total">
-                    <span>Total Amount (${companyCurrency.code}):</span>
-                    <span>${formatCurrency(invoice.companyAmount || invoice.totalAmount || 0, companyCountry)}</span>
-                  </div>
-                  ${showDualCurrency ? `
-                    <div class="summary-row summary-total">
-                      <span>Total Amount (${clientCurrency.code}):</span>
-                      <span>${formatCurrency(invoice.clientAmount || convertINRToClient(invoice.totalAmountINR || 0), clientCountry)}</span>
-                    </div>
-                  ` : ''}
+              <!-- Totals -->
+              <div class="totals-section">
+                <div class="total-row">
+                  <span>Subtotal (${companyCurrency.code}):</span>
+                  <span>${formatCurrency(invoice.subtotal || 0, companyCountry)}</span>
                 </div>
+                ${showDualCurrency ? `
+                  <div class="total-row">
+                    <span>Subtotal (${clientCurrency.code}):</span>
+                    <span>${formatCurrency(convertINRToClient(convertCompanyToINR(invoice.subtotal || 0)), clientCountry)}</span>
+                  </div>
+                ` : ''}
+                <div class="total-row">
+                  <span>Total Tax (${companyCurrency.code}):</span>
+                  <span>${formatCurrency(invoice.totalGst || 0, companyCountry)}</span>
+                </div>
+                ${showDualCurrency ? `
+                  <div class="total-row">
+                    <span>Total Tax (${clientCurrency.code}):</span>
+                    <span>${formatCurrency(convertINRToClient(convertCompanyToINR(invoice.totalGst || 0)), clientCountry)}</span>
+                  </div>
+                ` : ''}
+                <div class="total-row final">
+                  <span>Total Amount (${companyCurrency.code}):</span>
+                  <span>${formatCurrency(invoice.companyAmount || invoice.totalAmount || 0, companyCountry)}</span>
+                </div>
+                ${showDualCurrency ? `
+                  <div class="total-row final">
+                    <span>Total Amount (${clientCurrency.code}):</span>
+                    <span>${formatCurrency(invoice.clientAmount || convertINRToClient(invoice.totalAmountINR || 0), clientCountry)}</span>
+                  </div>
+                ` : ''}
               </div>
             </div>
 
-            <!-- Notes and Terms (Second page) -->
-            ${(invoice.notes || invoice.terms) ? `
-              <div class="notes-section">
-                ${invoice.notes ? `
-                  <div style="margin-bottom: 15px;">
-                    <div class="section-title">📝 Notes</div>
-                    <p style="font-size: 14px; line-height: 1.4;">${invoice.notes}</p>
-                  </div>
-                ` : ''}
-                ${invoice.terms ? `
-                  <div>
-                    <div class="section-title">📋 Terms & Conditions</div>
-                    <p style="font-size: 14px; line-height: 1.4;">${invoice.terms}</p>
-                  </div>
-                ` : ''}
+            <!-- Terms & Conditions -->
+            <div class="terms-section">
+              <h4>📋 Terms & Conditions</h4>
+              <div class="terms-content">
+                ${invoice.terms || 'Payment due within 30 days of invoice date.'}
               </div>
-            ` : ''}
+            </div>
 
             <!-- Footer -->
-            <div class="invoice-footer">
-              <p><strong>Thank you for your business!</strong></p>
+            <div class="footer">
+              Thank you for your business!
             </div>
           </div>
         </body>
