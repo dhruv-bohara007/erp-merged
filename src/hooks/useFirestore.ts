@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { 
   collection, 
@@ -33,7 +34,6 @@ export interface Invoice {
   igst: number;
   totalGst: number;
   totalAmount: number;
-  amountPaidByClient: number;
   // Currency fields
   totalAmountINR: number;
   companyCurrency: string;
@@ -82,7 +82,7 @@ export interface Invoice {
   bankInfo?: object;
   logoUrl?: string;
   signatureUrl?: string;
-  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'pending';
+  status: 'draft' | 'sent' | 'paid' | 'overdue';
   issueDate: Date;
   dueDate: Date;
   notes?: string;
@@ -176,38 +176,6 @@ export interface InventoryItem {
   updatedAt: Date;
 }
 
-// Function to determine invoice status based on payment and due date
-const determineInvoiceStatus = (invoice: any): 'draft' | 'sent' | 'paid' | 'overdue' | 'pending' => {
-  const now = new Date();
-  const dueDate = new Date(invoice.dueDate);
-  const amountPaidByClient = invoice.amountPaidByClient || 0;
-  const totalClientAmount = invoice.clientAmount || invoice.totalAmount || 0;
-  const isOverdue = now > dueDate;
-
-  // If the full amount is paid, set status as Paid
-  if (amountPaidByClient >= totalClientAmount) {
-    return 'paid';
-  }
-
-  // If amount paid < total amount and due date has passed, set as Overdue
-  if (amountPaidByClient < totalClientAmount && isOverdue) {
-    return 'overdue';
-  }
-
-  // If amountPaidByClient > 0 and not overdue, set as Pending
-  if (amountPaidByClient > 0 && !isOverdue) {
-    return 'pending';
-  }
-
-  // If amountPaidByClient = 0 and not overdue, set as Sent
-  if (amountPaidByClient === 0 && !isOverdue) {
-    return 'sent';
-  }
-
-  // Default fallback
-  return 'sent';
-};
-
 // Custom hooks for each collection
 export const useInvoices = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -234,13 +202,9 @@ export const useInvoices = () => {
         console.log('Invoices snapshot received:', snapshot.docs.length, 'documents');
         const invoiceData = snapshot.docs.map(doc => {
           const data = doc.data();
-          
-          // Process invoice with all required fields first
-          const processedInvoice = {
+          return {
             id: doc.id,
             ...data,
-            // Handle new amountPaidByClient field with default 0
-            amountPaidByClient: data.amountPaidByClient || 0,
             // Handle currency fields with fallbacks
             totalAmountINR: data.totalAmountINR || data.totalAmount || 0,
             companyCurrency: data.companyCurrency || 'INR',
@@ -281,14 +245,7 @@ export const useInvoices = () => {
             dueDate: data.dueDate?.toDate(),
             createdAt: data.createdAt?.toDate(),
             updatedAt: data.updatedAt?.toDate(),
-            // Initialize status field to avoid error
-            status: data.status || 'draft'
           };
-
-          // Now determine status based on new logic after all fields are set
-          processedInvoice.status = determineInvoiceStatus(processedInvoice);
-          
-          return processedInvoice;
         }) as Invoice[];
         
         // Sort in memory instead of using orderBy to avoid composite index
@@ -308,7 +265,7 @@ export const useInvoices = () => {
     return () => unsubscribe();
   }, [currentUser?.companyId]);
 
-  const addInvoice = async (invoice: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt' | 'companyCountry' | 'clientCountry' | 'companyId' | 'companyName' | 'companyLogoUrl' | 'companyEmail' | 'companyWebsite' | 'companyPhone' | 'companyCity' | 'companyTaxInfo' | 'companyBankDetails' | 'companyAddress' | 'ownerSignatureUrl' | 'businessOwnerName' | 'businessOwnerPosition' | 'clientAddress' | 'clientPhone' | 'clientPincode' | 'clientTaxInfo' | 'bankInfo' | 'logoUrl' | 'signatureUrl' | 'clientName' | 'clientEmail' | 'clientState' | 'amountPaidByClient'>) => {
+  const addInvoice = async (invoice: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt' | 'companyCountry' | 'clientCountry' | 'companyId' | 'companyName' | 'companyLogoUrl' | 'companyEmail' | 'companyWebsite' | 'companyPhone' | 'companyCity' | 'companyTaxInfo' | 'companyBankDetails' | 'companyAddress' | 'ownerSignatureUrl' | 'businessOwnerName' | 'businessOwnerPosition' | 'clientAddress' | 'clientPhone' | 'clientPincode' | 'clientTaxInfo' | 'bankInfo' | 'logoUrl' | 'signatureUrl' | 'clientName' | 'clientEmail' | 'clientState'>) => {
     if (!currentUser?.companyId) {
       throw new Error('User company ID not found');
     }
@@ -371,7 +328,6 @@ export const useInvoices = () => {
       const invoiceData: any = {
         ...invoice,
         companyId: currentUser.companyId,
-        amountPaidByClient: 0, // Default value for new invoices
         // Company fields
         companyCountry,
         companyName,
