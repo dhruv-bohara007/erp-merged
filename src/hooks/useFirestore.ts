@@ -141,7 +141,7 @@ export interface Payment {
   pendingAmountINR?: number;
   originalPaymentAmount?: number;
   originalCurrency?: string;
-  amountPaidByClient?: number; // New field with default 0
+  amountPaidByClient: number; // Add this field with default 0
   createdAt: Date;
 }
 
