@@ -26,18 +26,17 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { usePayments } from '@/hooks/useFirestore';
 import { useInvoices } from '@/hooks/useFirestore';
+import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
 import { toast } from '@/components/ui/use-toast';
+import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 
 const paymentSchema = z.object({
   invoiceId: z.string().min(1, 'Please select an invoice'),
-  amount: z.number().min(0.01, 'Amount must be greater than 0'),
+  amount: z.string().min(1, 'Amount is required'),
   paymentMethod: z.string().min(1, 'Please select a payment method'),
   paymentDate: z.string().min(1, 'Payment date is required'),
-  status: z.enum(['completed', 'pending', 'failed']),
-  notes: z.string().optional(),
 });
 
 type PaymentFormData = z.infer<typeof paymentSchema>;
@@ -51,24 +50,26 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { addPayment } = usePayments();
   const { invoices } = useInvoices();
+  const { convertToINR } = useCurrencyConverter();
 
   const form = useForm<PaymentFormData>({
     resolver: zodResolver(paymentSchema),
     defaultValues: {
       invoiceId: '',
-      amount: 0,
+      amount: '',
       paymentMethod: '',
       paymentDate: new Date().toISOString().split('T')[0],
-      status: 'completed',
-      notes: '',
     },
   });
+
+  const selectedInvoiceId = form.watch('invoiceId');
+  const selectedInvoice = invoices.find(inv => inv.id === selectedInvoiceId);
+  const companyCurrency = selectedInvoice ? getCurrencyByCountry(selectedInvoice.companyCountry) : null;
 
   const onSubmit = async (data: PaymentFormData) => {
     try {
       setIsSubmitting(true);
       
-      const selectedInvoice = invoices.find(inv => inv.id === data.invoiceId);
       if (!selectedInvoice) {
         toast({
           title: "Error",
@@ -78,16 +79,80 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
         return;
       }
 
+      // Parse the entered amount
+      const enteredAmount = parseFloat(data.amount);
+      if (isNaN(enteredAmount) || enteredAmount <= 0) {
+        toast({
+          title: "Error",
+          description: "Please enter a valid amount",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Convert the entered amount to INR
+      const companyCurrencyCode = companyCurrency?.code || 'USD';
+      const { amountInINR } = await convertToINR(enteredAmount, selectedInvoice.companyCountry);
+
+      // Calculate pending amount in INR
+      const pendingAmountINR = selectedInvoice.totalAmountINR - amountInINR;
+
+      // Copy all invoice fields and add payment-specific data
       await addPayment({
-        invoiceId: data.invoiceId,
+        // Invoice fields
+        invoiceId: selectedInvoice.id,
         invoiceNumber: selectedInvoice.invoiceNumber,
         clientId: selectedInvoice.clientId,
         clientName: selectedInvoice.clientName,
-        amount: data.amount,
+        clientEmail: selectedInvoice.clientEmail,
+        clientState: selectedInvoice.clientState,
+        clientPhone: selectedInvoice.clientPhone,
+        clientPincode: selectedInvoice.clientPincode,
+        clientAddress: selectedInvoice.clientAddress,
+        clientCountry: selectedInvoice.clientCountry,
+        clientCurrency: selectedInvoice.clientCurrency,
+        clientAmount: selectedInvoice.clientAmount,
+        clientTaxInfo: selectedInvoice.clientTaxInfo,
+        companyId: selectedInvoice.companyId,
+        companyName: selectedInvoice.companyName,
+        companyCountry: selectedInvoice.companyCountry,
+        companyCurrency: selectedInvoice.companyCurrency,
+        companyAmount: selectedInvoice.companyAmount,
+        companyAddress: selectedInvoice.companyAddress,
+        companyEmail: selectedInvoice.companyEmail,
+        companyWebsite: selectedInvoice.companyWebsite,
+        companyPhone: selectedInvoice.companyPhone,
+        companyCity: selectedInvoice.companyCity,
+        companyTaxInfo: selectedInvoice.companyTaxInfo,
+        companyBankDetails: selectedInvoice.companyBankDetails,
+        companyLogoUrl: selectedInvoice.companyLogoUrl,
+        businessOwnerName: selectedInvoice.businessOwnerName,
+        businessOwnerPosition: selectedInvoice.businessOwnerPosition,
+        ownerSignatureUrl: selectedInvoice.ownerSignatureUrl,
+        logoUrl: selectedInvoice.logoUrl,
+        signatureUrl: selectedInvoice.signatureUrl,
+        bankInfo: selectedInvoice.bankInfo,
+        items: selectedInvoice.items,
+        subtotal: selectedInvoice.subtotal,
+        cgst: selectedInvoice.cgst,
+        sgst: selectedInvoice.sgst,
+        igst: selectedInvoice.igst,
+        totalGst: selectedInvoice.totalGst,
+        totalAmount: selectedInvoice.totalAmount,
+        totalAmountINR: selectedInvoice.totalAmountINR,
+        conversionRate: selectedInvoice.conversionRate,
+        issueDate: selectedInvoice.issueDate,
+        dueDate: selectedInvoice.dueDate,
+        terms: selectedInvoice.terms,
+        notes: selectedInvoice.notes,
+        status: selectedInvoice.status,
+        // Payment-specific fields
+        amount: amountInINR, // Store converted INR amount
+        paymentAmount: enteredAmount, // Store original entered amount
+        paymentCurrency: companyCurrencyCode, // Store payment currency
+        pendingAmountINR: Math.max(0, pendingAmountINR), // Store pending amount in INR
         paymentMethod: data.paymentMethod,
         paymentDate: new Date(data.paymentDate),
-        status: data.status,
-        notes: data.notes,
       });
 
       toast({
@@ -130,11 +195,14 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {invoices.map((invoice) => (
-                        <SelectItem key={invoice.id} value={invoice.id}>
-                          {invoice.invoiceNumber} - {invoice.clientName} - ₹{(invoice.totalAmount || 0).toLocaleString()}
-                        </SelectItem>
-                      ))}
+                      {invoices.map((invoice) => {
+                        const invoiceCurrency = getCurrencyByCountry(invoice.companyCountry);
+                        return (
+                          <SelectItem key={invoice.id} value={invoice.id}>
+                            {invoice.invoiceNumber} - {invoice.clientName} - {invoiceCurrency.symbol}{(invoice.companyAmount || 0).toLocaleString()}
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -147,14 +215,14 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
               name="amount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Amount (₹)</FormLabel>
+                  <FormLabel>
+                    Amount ({companyCurrency?.symbol || '$'})
+                  </FormLabel>
                   <FormControl>
                     <Input
-                      type="number"
-                      step="0.01"
+                      type="text"
                       placeholder="Enter amount"
                       {...field}
-                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                     />
                   </FormControl>
                   <FormMessage />
@@ -198,43 +266,6 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
                   <FormLabel>Payment Date</FormLabel>
                   <FormControl>
                     <Input type="date" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Status</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="failed">Failed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes (Optional)</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Add any notes..." {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
