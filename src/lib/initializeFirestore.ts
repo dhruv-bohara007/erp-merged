@@ -1,3 +1,4 @@
+
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { Company, Client, GSTReturn, TDSRecord } from '../types/firestore';
@@ -160,7 +161,7 @@ export const initializeCollections = async () => {
     const invoiceRef = await addDoc(collection(db, 'invoices'), sampleInvoice);
     console.log('Invoice added with ID:', invoiceRef.id);
 
-    // Sample Payment Data - change type to exclude 'id' and 'createdAt' only
+    // Sample Payment Data - using Date instead of Timestamp for paymentDate
     const samplePayment: Omit<Payment, 'id' | 'createdAt'> = {
       invoiceId: invoiceRef.id,
       invoiceNumber: 'INV-2024-001',
@@ -168,7 +169,7 @@ export const initializeCollections = async () => {
       clientName: 'ABC Corporation',
       amount: 59000,
       paymentMethod: 'neft',
-      paymentDate: Timestamp.now(),
+      paymentDate: new Date(), // Changed from Timestamp.now() to new Date()
       status: 'completed',
       referenceNumber: 'UTR123456789',
       bankDetails: {
