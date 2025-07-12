@@ -843,16 +843,16 @@ export const usePurchases = () => {
     console.log('Setting up purchases listener for company:', currentUser.companyId);
     
     // Query expenses collection but filter for purchase-type entries
+    // Remove the composite query to avoid index requirement
     const q = query(
       collection(db, 'expenses'), 
-      where('companyId', '==', currentUser.companyId),
-      where('supplierName', '!=', null)  // This identifies purchase records
+      where('companyId', '==', currentUser.companyId)
     );
     
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
         console.log('Purchases snapshot received:', snapshot.docs.length, 'documents');
-        const purchaseData = snapshot.docs.map(doc => ({
+        const expenseData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
           expenseDate: doc.data().expenseDate?.toDate(),
@@ -860,6 +860,9 @@ export const usePurchases = () => {
           createdAt: doc.data().createdAt?.toDate(),
           updatedAt: doc.data().updatedAt?.toDate(),
         })) as Expense[];
+        
+        // Filter purchases in memory instead of in the query
+        const purchaseData = expenseData.filter(expense => expense.supplierName);
         
         // Sort in memory instead of using orderBy to avoid composite index
         purchaseData.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));

@@ -5,20 +5,40 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { 
   Plus, 
   IndianRupee, 
   Calendar, 
   TrendingDown,
   Trash2,
-  Edit
+  Edit,
+  Save,
+  X
 } from 'lucide-react';
 import { usePurchases } from '@/hooks/useFirestore';
 import { format } from 'date-fns';
+import StockDetails from './StockDetails';
+
+interface EditingPurchase {
+  id: string;
+  supplierName: string;
+  itemName: string;
+  productCategory?: string;
+  productVersion?: string;
+  quantity: number;
+  unit: string;
+  pricePerUnit: number;
+  totalAmountINR: number;
+  purchaseDate: string;
+}
 
 const PurchaseManagement = () => {
   const navigate = useNavigate();
-  const { purchases, loading, deletePurchase } = usePurchases();
+  const { purchases, loading, deletePurchase, updatePurchase } = usePurchases();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<EditingPurchase | null>(null);
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this purchase?')) {
@@ -30,10 +50,51 @@ const PurchaseManagement = () => {
     }
   };
 
-  const handleEdit = (id: string) => {
-    // Navigate to edit form - this can be implemented later
-    console.log('Edit purchase:', id);
-    // navigate(`/edit-purchase/${id}`);
+  const handleEdit = (purchase: any) => {
+    setEditingId(purchase.id);
+    setEditForm({
+      id: purchase.id,
+      supplierName: purchase.supplierName || '',
+      itemName: purchase.itemName || '',
+      productCategory: purchase.productCategory || '',
+      productVersion: purchase.productVersion || '',
+      quantity: purchase.quantity || 0,
+      unit: purchase.unit || '',
+      pricePerUnit: Math.round((purchase.totalAmountINR || 0) / (purchase.quantity || 1)),
+      totalAmountINR: Math.round(purchase.totalAmountINR || 0),
+      purchaseDate: format(new Date(purchase.purchaseDate || purchase.expenseDate), 'yyyy-MM-dd')
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editForm) return;
+
+    try {
+      const totalAmountINR = Math.round(editForm.quantity * editForm.pricePerUnit);
+      
+      await updatePurchase(editForm.id, {
+        supplierName: editForm.supplierName,
+        itemName: editForm.itemName,
+        productCategory: editForm.productCategory,
+        productVersion: editForm.productVersion,
+        quantity: editForm.quantity,
+        unit: editForm.unit,
+        totalAmountINR: totalAmountINR,
+        amount: totalAmountINR,
+        purchaseDate: new Date(editForm.purchaseDate),
+        expenseDate: new Date(editForm.purchaseDate)
+      });
+      
+      setEditingId(null);
+      setEditForm(null);
+    } catch (error) {
+      console.error('Error updating purchase:', error);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditForm(null);
   };
 
   // Calculate total purchases and round to whole number
@@ -140,7 +201,7 @@ const PurchaseManagement = () => {
                 <TableRow>
                   <TableHead>Supplier Name</TableHead>
                   <TableHead>Item Name</TableHead>
-                  <TableHead>Existing Stock</TableHead>
+                  <TableHead>Quantity Bought</TableHead>
                   <TableHead>Unit</TableHead>
                   <TableHead>Price per Unit (INR)</TableHead>
                   <TableHead>Total Amount (INR)</TableHead>
@@ -152,49 +213,128 @@ const PurchaseManagement = () => {
                 {purchases.map((purchase) => (
                   <TableRow key={purchase.id}>
                     <TableCell>
-                      <div className="font-medium">{purchase.supplierName}</div>
+                      {editingId === purchase.id ? (
+                        <Input
+                          value={editForm?.supplierName || ''}
+                          onChange={(e) => setEditForm(prev => prev ? {...prev, supplierName: e.target.value} : null)}
+                        />
+                      ) : (
+                        <div className="font-medium">{purchase.supplierName}</div>
+                      )}
                     </TableCell>
                     <TableCell>
-                      <div>
-                        <div className="font-medium">{getFullItemName(purchase)}</div>
-                        {purchase.description && (
-                          <div className="text-sm text-gray-500 truncate max-w-xs">
-                            {purchase.description}
-                          </div>
-                        )}
-                      </div>
+                      {editingId === purchase.id ? (
+                        <div className="space-y-2">
+                          <Input
+                            placeholder="Product Category"
+                            value={editForm?.productCategory || ''}
+                            onChange={(e) => setEditForm(prev => prev ? {...prev, productCategory: e.target.value} : null)}
+                          />
+                          <Input
+                            placeholder="Item Name"
+                            value={editForm?.itemName || ''}
+                            onChange={(e) => setEditForm(prev => prev ? {...prev, itemName: e.target.value} : null)}
+                          />
+                          <Input
+                            placeholder="Product Version"
+                            value={editForm?.productVersion || ''}
+                            onChange={(e) => setEditForm(prev => prev ? {...prev, productVersion: e.target.value} : null)}
+                          />
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="font-medium">{getFullItemName(purchase)}</div>
+                          {purchase.description && (
+                            <div className="text-sm text-gray-500 truncate max-w-xs">
+                              {purchase.description}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
-                      {purchase.quantity || 0}
+                      {editingId === purchase.id ? (
+                        <Input
+                          type="number"
+                          value={editForm?.quantity || 0}
+                          onChange={(e) => setEditForm(prev => prev ? {...prev, quantity: parseFloat(e.target.value) || 0} : null)}
+                        />
+                      ) : (
+                        purchase.quantity || 0
+                      )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{purchase.unit}</Badge>
+                      {editingId === purchase.id ? (
+                        <Input
+                          value={editForm?.unit || ''}
+                          onChange={(e) => setEditForm(prev => prev ? {...prev, unit: e.target.value} : null)}
+                        />
+                      ) : (
+                        <Badge variant="outline">{purchase.unit}</Badge>
+                      )}
                     </TableCell>
                     <TableCell className="font-medium">
-                      {formatCurrency(Math.round((purchase.totalAmountINR || 0) / (purchase.quantity || 1)))}
+                      {editingId === purchase.id ? (
+                        <Input
+                          type="number"
+                          value={editForm?.pricePerUnit || 0}
+                          onChange={(e) => setEditForm(prev => prev ? {...prev, pricePerUnit: parseFloat(e.target.value) || 0} : null)}
+                        />
+                      ) : (
+                        formatCurrency(Math.round((purchase.totalAmountINR || 0) / (purchase.quantity || 1)))
+                      )}
                     </TableCell>
                     <TableCell className="font-medium">
                       {formatCurrency(Math.round(purchase.totalAmountINR || purchase.amount))}
                     </TableCell>
                     <TableCell>
-                      {format(new Date(purchase.purchaseDate || purchase.expenseDate), 'MMM dd, yyyy')}
+                      {editingId === purchase.id ? (
+                        <Input
+                          type="date"
+                          value={editForm?.purchaseDate || ''}
+                          onChange={(e) => setEditForm(prev => prev ? {...prev, purchaseDate: e.target.value} : null)}
+                        />
+                      ) : (
+                        format(new Date(purchase.purchaseDate || purchase.expenseDate), 'MMM dd, yyyy')
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(purchase.id)}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(purchase.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        {editingId === purchase.id ? (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleSaveEdit}
+                            >
+                              <Save className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleCancelEdit}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(purchase)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(purchase.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -208,6 +348,9 @@ const PurchaseManagement = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Stock Details Section */}
+      <StockDetails />
     </div>
   );
 };

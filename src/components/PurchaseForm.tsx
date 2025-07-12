@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -315,12 +314,11 @@ const PurchaseForm = () => {
                   <Input
                     value={item.itemName}
                     onChange={(e) => updateItem(item.id, { itemName: e.target.value })}
-                    placeholder="Enter item name"
                   />
                 </div>
               )}
 
-              <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div className="space-y-2">
                   <Label>Quantity</Label>
                   <Input
@@ -336,17 +334,6 @@ const PurchaseForm = () => {
                     onChange={(e) => updateItem(item.id, { unit: e.target.value })}
                   />
                 </div>
-                {entryMode === 'select' && (
-                  <div className="space-y-2">
-                    <Label>Existing Stock</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={item.existingStock || 0}
-                      onChange={(e) => updateItem(item.id, { existingStock: parseFloat(e.target.value) || 0 })}
-                    />
-                  </div>
-                )}
                 <div className="space-y-2">
                   <Label>Price per Unit ({companyCurrency.symbol})</Label>
                   <Input
