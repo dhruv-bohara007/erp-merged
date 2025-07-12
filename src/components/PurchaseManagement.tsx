@@ -1,23 +1,186 @@
-
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { 
   Plus, 
   IndianRupee, 
   Calendar, 
+  ShoppingCart,
   Trash2,
+  Edit,
   TrendingDown
 } from 'lucide-react';
-import { usePurchases } from '@/hooks/useFirestore';
+import { usePurchases, useInventory } from '@/hooks/useFirestore';
+import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
+import { useCompanyData } from '@/hooks/useCompanyData';
+import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 
 const PurchaseManagement = () => {
-  const navigate = useNavigate();
-  const { purchases, loading, deletePurchase } = usePurchases();
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const { purchases, loading, addPurchase, deletePurchase } = usePurchases();
+  const { inventory, updateInventoryItem, addInventoryItem } = useInventory();
+  const { convertToINR, getCurrencyInfo } = useCurrencyConverter();
+  const { currentUser, refreshUser } = useAuth();
+  const { companyData } = useCompanyData();
+  
+  const [formData, setFormData] = useState({
+    supplierName: '',
+    itemName: '',
+    quantity: '',
+    unit: '',
+    pricePerUnit: '',
+    discount: '',
+    totalAmount: '',
+    description: '',
+    purchaseDate: format(new Date(), 'yyyy-MM-dd')
+  });
+
+  // Get company currency info
+  const companyCountry = companyData?.country || 'US';
+  const companyCurrency = getCurrencyInfo(companyCountry);
+
+  // Auto-calculate total amount
+  useEffect(() => {
+    const quantity = parseFloat(formData.quantity) || 0;
+    const pricePerUnit = parseFloat(formData.pricePerUnit) || 0;
+    const discount = parseFloat(formData.discount) || 0;
+    
+    if (quantity > 0 && pricePerUnit > 0) {
+      const subtotal = quantity * pricePerUnit;
+      const total = subtotal - discount;
+      setFormData(prev => ({
+        ...prev,
+        totalAmount: total.toFixed(2)
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        totalAmount: ''
+      }));
+    }
+  }, [formData.quantity, formData.pricePerUnit, formData.discount]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    console.log('Current user:', currentUser);
+    console.log('Company data:', companyData);
+    
+    if (!currentUser?.companyId) {
+      // Try to refresh user data first
+      console.log('CompanyId not found, refreshing user data...');
+      try {
+        await refreshUser();
+        // Check again after refresh
+        if (!currentUser?.companyId) {
+          alert('Company setup is required before adding purchases. Please complete your company setup first.');
+          return;
+        }
+      } catch (error) {
+        console.error('Error refreshing user data:', error);
+        alert('Company setup is required before adding purchases. Please complete your company setup first.');
+        return;
+      }
+    }
+    
+    if (!formData.supplierName || !formData.itemName || !formData.quantity || !formData.pricePerUnit || !formData.totalAmount) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    const quantityValue = parseFloat(formData.quantity);
+    const pricePerUnitValue = parseFloat(formData.pricePerUnit);
+    const totalAmountValue = parseFloat(formData.totalAmount);
+
+    if (isNaN(quantityValue) || quantityValue <= 0 || isNaN(pricePerUnitValue) || pricePerUnitValue <= 0 || isNaN(totalAmountValue) || totalAmountValue <= 0) {
+      alert('Please enter valid amounts');
+      return;
+    }
+    
+    try {
+      // Convert total amount to INR
+      const { amountInINR, rate } = await convertToINR(totalAmountValue, companyCountry);
+      
+      // Add purchase record
+      await addPurchase({
+        title: formData.itemName || `Purchase from ${formData.supplierName}`,
+        supplierName: formData.supplierName,
+        itemName: formData.itemName,
+        quantity: quantityValue,
+        unit: formData.unit || 'pcs',
+        pricePerUnit: pricePerUnitValue,
+        discount: formData.discount,
+        totalAmount: totalAmountValue,
+        totalAmountINR: amountInINR,
+        companyCurrency: companyCurrency.code,
+        exchangeRateUsed: rate,
+        description: formData.description,
+        category: 'Purchase',
+        amount: totalAmountValue,
+        expenseDate: new Date(formData.purchaseDate),
+        purchaseDate: new Date(formData.purchaseDate),
+        status: 'recorded',
+        purchaseStatus: 'completed'
+      });
+
+      // Check if item exists in inventory and update/add accordingly
+      const existingItem = inventory.find(item => 
+        item.itemName.toLowerCase() === formData.itemName.toLowerCase()
+      );
+
+      if (existingItem) {
+        // Convert price per unit to INR for inventory
+        const { amountInINR: priceInINR } = await convertToINR(pricePerUnitValue, companyCountry);
+        
+        // Update existing inventory item
+        await updateInventoryItem(existingItem.id, {
+          unitPrice: priceInINR,
+          rate: priceInINR,
+          rateInInr: priceInINR,
+          exchangeRateUsed: rate,
+          updatedAt: new Date()
+        });
+      } else {
+        // Convert price per unit to INR for new inventory item
+        const { amountInINR: priceInINR } = await convertToINR(pricePerUnitValue, companyCountry);
+        
+        // Add new inventory item
+        await addInventoryItem({
+          itemName: formData.itemName,
+          unitPrice: priceInINR,
+          rate: priceInINR,
+          rateInInr: priceInINR,
+          exchangeRateUsed: rate,
+          companyCurrency: companyCurrency.code,
+          companyCountry: companyCountry,
+          status: 'active'
+        });
+      }
+      
+      setFormData({
+        supplierName: '',
+        itemName: '',
+        quantity: '',
+        unit: '',
+        pricePerUnit: '',
+        discount: '',
+        totalAmount: '',
+        description: '',
+        purchaseDate: format(new Date(), 'yyyy-MM-dd')
+      });
+      setIsAddModalOpen(false);
+    } catch (error) {
+      console.error('Error adding purchase:', error);
+      alert('Failed to add purchase. Please try again.');
+    }
+  };
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this purchase?')) {
@@ -53,10 +216,144 @@ const PurchaseManagement = () => {
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Purchase Management</h1>
-        <Button onClick={() => navigate('/add-purchase')}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Purchase
-        </Button>
+        <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Purchase
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Add New Purchase</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="supplierName">Supplier Name</Label>
+                  <Input
+                    id="supplierName"
+                    value={formData.supplierName}
+                    onChange={(e) => setFormData({...formData, supplierName: e.target.value})}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="itemName">Item Name</Label>
+                  <Input
+                    id="itemName"
+                    value={formData.itemName}
+                    onChange={(e) => setFormData({...formData, itemName: e.target.value})}
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="quantity">Quantity</Label>
+                  <Input
+                    id="quantity"
+                    type="text"
+                    inputMode="decimal"
+                    value={formData.quantity}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                        setFormData({...formData, quantity: value});
+                      }
+                    }}
+                    placeholder="0"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="unit">Unit</Label>
+                  <Input
+                    id="unit"
+                    value={formData.unit}
+                    onChange={(e) => setFormData({...formData, unit: e.target.value})}
+                    placeholder="pcs, kg, ltr, etc."
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="pricePerUnit">Price per Unit ({companyCurrency.symbol})</Label>
+                  <Input
+                    id="pricePerUnit"
+                    type="text"
+                    inputMode="decimal"
+                    value={formData.pricePerUnit}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                        setFormData({...formData, pricePerUnit: value});
+                      }
+                    }}
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="discount">Discount ({companyCurrency.symbol})</Label>
+                  <Input
+                    id="discount"
+                    type="text"
+                    inputMode="decimal"
+                    value={formData.discount}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                        setFormData({...formData, discount: value});
+                      }
+                    }}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="totalAmount">Total Amount ({companyCurrency.symbol})</Label>
+                  <Input
+                    id="totalAmount"
+                    type="text"
+                    value={formData.totalAmount}
+                    readOnly
+                    className="bg-gray-50"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="purchaseDate">Purchase Date</Label>
+                <Input
+                  id="purchaseDate"
+                  type="date"
+                  value={formData.purchaseDate}
+                  onChange={(e) => setFormData({...formData, purchaseDate: e.target.value})}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  placeholder="Purchase description..."
+                />
+              </div>
+
+              <div className="flex justify-end space-x-2">
+                <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">Add Purchase</Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Summary Cards */}
