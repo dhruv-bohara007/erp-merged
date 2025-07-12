@@ -225,8 +225,8 @@ export const useInvoices = () => {
           const data = doc.data();
           
           // Determine status based on amountPaidByClient and due date
-          const amountPaidByClient = data.amountPaidByClient || 0;
-          const clientAmount = data.clientAmount || data.totalAmount || 0;
+          const amountPaidByClient = Math.round(data.amountPaidByClient || 0);
+          const clientAmount = Math.round(data.clientAmount || data.totalAmount || 0);
           const dueDate = data.dueDate?.toDate() || new Date();
           const isOverdue = new Date() > dueDate;
           
@@ -248,13 +248,19 @@ export const useInvoices = () => {
           return {
             id: doc.id,
             ...data,
-            // Handle currency fields with fallbacks
-            totalAmountINR: data.totalAmountINR || data.totalAmount || 0,
+            // Handle currency fields with fallbacks and round all amounts
+            subtotal: Math.round(data.subtotal || 0),
+            cgst: Math.round(data.cgst || 0),
+            sgst: Math.round(data.sgst || 0),
+            igst: Math.round(data.igst || 0),
+            totalGst: Math.round(data.totalGst || 0),
+            totalAmount: Math.round(data.totalAmount || 0),
+            totalAmountINR: Math.round(data.totalAmountINR || data.totalAmount || 0),
             companyCurrency: data.companyCurrency || 'INR',
-            companyAmount: data.companyAmount || data.totalAmount || 0,
+            companyAmount: Math.round(data.companyAmount || data.totalAmount || 0),
             clientCurrency: data.clientCurrency || 'INR',
-            clientAmount: data.clientAmount || data.totalAmount || 0,
-            amountPaidByClient: amountPaidByClient, // New field
+            clientAmount: Math.round(data.clientAmount || data.totalAmount || 0),
+            amountPaidByClient: amountPaidByClient,
             // Handle country fields with fallbacks
             companyCountry: data.companyCountry || 'IN',
             clientCountry: data.clientCountry || 'IN',
@@ -369,10 +375,21 @@ export const useInvoices = () => {
       
       console.log('Company and client data fetched successfully');
 
-      // Prepare the invoice data, only including fields that have values
+      // Prepare the invoice data, only including fields that have values and round all amounts
       const invoiceData: any = {
         ...invoice,
         companyId: currentUser.companyId,
+        // Round all monetary values
+        subtotal: Math.round(invoice.subtotal || 0),
+        cgst: Math.round(invoice.cgst || 0),
+        sgst: Math.round(invoice.sgst || 0),
+        igst: Math.round(invoice.igst || 0),
+        totalGst: Math.round(invoice.totalGst || 0),
+        totalAmount: Math.round(invoice.totalAmount || 0),
+        totalAmountINR: Math.round(invoice.totalAmountINR || 0),
+        companyAmount: Math.round(invoice.companyAmount || 0),
+        clientAmount: Math.round(invoice.clientAmount || 0),
+        amountPaidByClient: Math.round(invoice.amountPaidByClient || 0),
         // Company fields
         companyCountry,
         companyName,
@@ -458,8 +475,21 @@ export const useInvoices = () => {
   const updateInvoice = async (id: string, updates: Partial<Invoice>) => {
     try {
       const docRef = doc(db, 'invoices', id);
+      // Round all monetary values in updates
+      const roundedUpdates: any = { ...updates };
+      if (updates.subtotal !== undefined) roundedUpdates.subtotal = Math.round(updates.subtotal);
+      if (updates.cgst !== undefined) roundedUpdates.cgst = Math.round(updates.cgst);
+      if (updates.sgst !== undefined) roundedUpdates.sgst = Math.round(updates.sgst);
+      if (updates.igst !== undefined) roundedUpdates.igst = Math.round(updates.igst);
+      if (updates.totalGst !== undefined) roundedUpdates.totalGst = Math.round(updates.totalGst);
+      if (updates.totalAmount !== undefined) roundedUpdates.totalAmount = Math.round(updates.totalAmount);
+      if (updates.totalAmountINR !== undefined) roundedUpdates.totalAmountINR = Math.round(updates.totalAmountINR);
+      if (updates.companyAmount !== undefined) roundedUpdates.companyAmount = Math.round(updates.companyAmount);
+      if (updates.clientAmount !== undefined) roundedUpdates.clientAmount = Math.round(updates.clientAmount);
+      if (updates.amountPaidByClient !== undefined) roundedUpdates.amountPaidByClient = Math.round(updates.amountPaidByClient);
+      
       await updateDoc(docRef, {
-        ...updates,
+        ...roundedUpdates,
         updatedAt: Timestamp.now(),
       });
     } catch (err) {
@@ -597,7 +627,11 @@ export const usePayments = () => {
         const paymentData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
-          amountPaidByClient: doc.data().amountPaidByClient || 0, // New field
+          // Round all monetary values
+          amount: Math.round(doc.data().amount || 0),
+          pendingAmountINR: Math.round(doc.data().pendingAmountINR || 0),
+          originalPaymentAmount: Math.round(doc.data().originalPaymentAmount || 0),
+          amountPaidByClient: Math.round(doc.data().amountPaidByClient || 0),
           paymentDate: doc.data().paymentDate?.toDate(),
           createdAt: doc.data().createdAt?.toDate(),
         })) as Payment[];
@@ -628,7 +662,11 @@ export const usePayments = () => {
       const docRef = await addDoc(collection(db, 'payments'), {
         ...payment,
         companyId: currentUser.companyId,
-        amountPaidByClient: payment.amountPaidByClient || 0, // Ensure new field is included
+        // Round all monetary values
+        amount: Math.round(payment.amount || 0),
+        pendingAmountINR: Math.round(payment.pendingAmountINR || 0),
+        originalPaymentAmount: Math.round(payment.originalPaymentAmount || 0),
+        amountPaidByClient: Math.round(payment.amountPaidByClient || 0),
         paymentDate: Timestamp.fromDate(payment.paymentDate),
         createdAt: Timestamp.now(),
       });
