@@ -70,6 +70,14 @@ const PurchaseManagement = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('Current user:', currentUser);
+    console.log('Company data:', companyData);
+    
+    if (!currentUser?.companyId) {
+      alert('Company setup is required before adding purchases. Please complete your company setup first.');
+      return;
+    }
+    
     if (!formData.supplierName || !formData.itemName || !formData.quantity || !formData.pricePerUnit || !formData.totalAmount) {
       alert('Please fill in all required fields');
       return;
