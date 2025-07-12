@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -63,7 +64,7 @@ const AppContent: React.FC = () => {
       <Route path="/company-profile" element={<RequireAuth roles={['admin']}><CompanyProfilePage /></RequireAuth>} />
       <Route path="/inventory" element={<RequireAuth roles={['admin']}><InventoryPage /></RequireAuth>} />
       <Route path="/profitability" element={<RequireAuth roles={['admin']}><ProfitabilityPage /></RequireAuth>} />
-       <Route path="/purchases" element={<RequireAuth roles={['admin']}><PurchaseManagement /></RequireAuth>} />
+      <Route path="/purchases" element={<RequireAuth roles={['admin']}><PurchaseManagement /></RequireAuth>} />
 
       {/* Common Routes - Accessible to both 'admin' and 'user' */}
       <Route path="/" element={<RequireAuth><Dashboard /></RequireAuth>} />
