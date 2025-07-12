@@ -171,6 +171,12 @@ export const initializeCollections = async () => {
       paymentMethod: 'neft',
       paymentDate: new Date(), // Changed from Timestamp.now() to new Date()
       status: 'completed',
+      referenceNumber: 'UTR123456789',
+      bankDetails: {
+        fromAccount: '987654321098',
+        toAccount: '123456789012',
+        ifscCode: 'HDFC0001234'
+      },
       notes: 'Partial payment received',
       amountPaidByClient: 59000,
     };
