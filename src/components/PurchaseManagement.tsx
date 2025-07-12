@@ -1,0 +1,394 @@
+
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Plus, 
+  IndianRupee, 
+  Calendar, 
+  FileText,
+  Trash2,
+  Edit,
+  ShoppingCart
+} from 'lucide-react';
+import { usePurchases } from '@/hooks/useFirestore';
+import { format } from 'date-fns';
+
+const PurchaseManagement = () => {
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const { purchases, loading, addPurchase, deletePurchase } = usePurchases();
+  
+  const [formData, setFormData] = useState({
+    supplierName: '',
+    itemName: '',
+    existingStock: '',
+    unit: '',
+    pricePerUnit: '',
+    totalAmount: '',
+    description: '',
+    purchaseDate: format(new Date(), 'yyyy-MM-dd'),
+  });
+
+  const units = [
+    'Pieces',
+    'Kg',
+    'Grams',
+    'Liters',
+    'Meters',
+    'Boxes',
+    'Cartons',
+    'Dozen',
+    'Other'
+  ];
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.supplierName || !formData.itemName || !formData.pricePerUnit) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    const pricePerUnitValue = parseFloat(formData.pricePerUnit);
+    const existingStockValue = parseFloat(formData.existingStock) || 0;
+    const totalAmountValue = parseFloat(formData.totalAmount) || pricePerUnitValue;
+
+    if (isNaN(pricePerUnitValue) || pricePerUnitValue <= 0) {
+      alert('Please enter a valid price per unit');
+      return;
+    }
+    
+    try {
+      await addPurchase({
+        supplierName: formData.supplierName,
+        itemName: formData.itemName,
+        existingStock: existingStockValue,
+        unit: formData.unit || 'Pieces',
+        pricePerUnit: pricePerUnitValue,
+        totalAmount: totalAmountValue,
+        description: formData.description,
+        purchaseDate: new Date(formData.purchaseDate),
+        status: 'recorded'
+      });
+      
+      setFormData({
+        supplierName: '',
+        itemName: '',
+        existingStock: '',
+        unit: '',
+        pricePerUnit: '',
+        totalAmount: '',
+        description: '',
+        purchaseDate: format(new Date(), 'yyyy-MM-dd'),
+      });
+      setIsAddModalOpen(false);
+    } catch (error) {
+      console.error('Error adding purchase:', error);
+      alert('Failed to add purchase. Please try again.');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this purchase?')) {
+      try {
+        await deletePurchase(id);
+      } catch (error) {
+        console.error('Error deleting purchase:', error);
+      }
+    }
+  };
+
+  const totalPurchases = purchases.reduce((sum, purchase) => sum + purchase.totalAmount, 0);
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto p-6">
+        <div className="flex justify-center items-center h-64">
+          <div className="text-lg">Loading purchases...</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Purchase Management</h1>
+        <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Purchase
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Add New Purchase</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="suppllerName">Supplier Name</Label>
+                  <Input
+                    id="supplierName"
+                    value={formData.supplierName}
+                    onChange={(e) => setFormData({...formData, supplierName: e.target.value})}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="itemName">Item Name</Label>
+                  <Input
+                    id="itemName"
+                    value={formData.itemName}
+                    onChange={(e) => setFormData({...formData, itemName: e.target.value})}
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="existingStock">Existing Stock</Label>
+                  <Input
+                    id="existingStock"
+                    type="text"
+                    inputMode="decimal"
+                    value={formData.existingStock}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                        setFormData({...formData, existingStock: value});
+                      }
+                    }}
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="unit">Unit</Label>
+                  <Select value={formData.unit} onValueChange={(value) => setFormData({...formData, unit: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {units.map((unit) => (
+                        <SelectItem key={unit} value={unit}>
+                          {unit}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="purchaseDate">Purchase Date</Label>
+                  <Input
+                    id="purchaseDate"
+                    type="date"
+                    value={formData.purchaseDate}
+                    onChange={(e) => setFormData({...formData, purchaseDate: e.target.value})}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="pricePerUnit">Price per Unit (₹)</Label>
+                  <Input
+                    id="pricePerUnit"
+                    type="text"
+                    inputMode="decimal"
+                    value={formData.pricePerUnit}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                        setFormData({...formData, pricePerUnit: value});
+                      }
+                    }}
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="totalAmount">Total Amount (₹)</Label>
+                  <Input
+                    id="totalAmount"
+                    type="text"
+                    inputMode="decimal"
+                    value={formData.totalAmount}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                        setFormData({...formData, totalAmount: value});
+                      }
+                    }}
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  placeholder="Purchase description..."
+                />
+              </div>
+
+              <div className="flex justify-end space-x-2">
+                <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">Add Purchase</Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Purchases</CardTitle>
+            <ShoppingCart className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(totalPurchases)}</div>
+            <p className="text-xs text-muted-foreground">
+              {purchases.length} purchase{purchases.length !== 1 ? 's' : ''} recorded
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">This Month</CardTitle>
+            <Calendar className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(
+                purchases
+                  .filter(purchase => {
+                    const purchaseDate = new Date(purchase.purchaseDate);
+                    const currentDate = new Date();
+                    return purchaseDate.getMonth() === currentDate.getMonth() && 
+                           purchaseDate.getFullYear() === currentDate.getFullYear();
+                  })
+                  .reduce((sum, purchase) => sum + purchase.totalAmount, 0)
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">Current month purchases</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Average Purchase</CardTitle>
+            <IndianRupee className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(purchases.length > 0 ? totalPurchases / purchases.length : 0)}
+            </div>
+            <p className="text-xs text-muted-foreground">Per purchase record</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Purchases Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Purchases</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {purchases.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Supplier</TableHead>
+                  <TableHead>Item Name</TableHead>
+                  <TableHead>Stock</TableHead>
+                  <TableHead>Unit</TableHead>
+                  <TableHead>Price/Unit</TableHead>
+                  <TableHead>Total Amount</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {purchases.map((purchase) => (
+                  <TableRow key={purchase.id}>
+                    <TableCell>
+                      <div className="font-medium">{purchase.supplierName}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{purchase.itemName}</div>
+                        {purchase.description && (
+                          <div className="text-sm text-gray-500 truncate max-w-xs">
+                            {purchase.description}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium">{purchase.existingStock}</div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{purchase.unit}</Badge>
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {formatCurrency(purchase.pricePerUnit)}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {formatCurrency(purchase.totalAmount)}
+                    </TableCell>
+                    <TableCell>
+                      {format(new Date(purchase.purchaseDate), 'MMM dd, yyyy')}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(purchase.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              No purchases recorded yet. Click "Add Purchase" to get started.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default PurchaseManagement;

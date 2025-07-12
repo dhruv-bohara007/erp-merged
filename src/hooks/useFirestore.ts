@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { 
   collection, 
@@ -177,6 +176,74 @@ export interface InventoryItem {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export interface Purchase {
+  id: string;
+  supplierName: string;
+  itemName: string;
+  existingStock: number;
+  unit: string;
+  pricePerUnit: number;
+  totalAmount: number;
+  description?: string;
+  purchaseDate: Date;
+  status: 'recorded' | 'pending';
+  createdAt: Date;
+}
+
+export const usePurchases = () => {
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { currentUser } = useAuth();
+
+  useEffect(() => {
+    if (!currentUser?.companyId) return;
+
+    const purchasesRef = collection(db, 'purchases');
+    const q = query(
+      purchasesRef,
+      where('companyId', '==', currentUser.companyId),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const purchasesData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        purchaseDate: doc.data().purchaseDate?.toDate(),
+        createdAt: doc.data().createdAt?.toDate(),
+      })) as Purchase[];
+      
+      setPurchases(purchasesData);
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  }, [currentUser?.companyId]);
+
+  const addPurchase = async (purchaseData: Omit<Purchase, 'id' | 'createdAt'>) => {
+    if (!currentUser?.companyId) throw new Error('No company ID');
+
+    const purchasesRef = collection(db, 'purchases');
+    await addDoc(purchasesRef, {
+      ...purchaseData,
+      companyId: currentUser.companyId,
+      createdAt: new Date(),
+    });
+  };
+
+  const deletePurchase = async (purchaseId: string) => {
+    const purchaseRef = doc(db, 'purchases', purchaseId);
+    await deleteDoc(purchaseRef);
+  };
+
+  return {
+    purchases,
+    loading,
+    addPurchase,
+    deletePurchase
+  };
+};
 
 // Custom hooks for each collection
 export const useInvoices = () => {
