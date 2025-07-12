@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,6 +18,7 @@ import {
 } from 'lucide-react';
 import { usePurchases, useInventory } from '@/hooks/useFirestore';
 import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
+import { useCompanyData } from '@/hooks/useCompanyData';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 
@@ -28,6 +28,7 @@ const PurchaseManagement = () => {
   const { inventory, updateInventoryItem, addInventoryItem } = useInventory();
   const { convertToINR, getCurrencyInfo } = useCurrencyConverter();
   const { currentUser } = useAuth();
+  const { companyData } = useCompanyData();
   
   const [formData, setFormData] = useState({
     supplierName: '',
@@ -42,7 +43,7 @@ const PurchaseManagement = () => {
   });
 
   // Get company currency info
-  const companyCountry = currentUser?.companyData?.country || 'IN';
+  const companyCountry = companyData?.country || 'US';
   const companyCurrency = getCurrencyInfo(companyCountry);
 
   // Auto-calculate total amount
