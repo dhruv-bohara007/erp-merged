@@ -10,7 +10,8 @@ import {
   IndianRupee, 
   Calendar, 
   TrendingDown,
-  Trash2
+  Trash2,
+  Edit
 } from 'lucide-react';
 import { usePurchases } from '@/hooks/useFirestore';
 import { format } from 'date-fns';
@@ -29,14 +30,31 @@ const PurchaseManagement = () => {
     }
   };
 
-  const totalPurchases = purchases.reduce((sum, purchase) => sum + (purchase.totalAmountINR || purchase.amount), 0);
+  const handleEdit = (id: string) => {
+    // Navigate to edit form - this can be implemented later
+    console.log('Edit purchase:', id);
+    // navigate(`/edit-purchase/${id}`);
+  };
+
+  // Calculate total purchases and round to whole number
+  const totalPurchases = Math.round(purchases.reduce((sum, purchase) => sum + (purchase.totalAmountINR || purchase.amount), 0));
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
       maximumFractionDigits: 0
-    }).format(amount);
+    }).format(Math.round(amount));
+  };
+
+  // Helper function to combine item name with product details
+  const getFullItemName = (purchase: any) => {
+    const parts = [];
+    if (purchase.productCategory) parts.push(purchase.productCategory);
+    if (purchase.itemName) parts.push(purchase.itemName);
+    if (purchase.productVersion) parts.push(purchase.productVersion);
+    
+    return parts.length > 0 ? parts.join(' - ') : purchase.itemName || 'Unknown Item';
   };
 
   if (loading) {
@@ -82,14 +100,14 @@ const PurchaseManagement = () => {
           <CardContent>
             <div className="text-2xl font-bold">
               {formatCurrency(
-                purchases
+                Math.round(purchases
                   .filter(purchase => {
                     const purchaseDate = new Date(purchase.purchaseDate || purchase.expenseDate);
                     const currentDate = new Date();
                     return purchaseDate.getMonth() === currentDate.getMonth() && 
                            purchaseDate.getFullYear() === currentDate.getFullYear();
                   })
-                  .reduce((sum, purchase) => sum + (purchase.totalAmountINR || purchase.amount), 0)
+                  .reduce((sum, purchase) => sum + (purchase.totalAmountINR || purchase.amount), 0))
               )}
             </div>
             <p className="text-xs text-muted-foreground">Current month purchases</p>
@@ -103,7 +121,7 @@ const PurchaseManagement = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatCurrency(purchases.length > 0 ? totalPurchases / purchases.length : 0)}
+              {formatCurrency(purchases.length > 0 ? Math.round(totalPurchases / purchases.length) : 0)}
             </div>
             <p className="text-xs text-muted-foreground">Per purchase record</p>
           </CardContent>
@@ -122,7 +140,7 @@ const PurchaseManagement = () => {
                 <TableRow>
                   <TableHead>Supplier Name</TableHead>
                   <TableHead>Item Name</TableHead>
-                  <TableHead>Quantity</TableHead>
+                  <TableHead>Existing Stock</TableHead>
                   <TableHead>Unit</TableHead>
                   <TableHead>Price per Unit (INR)</TableHead>
                   <TableHead>Total Amount (INR)</TableHead>
@@ -138,7 +156,7 @@ const PurchaseManagement = () => {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <div className="font-medium">{purchase.itemName}</div>
+                        <div className="font-medium">{getFullItemName(purchase)}</div>
                         {purchase.description && (
                           <div className="text-sm text-gray-500 truncate max-w-xs">
                             {purchase.description}
@@ -153,16 +171,23 @@ const PurchaseManagement = () => {
                       <Badge variant="outline">{purchase.unit}</Badge>
                     </TableCell>
                     <TableCell className="font-medium">
-                      {formatCurrency((purchase.totalAmountINR || 0) / (purchase.quantity || 1))}
+                      {formatCurrency(Math.round((purchase.totalAmountINR || 0) / (purchase.quantity || 1)))}
                     </TableCell>
                     <TableCell className="font-medium">
-                      {formatCurrency(purchase.totalAmountINR || purchase.amount)}
+                      {formatCurrency(Math.round(purchase.totalAmountINR || purchase.amount))}
                     </TableCell>
                     <TableCell>
                       {format(new Date(purchase.purchaseDate || purchase.expenseDate), 'MMM dd, yyyy')}
                     </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEdit(purchase.id)}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"

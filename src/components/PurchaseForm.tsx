@@ -81,7 +81,7 @@ const PurchaseForm = () => {
         // Recalculate amount
         const subtotal = updatedItem.quantity * updatedItem.pricePerUnit;
         const discount = subtotal * (updatedItem.discountRate / 100);
-        updatedItem.amount = subtotal - discount;
+        updatedItem.amount = Math.round(subtotal - discount); // Round to whole number
         return updatedItem;
       }
       return item;
@@ -120,14 +120,18 @@ const PurchaseForm = () => {
     }
 
     try {
-      // Convert total amount to INR
+      // Convert total amount to INR and round to whole number
       const { amountInINR, rate } = await convertToINR(totalAmount, companyCountry);
+      const totalAmountINRRounded = Math.round(amountInINR);
 
       // Process each item
       for (const item of items) {
-        // Convert item price to INR
+        // Convert item price to INR and round to whole numbers
         const { amountInINR: itemAmountInINR } = await convertToINR(item.amount, companyCountry);
         const { amountInINR: priceInINR } = await convertToINR(item.pricePerUnit, companyCountry);
+        
+        const itemAmountINRRounded = Math.round(itemAmountInINR);
+        const priceInINRRounded = Math.round(priceInINR);
 
         // Add purchase record for each item
         await addPurchase({
@@ -137,9 +141,9 @@ const PurchaseForm = () => {
           quantity: item.quantity,
           unit: item.unit,
           pricePerUnit: item.pricePerUnit,
-          discount: (item.quantity * item.pricePerUnit * item.discountRate / 100).toString(),
+          discount: Math.round(item.quantity * item.pricePerUnit * item.discountRate / 100).toString(),
           totalAmount: item.amount,
-          totalAmountINR: itemAmountInINR,
+          totalAmountINR: itemAmountINRRounded,
           companyCurrency: companyCurrency.code,
           exchangeRateUsed: rate,
           description,
@@ -159,21 +163,23 @@ const PurchaseForm = () => {
         );
 
         if (existingItem) {
+          // Update existing inventory item with rounded values
           await updateInventoryItem(existingItem.id, {
-            unitPrice: priceInINR,
-            rate: priceInINR,
-            rateInInr: priceInINR,
+            unitPrice: priceInINRRounded,
+            rate: priceInINRRounded,
+            rateInInr: priceInINRRounded,
             exchangeRateUsed: rate,
             updatedAt: new Date()
           });
         } else {
+          // Add new inventory item with rounded values
           await addInventoryItem({
             itemName: item.itemName,
             productCategory: item.productCategory,
             productVersion: item.productVersion,
-            unitPrice: priceInINR,
-            rate: priceInINR,
-            rateInInr: priceInINR,
+            unitPrice: priceInINRRounded,
+            rate: priceInINRRounded,
+            rateInInr: priceInINRRounded,
             exchangeRateUsed: rate,
             companyCurrency: companyCurrency.code,
             companyCountry: companyCountry,
@@ -182,6 +188,7 @@ const PurchaseForm = () => {
         }
       }
 
+      // Redirect to Purchase Management page
       navigate('/purchases');
     } catch (error) {
       console.error('Error adding purchase:', error);
@@ -317,9 +324,7 @@ const PurchaseForm = () => {
                 <div className="space-y-2">
                   <Label>Quantity</Label>
                   <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
+                    type="text"
                     value={item.quantity}
                     onChange={(e) => updateItem(item.id, { quantity: parseFloat(e.target.value) || 0 })}
                   />
@@ -329,7 +334,6 @@ const PurchaseForm = () => {
                   <Input
                     value={item.unit}
                     onChange={(e) => updateItem(item.id, { unit: e.target.value })}
-                    placeholder="pcs, kg, ltr"
                   />
                 </div>
                 {entryMode === 'select' && (
@@ -346,9 +350,7 @@ const PurchaseForm = () => {
                 <div className="space-y-2">
                   <Label>Price per Unit ({companyCurrency.symbol})</Label>
                   <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
+                    type="text"
                     value={item.pricePerUnit}
                     onChange={(e) => updateItem(item.id, { pricePerUnit: parseFloat(e.target.value) || 0 })}
                   />
@@ -356,10 +358,7 @@ const PurchaseForm = () => {
                 <div className="space-y-2">
                   <Label>Discount Rate (%)</Label>
                   <Input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.01"
+                    type="text"
                     value={item.discountRate}
                     onChange={(e) => updateItem(item.id, { discountRate: parseFloat(e.target.value) || 0 })}
                   />
@@ -368,7 +367,7 @@ const PurchaseForm = () => {
                   <Label>Amount ({companyCurrency.symbol})</Label>
                   <Input
                     type="number"
-                    value={item.amount.toFixed(2)}
+                    value={item.amount}
                     readOnly
                     className="bg-gray-50"
                   />
@@ -404,15 +403,15 @@ const PurchaseForm = () => {
           <div className="space-y-2">
             <div className="flex justify-between">
               <span>Subtotal:</span>
-              <span>{companyCurrency.symbol}{subtotal.toFixed(2)}</span>
+              <span>{companyCurrency.symbol}{Math.round(subtotal)}</span>
             </div>
             <div className="flex justify-between">
               <span>Tax:</span>
-              <span>{companyCurrency.symbol}{totalTaxAmount.toFixed(2)}</span>
+              <span>{companyCurrency.symbol}{Math.round(totalTaxAmount)}</span>
             </div>
             <div className="flex justify-between font-bold text-lg">
               <span>Total Amount after Tax:</span>
-              <span>{companyCurrency.symbol}{totalAmount.toFixed(2)}</span>
+              <span>{companyCurrency.symbol}{Math.round(totalAmount)}</span>
             </div>
           </div>
         </CardContent>
