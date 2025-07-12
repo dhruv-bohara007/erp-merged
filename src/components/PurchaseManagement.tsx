@@ -21,6 +21,7 @@ import {
 import { usePurchases } from '@/hooks/useFirestore';
 import { format } from 'date-fns';
 import StockDetails from './StockDetails';
+import type { Expense } from '@/hooks/useFirestore';
 
 interface EditingPurchase {
   id: string;
@@ -51,7 +52,7 @@ const PurchaseManagement = () => {
     }
   };
 
-  const handleEdit = (purchase: any) => {
+  const handleEdit = (purchase: Expense) => {
     setEditingId(purchase.id);
     setEditForm({
       id: purchase.id,
@@ -73,7 +74,7 @@ const PurchaseManagement = () => {
     try {
       const totalAmountINR = Math.round(editForm.quantity * editForm.pricePerUnit);
       
-      await updatePurchase(editForm.id, {
+      const updates: Partial<Expense> = {
         supplierName: editForm.supplierName,
         itemName: editForm.itemName,
         productCategory: editForm.productCategory,
@@ -84,7 +85,9 @@ const PurchaseManagement = () => {
         amount: totalAmountINR,
         purchaseDate: new Date(editForm.purchaseDate),
         expenseDate: new Date(editForm.purchaseDate)
-      });
+      };
+      
+      await updatePurchase(editForm.id, updates);
       
       setEditingId(null);
       setEditForm(null);
@@ -110,7 +113,7 @@ const PurchaseManagement = () => {
   };
 
   // Helper function to get full product name with all details
-  const getFullProductName = (purchase: any) => {
+  const getFullProductName = (purchase: Expense) => {
     const parts = [];
     if (purchase.productCategory) parts.push(purchase.productCategory);
     if (purchase.itemName) parts.push(purchase.itemName);

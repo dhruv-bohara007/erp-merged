@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { 
   collection, 
@@ -166,6 +167,8 @@ export interface Expense {
   // Purchase-specific fields (for when used as Purchase)
   supplierName?: string;
   itemName?: string;
+  productCategory?: string;
+  productVersion?: string;
   quantity?: number;
   unit?: string;
   pricePerUnit?: number;
