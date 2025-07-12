@@ -1,3 +1,4 @@
+
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -33,7 +34,7 @@ function App() {
             <Route
               path="/super-dashboard"
               element={
-                <ProtectedRoute requireSuperAdmin={true}>
+                <ProtectedRoute allowedRoles={['super_admin']}>
                   <SuperDashboard />
                 </ProtectedRoute>
               }
