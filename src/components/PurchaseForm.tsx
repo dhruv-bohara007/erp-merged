@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import SearchableDropdown from '@/components/SearchableDropdown';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
@@ -39,7 +38,7 @@ const PurchaseForm = () => {
   const { convertToINR, getCurrencyInfo } = useCurrencyConverter();
   const { currentUser, refreshUser } = useAuth();
   const { companyData } = useCompanyData();
-  const { calculateTax } = useTaxCalculations();
+  const { calculateTaxes } = useTaxCalculations();
 
   const [entryMode, setEntryMode] = useState<'manual' | 'select'>('manual');
   const [supplierName, setSupplierName] = useState('');
@@ -91,7 +90,7 @@ const PurchaseForm = () => {
 
   // Calculate totals
   const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
-  const { taxAmount, totalWithTax } = calculateTax(subtotal, companyCountry);
+  const { totalTaxAmount, totalAmount } = calculateTaxes(subtotal, companyCountry, companyCountry);
 
   // Initialize with one item
   useEffect(() => {
@@ -122,7 +121,7 @@ const PurchaseForm = () => {
 
     try {
       // Convert total amount to INR
-      const { amountInINR, rate } = await convertToINR(totalWithTax, companyCountry);
+      const { amountInINR, rate } = await convertToINR(totalAmount, companyCountry);
 
       // Process each item
       for (const item of items) {
@@ -135,8 +134,6 @@ const PurchaseForm = () => {
           title: `${item.itemName} from ${supplierName}`,
           supplierName,
           itemName: item.itemName,
-          productCategory: item.productCategory,
-          productVersion: item.productVersion,
           quantity: item.quantity,
           unit: item.unit,
           pricePerUnit: item.pricePerUnit,
@@ -411,11 +408,11 @@ const PurchaseForm = () => {
             </div>
             <div className="flex justify-between">
               <span>Tax:</span>
-              <span>{companyCurrency.symbol}{taxAmount.toFixed(2)}</span>
+              <span>{companyCurrency.symbol}{totalTaxAmount.toFixed(2)}</span>
             </div>
             <div className="flex justify-between font-bold text-lg">
               <span>Total Amount after Tax:</span>
-              <span>{companyCurrency.symbol}{totalWithTax.toFixed(2)}</span>
+              <span>{companyCurrency.symbol}{totalAmount.toFixed(2)}</span>
             </div>
           </div>
         </CardContent>
