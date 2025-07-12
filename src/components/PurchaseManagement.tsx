@@ -7,7 +7,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Plus, 
   IndianRupee, 
@@ -190,178 +189,168 @@ const PurchaseManagement = () => {
         </Card>
       </div>
 
-      {/* Tabs for Purchases and Stock Details */}
-      <Tabs defaultValue="purchases" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="purchases">Recent Purchases</TabsTrigger>
-          <TabsTrigger value="stock">Stock Details</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="purchases">
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Purchases</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {purchases.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Supplier Name</TableHead>
-                      <TableHead>Item Name</TableHead>
-                      <TableHead>Quantity Bought</TableHead>
-                      <TableHead>Unit</TableHead>
-                      <TableHead>Price per Unit (INR)</TableHead>
-                      <TableHead>Total Amount (INR)</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {purchases.map((purchase) => (
-                      <TableRow key={purchase.id}>
-                        <TableCell>
-                          {editingId === purchase.id ? (
-                            <Input
-                              value={editForm?.supplierName || ''}
-                              onChange={(e) => setEditForm(prev => prev ? {...prev, supplierName: e.target.value} : null)}
-                            />
-                          ) : (
-                            <div className="font-medium">{purchase.supplierName}</div>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {editingId === purchase.id ? (
-                            <div className="space-y-2">
-                              <Input
-                                placeholder="Product Category"
-                                value={editForm?.productCategory || ''}
-                                onChange={(e) => setEditForm(prev => prev ? {...prev, productCategory: e.target.value} : null)}
-                              />
-                              <Input
-                                placeholder="Item Name"
-                                value={editForm?.itemName || ''}
-                                onChange={(e) => setEditForm(prev => prev ? {...prev, itemName: e.target.value} : null)}
-                              />
-                              <Input
-                                placeholder="Product Version"
-                                value={editForm?.productVersion || ''}
-                                onChange={(e) => setEditForm(prev => prev ? {...prev, productVersion: e.target.value} : null)}
-                              />
-                            </div>
-                          ) : (
-                            <div>
-                              <div className="font-medium">{getFullItemName(purchase)}</div>
-                              {purchase.description && (
-                                <div className="text-sm text-gray-500 truncate max-w-xs">
-                                  {purchase.description}
-                                </div>
-                              )}
+      {/* Purchases Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Purchases</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {purchases.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Supplier Name</TableHead>
+                  <TableHead>Item Name</TableHead>
+                  <TableHead>Quantity Bought</TableHead>
+                  <TableHead>Unit</TableHead>
+                  <TableHead>Price per Unit (INR)</TableHead>
+                  <TableHead>Total Amount (INR)</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {purchases.map((purchase) => (
+                  <TableRow key={purchase.id}>
+                    <TableCell>
+                      {editingId === purchase.id ? (
+                        <Input
+                          value={editForm?.supplierName || ''}
+                          onChange={(e) => setEditForm(prev => prev ? {...prev, supplierName: e.target.value} : null)}
+                        />
+                      ) : (
+                        <div className="font-medium">{purchase.supplierName}</div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {editingId === purchase.id ? (
+                        <div className="space-y-2">
+                          <Input
+                            placeholder="Product Category"
+                            value={editForm?.productCategory || ''}
+                            onChange={(e) => setEditForm(prev => prev ? {...prev, productCategory: e.target.value} : null)}
+                          />
+                          <Input
+                            placeholder="Item Name"
+                            value={editForm?.itemName || ''}
+                            onChange={(e) => setEditForm(prev => prev ? {...prev, itemName: e.target.value} : null)}
+                          />
+                          <Input
+                            placeholder="Product Version"
+                            value={editForm?.productVersion || ''}
+                            onChange={(e) => setEditForm(prev => prev ? {...prev, productVersion: e.target.value} : null)}
+                          />
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="font-medium">{getFullItemName(purchase)}</div>
+                          {purchase.description && (
+                            <div className="text-sm text-gray-500 truncate max-w-xs">
+                              {purchase.description}
                             </div>
                           )}
-                        </TableCell>
-                        <TableCell>
-                          {editingId === purchase.id ? (
-                            <Input
-                              type="number"
-                              value={editForm?.quantity || 0}
-                              onChange={(e) => setEditForm(prev => prev ? {...prev, quantity: parseFloat(e.target.value) || 0} : null)}
-                            />
-                          ) : (
-                            purchase.quantity || 0
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {editingId === purchase.id ? (
-                            <Input
-                              value={editForm?.unit || ''}
-                              onChange={(e) => setEditForm(prev => prev ? {...prev, unit: e.target.value} : null)}
-                            />
-                          ) : (
-                            <Badge variant="outline">{purchase.unit}</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {editingId === purchase.id ? (
-                            <Input
-                              type="number"
-                              value={editForm?.pricePerUnit || 0}
-                              onChange={(e) => setEditForm(prev => prev ? {...prev, pricePerUnit: parseFloat(e.target.value) || 0} : null)}
-                            />
-                          ) : (
-                            formatCurrency(Math.round((purchase.totalAmountINR || 0) / (purchase.quantity || 1)))
-                          )}
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {formatCurrency(Math.round(purchase.totalAmountINR || purchase.amount))}
-                        </TableCell>
-                        <TableCell>
-                          {editingId === purchase.id ? (
-                            <Input
-                              type="date"
-                              value={editForm?.purchaseDate || ''}
-                              onChange={(e) => setEditForm(prev => prev ? {...prev, purchaseDate: e.target.value} : null)}
-                            />
-                          ) : (
-                            format(new Date(purchase.purchaseDate || purchase.expenseDate), 'MMM dd, yyyy')
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            {editingId === purchase.id ? (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={handleSaveEdit}
-                                >
-                                  <Save className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={handleCancelEdit}
-                                >
-                                  <X className="w-4 h-4" />
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEdit(purchase)}
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDelete(purchase.id)}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  No purchases recorded yet. Click "Add Purchase" to get started.
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {editingId === purchase.id ? (
+                        <Input
+                          type="number"
+                          value={editForm?.quantity || 0}
+                          onChange={(e) => setEditForm(prev => prev ? {...prev, quantity: parseFloat(e.target.value) || 0} : null)}
+                        />
+                      ) : (
+                        purchase.quantity || 0
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {editingId === purchase.id ? (
+                        <Input
+                          value={editForm?.unit || ''}
+                          onChange={(e) => setEditForm(prev => prev ? {...prev, unit: e.target.value} : null)}
+                        />
+                      ) : (
+                        <Badge variant="outline">{purchase.unit}</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {editingId === purchase.id ? (
+                        <Input
+                          type="number"
+                          value={editForm?.pricePerUnit || 0}
+                          onChange={(e) => setEditForm(prev => prev ? {...prev, pricePerUnit: parseFloat(e.target.value) || 0} : null)}
+                        />
+                      ) : (
+                        formatCurrency(Math.round((purchase.totalAmountINR || 0) / (purchase.quantity || 1)))
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {formatCurrency(Math.round(purchase.totalAmountINR || purchase.amount))}
+                    </TableCell>
+                    <TableCell>
+                      {editingId === purchase.id ? (
+                        <Input
+                          type="date"
+                          value={editForm?.purchaseDate || ''}
+                          onChange={(e) => setEditForm(prev => prev ? {...prev, purchaseDate: e.target.value} : null)}
+                        />
+                      ) : (
+                        format(new Date(purchase.purchaseDate || purchase.expenseDate), 'MMM dd, yyyy')
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        {editingId === purchase.id ? (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleSaveEdit}
+                            >
+                              <Save className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleCancelEdit}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(purchase)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(purchase.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              No purchases recorded yet. Click "Add Purchase" to get started.
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-        <TabsContent value="stock">
-          <StockDetails />
-        </TabsContent>
-      </Tabs>
+      {/* Stock Details Section */}
+      <StockDetails />
     </div>
   );
 };
