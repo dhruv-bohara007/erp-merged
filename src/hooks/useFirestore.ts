@@ -136,11 +136,17 @@ export interface Payment {
   paymentMethod: string;
   paymentDate: Date;
   status: 'completed' | 'pending' | 'failed';
+  referenceNumber?: string;
+  bankDetails?: {
+    fromAccount?: string;
+    toAccount?: string;
+    ifscCode?: string;
+  };
   notes?: string;
   pendingAmountINR?: number;
   originalPaymentAmount?: number;
   originalCurrency?: string;
-  amountPaidByClient: number; // Add this field with default 0
+  amountPaidByClient: number;
   createdAt: Date;
 }
 
