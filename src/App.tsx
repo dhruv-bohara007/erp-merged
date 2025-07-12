@@ -23,6 +23,7 @@ import InventoryManagement from "./components/InventoryManagement";
 import ProfitabilityReports from "./components/ProfitabilityReports";
 import CompanySignupForm from "./components/CompanySignupForm";
 import PurchaseManagement from "./components/PurchaseManagement";
+import PurchaseForm from "./components/PurchaseForm";
 
 const queryClient = new QueryClient();
 
@@ -195,6 +196,21 @@ const AuthenticatedApp = () => {
                 <AdminNavigation />
                 <div className="lg:pl-64">
                   <PurchaseManagement />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+
+        <Route path="/add-purchase" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <PurchaseForm />
                 </div>
               </div>
             ) : (
