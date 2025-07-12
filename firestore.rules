@@ -95,6 +95,17 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
     }
 
+    // PURCHASES: only accessible by users from the same company
+    match /purchases/{purchaseId} {
+      allow read, write: if isCompanyAdmin() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow create: if isCompanyAdmin() &&
+        request.resource.data.companyId == getUserData().companyId;
+      
+      allow read, write: if isSuperAdmin();
+    }
+
     // INVENTORY: only accessible by users from the same company
     match /inventory/{inventoryId} {
       allow read, write: if isCompanyAdmin() && 

@@ -188,10 +188,14 @@ export interface Purchase {
   companyId: string;
   supplierName: string;
   itemName: string;
-  existingStock: number;
+  quantity: number;
   unit: string;
   pricePerUnit: number;
+  discount?: string;
   totalAmount: number;
+  totalAmountINR: number;
+  companyCurrency: string;
+  exchangeRateUsed: number;
   description: string;
   purchaseDate: Date;
   status: 'completed' | 'pending' | 'cancelled';

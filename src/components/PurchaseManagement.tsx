@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,50 +18,87 @@ import {
   TrendingDown
 } from 'lucide-react';
 import { usePurchases, useInventory } from '@/hooks/useFirestore';
+import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
+import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 
 const PurchaseManagement = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const { purchases, loading, addPurchase, deletePurchase } = usePurchases();
   const { inventory, updateInventoryItem, addInventoryItem } = useInventory();
+  const { convertToINR, getCurrencyInfo } = useCurrencyConverter();
+  const { currentUser } = useAuth();
   
   const [formData, setFormData] = useState({
     supplierName: '',
     itemName: '',
-    existingStock: '',
+    quantity: '',
     unit: '',
     pricePerUnit: '',
+    discount: '',
     totalAmount: '',
     description: '',
     purchaseDate: format(new Date(), 'yyyy-MM-dd')
   });
 
+  // Get company currency info
+  const companyCountry = currentUser?.companyData?.country || 'IN';
+  const companyCurrency = getCurrencyInfo(companyCountry);
+
+  // Auto-calculate total amount
+  useEffect(() => {
+    const quantity = parseFloat(formData.quantity) || 0;
+    const pricePerUnit = parseFloat(formData.pricePerUnit) || 0;
+    const discount = parseFloat(formData.discount) || 0;
+    
+    if (quantity > 0 && pricePerUnit > 0) {
+      const subtotal = quantity * pricePerUnit;
+      const total = subtotal - discount;
+      setFormData(prev => ({
+        ...prev,
+        totalAmount: total.toFixed(2)
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        totalAmount: ''
+      }));
+    }
+  }, [formData.quantity, formData.pricePerUnit, formData.discount]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.supplierName || !formData.itemName || !formData.pricePerUnit || !formData.totalAmount) {
+    if (!formData.supplierName || !formData.itemName || !formData.quantity || !formData.pricePerUnit || !formData.totalAmount) {
       alert('Please fill in all required fields');
       return;
     }
 
+    const quantityValue = parseFloat(formData.quantity);
     const pricePerUnitValue = parseFloat(formData.pricePerUnit);
     const totalAmountValue = parseFloat(formData.totalAmount);
-    const existingStockValue = parseFloat(formData.existingStock) || 0;
 
-    if (isNaN(pricePerUnitValue) || pricePerUnitValue <= 0 || isNaN(totalAmountValue) || totalAmountValue <= 0) {
+    if (isNaN(quantityValue) || quantityValue <= 0 || isNaN(pricePerUnitValue) || pricePerUnitValue <= 0 || isNaN(totalAmountValue) || totalAmountValue <= 0) {
       alert('Please enter valid amounts');
       return;
     }
     
     try {
+      // Convert total amount to INR
+      const { amountInINR, rate } = await convertToINR(totalAmountValue, companyCountry);
+      
       // Add purchase record
       await addPurchase({
         supplierName: formData.supplierName,
         itemName: formData.itemName,
-        existingStock: existingStockValue,
+        quantity: quantityValue,
         unit: formData.unit || 'pcs',
         pricePerUnit: pricePerUnitValue,
+        discount: formData.discount,
         totalAmount: totalAmountValue,
+        totalAmountINR: amountInINR,
+        companyCurrency: companyCurrency.code,
+        exchangeRateUsed: rate,
         description: formData.description,
         purchaseDate: new Date(formData.purchaseDate),
         status: 'completed'
@@ -73,24 +110,30 @@ const PurchaseManagement = () => {
       );
 
       if (existingItem) {
+        // Convert price per unit to INR for inventory
+        const { amountInINR: priceInINR } = await convertToINR(pricePerUnitValue, companyCountry);
+        
         // Update existing inventory item
         await updateInventoryItem(existingItem.id, {
-          unitPrice: pricePerUnitValue,
-          rate: pricePerUnitValue,
-          rateInInr: pricePerUnitValue, // Assuming INR for now
-          exchangeRateUsed: 1,
+          unitPrice: priceInINR,
+          rate: priceInINR,
+          rateInInr: priceInINR,
+          exchangeRateUsed: rate,
           updatedAt: new Date()
         });
       } else {
+        // Convert price per unit to INR for new inventory item
+        const { amountInINR: priceInINR } = await convertToINR(pricePerUnitValue, companyCountry);
+        
         // Add new inventory item
         await addInventoryItem({
           itemName: formData.itemName,
-          unitPrice: pricePerUnitValue,
-          rate: pricePerUnitValue,
-          rateInInr: pricePerUnitValue,
-          exchangeRateUsed: 1,
-          companyCurrency: 'INR',
-          companyCountry: 'IN',
+          unitPrice: priceInINR,
+          rate: priceInINR,
+          rateInInr: priceInINR,
+          exchangeRateUsed: rate,
+          companyCurrency: companyCurrency.code,
+          companyCountry: companyCountry,
           status: 'active'
         });
       }
@@ -98,9 +141,10 @@ const PurchaseManagement = () => {
       setFormData({
         supplierName: '',
         itemName: '',
-        existingStock: '',
+        quantity: '',
         unit: '',
         pricePerUnit: '',
+        discount: '',
         totalAmount: '',
         description: '',
         purchaseDate: format(new Date(), 'yyyy-MM-dd')
@@ -122,7 +166,7 @@ const PurchaseManagement = () => {
     }
   };
 
-  const totalPurchases = purchases.reduce((sum, purchase) => sum + purchase.totalAmount, 0);
+  const totalPurchases = purchases.reduce((sum, purchase) => sum + purchase.totalAmountINR, 0);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -157,9 +201,9 @@ const PurchaseManagement = () => {
             <DialogHeader>
               <DialogTitle>Add New Purchase</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
                   <Label htmlFor="supplierName">Supplier Name</Label>
                   <Input
                     id="supplierName"
@@ -168,7 +212,7 @@ const PurchaseManagement = () => {
                     required
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="itemName">Item Name</Label>
                   <Input
                     id="itemName"
@@ -179,24 +223,25 @@ const PurchaseManagement = () => {
                 </div>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="existingStock">Existing Stock</Label>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="quantity">Quantity</Label>
                   <Input
-                    id="existingStock"
+                    id="quantity"
                     type="text"
                     inputMode="decimal"
-                    value={formData.existingStock}
+                    value={formData.quantity}
                     onChange={(e) => {
                       const value = e.target.value;
                       if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                        setFormData({...formData, existingStock: value});
+                        setFormData({...formData, quantity: value});
                       }
                     }}
                     placeholder="0"
+                    required
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="unit">Unit</Label>
                   <Input
                     id="unit"
@@ -207,9 +252,9 @@ const PurchaseManagement = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="pricePerUnit">Price per Unit (₹)</Label>
+              <div className="grid grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="pricePerUnit">Price per Unit ({companyCurrency.symbol})</Label>
                   <Input
                     id="pricePerUnit"
                     type="text"
@@ -225,26 +270,35 @@ const PurchaseManagement = () => {
                     required
                   />
                 </div>
-                <div>
-                  <Label htmlFor="totalAmount">Total Amount (₹)</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="discount">Discount ({companyCurrency.symbol})</Label>
                   <Input
-                    id="totalAmount"
+                    id="discount"
                     type="text"
                     inputMode="decimal"
-                    value={formData.totalAmount}
+                    value={formData.discount}
                     onChange={(e) => {
                       const value = e.target.value;
                       if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                        setFormData({...formData, totalAmount: value});
+                        setFormData({...formData, discount: value});
                       }
                     }}
                     placeholder="0.00"
-                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="totalAmount">Total Amount ({companyCurrency.symbol})</Label>
+                  <Input
+                    id="totalAmount"
+                    type="text"
+                    value={formData.totalAmount}
+                    readOnly
+                    className="bg-gray-50"
                   />
                 </div>
               </div>
 
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="purchaseDate">Purchase Date</Label>
                 <Input
                   id="purchaseDate"
@@ -255,7 +309,7 @@ const PurchaseManagement = () => {
                 />
               </div>
 
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>
                 <Textarea
                   id="description"
@@ -306,7 +360,7 @@ const PurchaseManagement = () => {
                     return purchaseDate.getMonth() === currentDate.getMonth() && 
                            purchaseDate.getFullYear() === currentDate.getFullYear();
                   })
-                  .reduce((sum, purchase) => sum + purchase.totalAmount, 0)
+                  .reduce((sum, purchase) => sum + purchase.totalAmountINR, 0)
               )}
             </div>
             <p className="text-xs text-muted-foreground">Current month purchases</p>
@@ -339,10 +393,10 @@ const PurchaseManagement = () => {
                 <TableRow>
                   <TableHead>Supplier Name</TableHead>
                   <TableHead>Item Name</TableHead>
-                  <TableHead>Existing Stock</TableHead>
+                  <TableHead>Quantity</TableHead>
                   <TableHead>Unit</TableHead>
-                  <TableHead>Price per Unit</TableHead>
-                  <TableHead>Total Amount</TableHead>
+                  <TableHead>Price per Unit (INR)</TableHead>
+                  <TableHead>Total Amount (INR)</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -364,16 +418,16 @@ const PurchaseManagement = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {purchase.existingStock || 0}
+                      {purchase.quantity || 0}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">{purchase.unit}</Badge>
                     </TableCell>
                     <TableCell className="font-medium">
-                      {formatCurrency(purchase.pricePerUnit)}
+                      {formatCurrency((purchase.totalAmountINR || 0) / (purchase.quantity || 1))}
                     </TableCell>
                     <TableCell className="font-medium">
-                      {formatCurrency(purchase.totalAmount)}
+                      {formatCurrency(purchase.totalAmountINR || 0)}
                     </TableCell>
                     <TableCell>
                       {format(new Date(purchase.purchaseDate), 'MMM dd, yyyy')}
