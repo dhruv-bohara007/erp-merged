@@ -27,7 +27,7 @@ const PurchaseManagement = () => {
   const { purchases, loading, addPurchase, deletePurchase } = usePurchases();
   const { inventory, updateInventoryItem, addInventoryItem } = useInventory();
   const { convertToINR, getCurrencyInfo } = useCurrencyConverter();
-  const { currentUser } = useAuth();
+  const { currentUser, refreshUser } = useAuth();
   const { companyData } = useCompanyData();
   
   const [formData, setFormData] = useState({
@@ -74,8 +74,20 @@ const PurchaseManagement = () => {
     console.log('Company data:', companyData);
     
     if (!currentUser?.companyId) {
-      alert('Company setup is required before adding purchases. Please complete your company setup first.');
-      return;
+      // Try to refresh user data first
+      console.log('CompanyId not found, refreshing user data...');
+      try {
+        await refreshUser();
+        // Check again after refresh
+        if (!currentUser?.companyId) {
+          alert('Company setup is required before adding purchases. Please complete your company setup first.');
+          return;
+        }
+      } catch (error) {
+        console.error('Error refreshing user data:', error);
+        alert('Company setup is required before adding purchases. Please complete your company setup first.');
+        return;
+      }
     }
     
     if (!formData.supplierName || !formData.itemName || !formData.quantity || !formData.pricePerUnit || !formData.totalAmount) {
