@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { 
   collection, 
@@ -174,6 +173,22 @@ export interface InventoryItem {
   companyCurrency: string;
   companyCountry: string;
   status: 'active' | 'inactive' | 'discontinued';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Purchase {
+  id: string;
+  companyId: string;
+  supplierName: string;
+  itemName: string;
+  existingStock: number;
+  unit: string;
+  pricePerUnit: number;
+  totalAmount: number;
+  description: string;
+  purchaseDate: Date;
+  status: 'completed' | 'pending' | 'cancelled';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -805,4 +820,97 @@ export const useInventory = () => {
   };
 
   return { inventory, loading, error, addInventoryItem, updateInventoryItem, deleteInventoryItem };
+};
+
+export const usePurchases = () => {
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { currentUser } = useAuth();
+
+  useEffect(() => {
+    if (!currentUser?.companyId) {
+      setPurchases([]);
+      setLoading(false);
+      return;
+    }
+
+    console.log('Setting up purchases listener for company:', currentUser.companyId);
+    
+    const q = query(
+      collection(db, 'purchases'), 
+      where('companyId', '==', currentUser.companyId)
+    );
+    
+    const unsubscribe = onSnapshot(q, 
+      (snapshot) => {
+        console.log('Purchases snapshot received:', snapshot.docs.length, 'documents');
+        const purchaseData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          purchaseDate: doc.data().purchaseDate?.toDate(),
+          createdAt: doc.data().createdAt?.toDate(),
+          updatedAt: doc.data().updatedAt?.toDate(),
+        })) as Purchase[];
+        
+        // Sort in memory instead of using orderBy to avoid composite index
+        purchaseData.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+        
+        setPurchases(purchaseData);
+        setLoading(false);
+        setError(null);
+      },
+      (err) => {
+        console.error('Error fetching purchases:', err);
+        setError(err.message);
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [currentUser?.companyId]);
+
+  const addPurchase = async (purchase: Omit<Purchase, 'id' | 'createdAt' | 'updatedAt' | 'companyId'>) => {
+    if (!currentUser?.companyId) {
+      throw new Error('User company ID not found');
+    }
+
+    try {
+      const docRef = await addDoc(collection(db, 'purchases'), {
+        ...purchase,
+        companyId: currentUser.companyId,
+        purchaseDate: Timestamp.fromDate(purchase.purchaseDate),
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+      return docRef.id;
+    } catch (err) {
+      console.error('Error adding purchase:', err);
+      throw new Error(err instanceof Error ? err.message : 'Failed to add purchase');
+    }
+  };
+
+  const updatePurchase = async (id: string, updates: Partial<Purchase>) => {
+    try {
+      const docRef = doc(db, 'purchases', id);
+      await updateDoc(docRef, {
+        ...updates,
+        updatedAt: Timestamp.now(),
+      });
+    } catch (err) {
+      console.error('Error updating purchase:', err);
+      throw new Error(err instanceof Error ? err.message : 'Failed to update purchase');
+    }
+  };
+
+  const deletePurchase = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'purchases', id));
+    } catch (err) {
+      console.error('Error deleting purchase:', err);
+      throw new Error(err instanceof Error ? err.message : 'Failed to delete purchase');
+    }
+  };
+
+  return { purchases, loading, error, addPurchase, updatePurchase, deletePurchase };
 };

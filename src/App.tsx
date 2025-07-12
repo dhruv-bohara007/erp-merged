@@ -22,6 +22,7 @@ import ExpenseManagement from "./components/ExpenseManagement";
 import InventoryManagement from "./components/InventoryManagement";
 import ProfitabilityReports from "./components/ProfitabilityReports";
 import CompanySignupForm from "./components/CompanySignupForm";
+import PurchaseManagement from "./components/PurchaseManagement";
 
 const queryClient = new QueryClient();
 
@@ -187,13 +188,13 @@ const AuthenticatedApp = () => {
           </ProtectedRoute>
         } />
 
-        <Route path="/expenses" element={
+        <Route path="/purchases" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
             {currentUser?.hasCompletedSetup ? (
               <div>
                 <AdminNavigation />
                 <div className="lg:pl-64">
-                  <ExpenseManagement />
+                  <PurchaseManagement />
                 </div>
               </div>
             ) : (
