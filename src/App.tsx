@@ -1,88 +1,261 @@
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import LoginForm from "@/components/LoginForm";
+import RegisterForm from "@/components/RegisterForm";
+import Index from "./pages/Index";
+import SuperDashboard from "./pages/SuperDashboard";
+import InvoiceForm from "./components/InvoiceForm";
+import InvoiceList from "./components/InvoiceList";
+import ClientManagement from "./components/ClientManagement";
+import Payments from "./components/Payments";
+import Reports from "./components/Reports";
+import Settings from "./components/Settings";
+import AdminNavigation from "./components/AdminNavigation";
+import NotFound from "./pages/NotFound";
+import ExpenseManagement from "./components/ExpenseManagement";
+import InventoryManagement from "./components/InventoryManagement";
+import ProfitabilityReports from "./components/ProfitabilityReports";
+import CompanySignupForm from "./components/CompanySignupForm";
 
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { ThemeProvider } from './contexts/ThemeContext';
-import LoginPage from './pages/LoginPage';
-import RegistrationPage from './pages/RegistrationPage';
-import ForgotPasswordPage from './pages/ForgotPasswordPage';
-import AdminDashboard from './pages/AdminDashboard';
-import Dashboard from './pages/Dashboard';
-import InvoicesPage from './pages/InvoicesPage';
-import ClientsPage from './pages/ClientsPage';
-import PaymentsPage from './pages/PaymentsPage';
-import ReportsPage from './pages/ReportsPage';
-import SettingsPage from './pages/SettingsPage';
-import CompanyProfilePage from './pages/CompanyProfilePage';
-import InventoryPage from './pages/InventoryPage';
-import ProfitabilityPage from './pages/ProfitabilityPage';
-import InvoiceView from './pages/InvoiceView';
-import ClientView from './pages/ClientView';
-import PaymentView from './pages/PaymentView';
-import CreateInvoice from './pages/CreateInvoice';
-import RecordPayment from './pages/RecordPayment';
-import RequireAuth from './components/RequireAuth';
-import { checkAuthentication } from './utils/auth';
-import PurchaseManagement from './components/PurchaseManagement';
+const queryClient = new QueryClient();
 
-const App: React.FC = () => {
-  return (
-    <AuthProvider>
-      <ThemeProvider>
-        <Router>
-          <AppContent />
-        </Router>
-      </ThemeProvider>
-    </AuthProvider>
-  );
-};
+const AuthenticatedApp = () => {
+  const { currentUser } = useAuth();
 
-const AppContent: React.FC = () => {
-  const { setCurrentUser, setAuthLoading } = useAuth();
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      setAuthLoading(true);
-      const user = await checkAuthentication();
-      if (user) {
-        setCurrentUser(user);
-      }
-      setAuthLoading(false);
+  // Always redirect to login if not authenticated
+  const getDefaultRedirect = () => {
+    if (!currentUser) return '/login';
+    
+    // If company admin hasn't completed setup, redirect to company signup
+    if (currentUser.role === 'company_admin' && !currentUser.hasCompletedSetup) {
+      return '/company-setup';
+    }
+    
+    const roleRedirects = {
+      company_admin: '/admin-dashboard',
+      super_admin: '/super-dashboard'
     };
-
-    checkAuth();
-  }, [setCurrentUser, setAuthLoading]);
+    
+    return roleRedirects[currentUser.role || 'company_admin'];
+  };
 
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegistrationPage />} />
-      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <Routes>
+        {/* Public routes - Always accessible */}
+        <Route path="/login" element={<LoginForm />} />
+        <Route path="/register" element={<RegisterForm />} />
 
-      {/* Admin Routes */}
-      <Route path="/admin-dashboard" element={<RequireAuth roles={['admin']}><AdminDashboard /></RequireAuth>} />
-      <Route path="/company-profile" element={<RequireAuth roles={['admin']}><CompanyProfilePage /></RequireAuth>} />
-      <Route path="/inventory" element={<RequireAuth roles={['admin']}><InventoryPage /></RequireAuth>} />
-      <Route path="/profitability" element={<RequireAuth roles={['admin']}><ProfitabilityPage /></RequireAuth>} />
-      <Route path="/purchases" element={<RequireAuth roles={['admin']}><PurchaseManagement /></RequireAuth>} />
+        {/* Company Setup Route - Only for authenticated company admins */}
+        <Route path="/company-setup" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            <CompanySignupForm />
+          </ProtectedRoute>
+        } />
 
-      {/* Common Routes - Accessible to both 'admin' and 'user' */}
-      <Route path="/" element={<RequireAuth><Dashboard /></RequireAuth>} />
-      <Route path="/invoices" element={<RequireAuth><InvoicesPage /></RequireAuth>} />
-      <Route path="/invoices/:invoiceId" element={<RequireAuth><InvoiceView /></RequireAuth>} />
-      <Route path="/clients" element={<RequireAuth><ClientsPage /></RequireAuth>} />
-      <Route path="/clients/:clientId" element={<RequireAuth><ClientView /></RequireAuth>} />
-      <Route path="/payments" element={<RequireAuth><PaymentsPage /></RequireAuth>} />
-      <Route path="/payments/:paymentId" element={<RequireAuth><PaymentView /></RequireAuth>} />
-      <Route path="/reports" element={<RequireAuth><ReportsPage /></RequireAuth>} />
-      <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
-      <Route path="/create-invoice" element={<RequireAuth><CreateInvoice /></RequireAuth>} />
-      <Route path="/record-payment/:invoiceId" element={<RequireAuth><RecordPayment /></RequireAuth>} />
+        {/* Super Admin Dashboard */}
+        <Route path="/super-dashboard" element={
+          <ProtectedRoute allowedRoles={['super_admin']}>
+            <SuperDashboard />
+          </ProtectedRoute>
+        } />
 
-      {/* Redirect unauthenticated users to login page */}
-      <Route path="*" element={<Navigate to="/login" />} />
-    </Routes>
+        {/* Company Admin routes - redirect to setup if not completed */}
+        <Route path="/admin-dashboard" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <Index />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/invoices" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <InvoiceList />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/invoices/new" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <InvoiceForm />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+
+        <Route path="/invoices/edit/:id" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <InvoiceForm />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/clients" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <ClientManagement />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/payments" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <Payments />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/reports" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <Reports />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/settings" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <Settings />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+
+        <Route path="/expenses" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <ExpenseManagement />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+
+        <Route path="/inventory" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <InventoryManagement />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+
+        <Route path="/profitability" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <ProfitabilityReports />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+
+        {/* Root redirect - Always go to login first */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+
+        {/* 404 page */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </div>
   );
 };
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <ThemeProvider>
+          <AuthProvider>
+            <AuthenticatedApp />
+          </AuthProvider>
+        </ThemeProvider>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
 
 export default App;

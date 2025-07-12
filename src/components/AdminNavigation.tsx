@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,7 @@ import {
   X,
   Building,
   LogOut,
-  ShoppingCart,
+  TrendingDown,
   Package,
   TrendingUp,
   Moon,
@@ -35,8 +36,8 @@ const AdminNavigation = () => {
     { to: '/invoices', icon: FileText, label: 'Invoices' },
     { to: '/clients', icon: Users, label: 'Clients' },
     { to: '/payments', icon: DollarSign, label: 'Payments' },
-    { to: '/purchases', icon: ShoppingCart, label: 'Purchases' },
-    { to: '/inventory', icon: Package, label: 'Products' },
+    { to: '/expenses', icon: TrendingDown, label: 'Expenses' },
+    { to: '/inventory', icon: Package, label: 'Inventory' },
     { to: '/reports', icon: BarChart3, label: 'Reports' },
     { to: '/profitability', icon: TrendingUp, label: 'Profitability' },
     { to: '/settings', icon: Building2, label: 'Company Profile' },
