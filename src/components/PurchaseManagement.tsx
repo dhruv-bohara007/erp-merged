@@ -110,6 +110,7 @@ const PurchaseManagement = () => {
       
       // Add purchase record
       await addPurchase({
+        title: formData.itemName || `Purchase from ${formData.supplierName}`,
         supplierName: formData.supplierName,
         itemName: formData.itemName,
         quantity: quantityValue,
@@ -121,8 +122,12 @@ const PurchaseManagement = () => {
         companyCurrency: companyCurrency.code,
         exchangeRateUsed: rate,
         description: formData.description,
+        category: 'Purchase',
+        amount: totalAmountValue,
+        expenseDate: new Date(formData.purchaseDate),
         purchaseDate: new Date(formData.purchaseDate),
-        status: 'completed'
+        status: 'recorded',
+        purchaseStatus: 'completed'
       });
 
       // Check if item exists in inventory and update/add accordingly
@@ -187,7 +192,7 @@ const PurchaseManagement = () => {
     }
   };
 
-  const totalPurchases = purchases.reduce((sum, purchase) => sum + purchase.totalAmountINR, 0);
+  const totalPurchases = purchases.reduce((sum, purchase) => sum + (purchase.totalAmountINR || purchase.amount), 0);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -376,12 +381,12 @@ const PurchaseManagement = () => {
               {formatCurrency(
                 purchases
                   .filter(purchase => {
-                    const purchaseDate = new Date(purchase.purchaseDate);
+                    const purchaseDate = new Date(purchase.purchaseDate || purchase.expenseDate);
                     const currentDate = new Date();
                     return purchaseDate.getMonth() === currentDate.getMonth() && 
                            purchaseDate.getFullYear() === currentDate.getFullYear();
                   })
-                  .reduce((sum, purchase) => sum + purchase.totalAmountINR, 0)
+                  .reduce((sum, purchase) => sum + (purchase.totalAmountINR || purchase.amount), 0)
               )}
             </div>
             <p className="text-xs text-muted-foreground">Current month purchases</p>
@@ -448,10 +453,10 @@ const PurchaseManagement = () => {
                       {formatCurrency((purchase.totalAmountINR || 0) / (purchase.quantity || 1))}
                     </TableCell>
                     <TableCell className="font-medium">
-                      {formatCurrency(purchase.totalAmountINR || 0)}
+                      {formatCurrency(purchase.totalAmountINR || purchase.amount)}
                     </TableCell>
                     <TableCell>
-                      {format(new Date(purchase.purchaseDate), 'MMM dd, yyyy')}
+                      {format(new Date(purchase.purchaseDate || purchase.expenseDate), 'MMM dd, yyyy')}
                     </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">

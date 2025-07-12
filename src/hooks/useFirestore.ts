@@ -152,6 +152,7 @@ export interface Payment {
 
 export interface Expense {
   id: string;
+  companyId?: string;
   title: string;
   amount: number;
   category: string;
@@ -162,6 +163,19 @@ export interface Expense {
   expenseDate: Date;
   receipt?: string;
   status: 'recorded' | 'approved' | 'reimbursed';
+  // Purchase-specific fields (for when used as Purchase)
+  supplierName?: string;
+  itemName?: string;
+  quantity?: number;
+  unit?: string;
+  pricePerUnit?: number;
+  discount?: string;
+  totalAmount?: number;
+  totalAmountINR?: number;
+  companyCurrency?: string;
+  exchangeRateUsed?: number;
+  purchaseDate?: Date;
+  purchaseStatus?: 'completed' | 'pending' | 'cancelled';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -179,26 +193,6 @@ export interface InventoryItem {
   companyCurrency: string;
   companyCountry: string;
   status: 'active' | 'inactive' | 'discontinued';
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface Purchase {
-  id: string;
-  companyId: string;
-  supplierName: string;
-  itemName: string;
-  quantity: number;
-  unit: string;
-  pricePerUnit: number;
-  discount?: string;
-  totalAmount: number;
-  totalAmountINR: number;
-  companyCurrency: string;
-  exchangeRateUsed: number;
-  description: string;
-  purchaseDate: Date;
-  status: 'completed' | 'pending' | 'cancelled';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -665,7 +659,8 @@ export const useExpenses = () => {
     
     const q = query(
       collection(db, 'expenses'), 
-      where('companyId', '==', currentUser.companyId)
+      where('companyId', '==', currentUser.companyId),
+      where('supplierName', '==', null)  // This excludes purchase records
     );
     
     const unsubscribe = onSnapshot(q, 
@@ -833,7 +828,7 @@ export const useInventory = () => {
 };
 
 export const usePurchases = () => {
-  const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [purchases, setPurchases] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { currentUser } = useAuth();
@@ -847,9 +842,11 @@ export const usePurchases = () => {
 
     console.log('Setting up purchases listener for company:', currentUser.companyId);
     
+    // Query expenses collection but filter for purchase-type entries
     const q = query(
-      collection(db, 'purchases'), 
-      where('companyId', '==', currentUser.companyId)
+      collection(db, 'expenses'), 
+      where('companyId', '==', currentUser.companyId),
+      where('supplierName', '!=', null)  // This identifies purchase records
     );
     
     const unsubscribe = onSnapshot(q, 
@@ -858,10 +855,11 @@ export const usePurchases = () => {
         const purchaseData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
-          purchaseDate: doc.data().purchaseDate?.toDate(),
+          expenseDate: doc.data().expenseDate?.toDate(),
+          purchaseDate: doc.data().purchaseDate?.toDate() || doc.data().expenseDate?.toDate(),
           createdAt: doc.data().createdAt?.toDate(),
           updatedAt: doc.data().updatedAt?.toDate(),
-        })) as Purchase[];
+        })) as Expense[];
         
         // Sort in memory instead of using orderBy to avoid composite index
         purchaseData.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
@@ -880,16 +878,19 @@ export const usePurchases = () => {
     return () => unsubscribe();
   }, [currentUser?.companyId]);
 
-  const addPurchase = async (purchase: Omit<Purchase, 'id' | 'createdAt' | 'updatedAt' | 'companyId'>) => {
+  const addPurchase = async (purchase: Omit<Expense, 'id' | 'createdAt' | 'updatedAt' | 'companyId'>) => {
     if (!currentUser?.companyId) {
       throw new Error('User company ID not found');
     }
 
     try {
-      const docRef = await addDoc(collection(db, 'purchases'), {
+      const docRef = await addDoc(collection(db, 'expenses'), {
         ...purchase,
         companyId: currentUser.companyId,
-        purchaseDate: Timestamp.fromDate(purchase.purchaseDate),
+        // Ensure purchase-specific fields are set
+        supplierName: purchase.supplierName || purchase.title,
+        expenseDate: Timestamp.fromDate(purchase.expenseDate || purchase.purchaseDate || new Date()),
+        purchaseDate: purchase.purchaseDate ? Timestamp.fromDate(purchase.purchaseDate) : Timestamp.fromDate(purchase.expenseDate || new Date()),
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       });
@@ -900,9 +901,9 @@ export const usePurchases = () => {
     }
   };
 
-  const updatePurchase = async (id: string, updates: Partial<Purchase>) => {
+  const updatePurchase = async (id: string, updates: Partial<Expense>) => {
     try {
-      const docRef = doc(db, 'purchases', id);
+      const docRef = doc(db, 'expenses', id);
       await updateDoc(docRef, {
         ...updates,
         updatedAt: Timestamp.now(),
@@ -915,7 +916,7 @@ export const usePurchases = () => {
 
   const deletePurchase = async (id: string) => {
     try {
-      await deleteDoc(doc(db, 'purchases', id));
+      await deleteDoc(doc(db, 'expenses', id));
     } catch (err) {
       console.error('Error deleting purchase:', err);
       throw new Error(err instanceof Error ? err.message : 'Failed to delete purchase');
