@@ -1,85 +1,109 @@
 
-import { Card, CardContent } from '@/components/ui/card';
-import { IndianRupee, Calendar } from 'lucide-react';
-import { Payment } from '@/hooks/useFirestore';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { TrendingUp, DollarSign, Clock, CheckCircle } from 'lucide-react';
 import { useInvoices } from '@/hooks/useFirestore';
+import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 
-interface PaymentSummaryCardsProps {
-  payments: Payment[];
-}
-
-const PaymentSummaryCards = ({ payments }: PaymentSummaryCardsProps) => {
+const PaymentSummaryCards = () => {
   const { invoices } = useInvoices();
 
-  // Calculate Total Received from payments (sum of all payment amounts in INR)
-  const totalReceived = payments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
-
-  // Calculate Pending from outstanding invoices minus payments made
-  const pendingAmount = invoices.reduce((total, invoice) => {
-    if (['draft', 'sent', 'overdue'].includes(invoice.status)) {
-      const invoiceTotal = invoice.totalAmountINR || invoice.totalAmount || 0;
-      const invoicePayments = payments.filter(p => p.invoiceId === invoice.id);
-      const totalPaid = invoicePayments.reduce((sum, p) => sum + (p.amount || 0), 0);
-      return total + Math.max(0, invoiceTotal - totalPaid);
+  // Calculate payment statistics from invoices
+  const stats = invoices.reduce((acc, invoice) => {
+    const amountPaidByClient = invoice.amountPaidByClient || 0;
+    const totalClientAmount = invoice.clientAmount || invoice.totalAmount || 0;
+    const pendingAmount = Math.max(0, totalClientAmount - amountPaidByClient);
+    
+    // Convert to INR for consistent totals
+    const clientCurrency = getCurrencyByCountry(invoice.clientCountry || 'IN').code;
+    let amountPaidINR = amountPaidByClient;
+    let pendingAmountINR = pendingAmount;
+    
+    // Simple conversion if not already in INR (using stored conversion rates)
+    if (clientCurrency !== 'INR' && invoice.conversionRate?.INRToClient) {
+      amountPaidINR = amountPaidByClient / invoice.conversionRate.INRToClient;
+      pendingAmountINR = pendingAmount / invoice.conversionRate.INRToClient;
     }
-    return total;
-  }, 0);
-  
-  // Calculate this month's revenue from payments (current month)
-  const thisMonthRevenue = payments.filter(payment => {
-    if (!payment.paymentDate) return false;
-    const paymentDate = new Date(payment.paymentDate);
-    const currentDate = new Date();
-    return paymentDate.getMonth() === currentDate.getMonth() && 
-           paymentDate.getFullYear() === currentDate.getFullYear();
-  }).reduce((sum, payment) => sum + (payment.amount || 0), 0);
+    
+    acc.totalPaid += amountPaidINR;
+    acc.totalPending += pendingAmountINR;
+    
+    if (invoice.status === 'paid') {
+      acc.completedPayments += 1;
+    } else if (amountPaidByClient > 0) {
+      acc.partialPayments += 1;
+    }
+    
+    return acc;
+  }, {
+    totalPaid: 0,
+    totalPending: 0,
+    completedPayments: 0,
+    partialPayments: 0
+  });
 
-  // Format currency to 2 decimal places
   const formatINR = (amount: number) => {
-    return `₹${amount.toFixed(2)}`;
+    return `₹${Math.round(amount).toLocaleString()}`;
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Received</p>
-              <p className="text-2xl font-bold text-green-600">{formatINR(totalReceived)}</p>
-            </div>
-            <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
-              <IndianRupee className="h-4 w-4 text-green-600" />
-            </div>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Total Received</CardTitle>
+          <DollarSign className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-green-600">
+            {formatINR(stats.totalPaid)}
           </div>
+          <p className="text-xs text-muted-foreground">
+            From {stats.completedPayments + stats.partialPayments} invoices
+          </p>
         </CardContent>
       </Card>
 
       <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Pending</p>
-              <p className="text-2xl font-bold text-yellow-600">{formatINR(pendingAmount)}</p>
-            </div>
-            <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
-              <Calendar className="h-4 w-4 text-yellow-600" />
-            </div>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Pending Amount</CardTitle>
+          <Clock className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-orange-600">
+            {formatINR(stats.totalPending)}
           </div>
+          <p className="text-xs text-muted-foreground">
+            Outstanding payments
+          </p>
         </CardContent>
       </Card>
 
       <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">This Month</p>
-              <p className="text-2xl font-bold">{formatINR(thisMonthRevenue)}</p>
-            </div>
-            <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
-              <Calendar className="h-4 w-4 text-blue-600" />
-            </div>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Completed</CardTitle>
+          <CheckCircle className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-green-600">
+            {stats.completedPayments}
           </div>
+          <p className="text-xs text-muted-foreground">
+            Fully paid invoices
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Partial Payments</CardTitle>
+          <TrendingUp className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-blue-600">
+            {stats.partialPayments}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Partially paid invoices
+          </p>
         </CardContent>
       </Card>
     </div>

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
-import { usePayments } from '@/hooks/useFirestore';
+import { useInvoices } from '@/hooks/useFirestore';
 import PaymentModal from './PaymentModal';
 import PaymentSummaryCards from './PaymentSummaryCards';
 import PaymentFilters from './PaymentFilters';
@@ -11,24 +11,22 @@ import PaymentTable from './PaymentTable';
 import PaymentSync from './PaymentSync';
 
 const Payments = () => {
-  const { payments, loading, error } = usePayments();
+  const { invoices, loading, error } = useInvoices();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [methodFilter, setMethodFilter] = useState('all');
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
-  const filteredPayments = payments.filter(payment => {
-    const matchesSearch = payment.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         payment.clientName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || payment.status === statusFilter;
-    const matchesMethod = methodFilter === 'all' || payment.paymentMethod === methodFilter;
-    return matchesSearch && matchesStatus && matchesMethod;
+  const filteredInvoices = invoices.filter(invoice => {
+    const matchesSearch = invoice.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         invoice.clientName.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
+    return matchesSearch && matchesStatus;
   });
 
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto p-6">
-        <div className="text-center">Loading payments...</div>
+        <div className="text-center">Loading payment data...</div>
       </div>
     );
   }
@@ -56,7 +54,7 @@ const Payments = () => {
         </Button>
       </div>
 
-      <PaymentSummaryCards payments={filteredPayments} />
+      <PaymentSummaryCards />
 
       <Card>
         <CardHeader>
@@ -67,13 +65,11 @@ const Payments = () => {
               onSearchChange={setSearchTerm}
               statusFilter={statusFilter}
               onStatusFilterChange={setStatusFilter}
-              methodFilter={methodFilter}
-              onMethodFilterChange={setMethodFilter}
             />
           </div>
         </CardHeader>
         <CardContent>
-          <PaymentTable payments={filteredPayments} />
+          <PaymentTable invoices={filteredInvoices} />
         </CardContent>
       </Card>
 

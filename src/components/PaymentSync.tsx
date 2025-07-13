@@ -1,85 +1,46 @@
 
-
-
 import { useEffect } from 'react';
-import { useInvoices, usePayments } from '@/hooks/useFirestore';
+import { useInvoices } from '@/hooks/useFirestore';
 
 const PaymentSync = () => {
   const { invoices, updateInvoice } = useInvoices();
-  const { payments, addPayment } = usePayments();
 
   useEffect(() => {
-    // Check for invoices marked as "paid" that don't have corresponding payment records
-    const paidInvoices = invoices.filter(invoice => invoice.status === 'paid');
-    
-    paidInvoices.forEach(async (invoice) => {
-      // Check if this invoice already has a payment record
-      const existingPayment = payments.find(payment => payment.invoiceId === invoice.id);
+    // Update invoice status based on payment amounts
+    invoices.forEach(async (invoice) => {
+      const amountPaidByClient = invoice.amountPaidByClient || 0;
+      const totalClientAmount = invoice.clientAmount || invoice.totalAmount || 0;
+      const dueDate = invoice.dueDate || new Date();
+      const isOverdue = new Date() > dueDate;
       
-      if (!existingPayment) {
-        // Create a payment record for this paid invoice
+      let correctStatus = invoice.status;
+      
+      // Only update status if it's not draft
+      if (invoice.status !== 'draft') {
+        if (amountPaidByClient === 0 && !isOverdue) {
+          correctStatus = 'sent';
+        } else if (amountPaidByClient > 0 && amountPaidByClient < totalClientAmount && !isOverdue) {
+          correctStatus = 'pending';
+        } else if (amountPaidByClient < totalClientAmount && isOverdue) {
+          correctStatus = 'overdue';
+        } else if (amountPaidByClient >= totalClientAmount) {
+          correctStatus = 'paid';
+        }
+      }
+      
+      // Update status if it's incorrect
+      if (correctStatus !== invoice.status) {
         try {
-          // Ensure conversion rate has the correct structure for payments
-          const paymentConversionRate = {
-            INRToCompany: 1,
-            companyToClient: 1,
-            INRToClient: 1,
-            timestamp: new Date()
-          };
-
-          // If invoice has conversion rate, try to extract/convert the values
-          if (invoice.conversionRate) {
-            // Handle different possible structures of conversion rate with proper type assertions
-            if ('INRToCompany' in invoice.conversionRate) {
-              paymentConversionRate.INRToCompany = invoice.conversionRate.INRToCompany as number;
-            } else if ('companyToINR' in invoice.conversionRate) {
-              // Convert companyToINR to INRToCompany (inverse)
-              paymentConversionRate.INRToCompany = 1 / (invoice.conversionRate.companyToINR as number);
-            }
-
-            if ('companyToClient' in invoice.conversionRate) {
-              paymentConversionRate.companyToClient = invoice.conversionRate.companyToClient as number;
-            }
-
-            if ('INRToClient' in invoice.conversionRate) {
-              paymentConversionRate.INRToClient = invoice.conversionRate.INRToClient as number;
-            }
-
-            if (invoice.conversionRate.timestamp) {
-              paymentConversionRate.timestamp = invoice.conversionRate.timestamp instanceof Date 
-                ? invoice.conversionRate.timestamp 
-                : new Date();
-            }
-          }
-
-          await addPayment({
-            invoiceId: invoice.id,
-            invoiceNumber: invoice.invoiceNumber,
-            clientId: invoice.clientId,
-            clientName: invoice.clientName,
-            amount: invoice.totalAmount || 0,
-            // Required multi-currency fields
-            amountINR: invoice.totalAmountINR || invoice.totalAmount || 0,
-            companyAmount: invoice.companyAmount || invoice.totalAmount || 0,
-            clientAmount: invoice.clientAmount || invoice.totalAmount || 0,
-            conversionRate: paymentConversionRate,
-            paymentMethod: 'cash', // Default method, can be updated later
-            paymentDate: invoice.updatedAt || new Date(),
-            status: 'completed',
-            notes: 'Auto-created from paid invoice',
-            amountPaidByClient: invoice.clientAmount || invoice.totalAmount || 0,
-          });
-          console.log(`Created payment record for invoice ${invoice.invoiceNumber}`);
+          await updateInvoice(invoice.id, { status: correctStatus });
+          console.log(`Updated invoice ${invoice.invoiceNumber} status from ${invoice.status} to ${correctStatus}`);
         } catch (error) {
-          console.error(`Failed to create payment record for invoice ${invoice.invoiceNumber}:`, error);
+          console.error(`Failed to update invoice ${invoice.invoiceNumber} status:`, error);
         }
       }
     });
-  }, [invoices, payments, addPayment]);
+  }, [invoices, updateInvoice]);
 
   return null; // This component doesn't render anything
 };
 
 export default PaymentSync;
-
-
