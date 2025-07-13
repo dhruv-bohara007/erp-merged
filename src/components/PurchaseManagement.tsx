@@ -84,7 +84,6 @@ const PurchaseManagement = () => {
         supplierName: editForm.supplierName,
         itemName: editForm.itemName,
         productCategory: editForm.productCategory,
-        productName: editForm.itemName, // Update productName as well
         productVersion: editForm.productVersion,
         quantity: editForm.quantity,
         unit: editForm.unit,

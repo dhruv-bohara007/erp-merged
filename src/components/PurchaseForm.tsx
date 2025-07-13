@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -139,7 +138,6 @@ const PurchaseForm = () => {
           supplierName,
           itemName: item.itemName,
           productCategory: item.productCategory, // Save product category
-          productName: item.itemName, // Save as productName for consistency
           productVersion: item.productVersion, // Save product version
           quantity: item.quantity,
           unit: item.unit,
