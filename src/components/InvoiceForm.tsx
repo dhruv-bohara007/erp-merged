@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -299,7 +300,6 @@ const InvoiceForm = () => {
         clientCurrency: clientCurrency.code,
         clientAmount: currencyAmounts.clientAmount,
         amountPaidByClient: 0, // Initialize with default value
-        amountPaidInCompanyCurrency: 0, // Initialize with default value for company currency
         conversionRate: {
           companyToINR: currencyAmounts.companyToINRRate,
           INRToClient: currencyAmounts.INRToClientRate,

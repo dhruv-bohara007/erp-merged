@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Trash2 } from 'lucide-react';
 import { usePurchases, useInventory } from '@/hooks/useFirestore';
-import type { Expense } from '@/hooks/useFirestore';
 
 interface StockItem {
   productCategory: string;
@@ -23,7 +22,7 @@ const StockDetails = () => {
   const calculateStockItems = (): StockItem[] => {
     const stockMap = new Map<string, StockItem>();
 
-    purchases.forEach((purchase: Expense) => {
+    purchases.forEach(purchase => {
       if (purchase.itemName && purchase.quantity) {
         const key = `${purchase.productCategory || ''}-${purchase.itemName}-${purchase.productVersion || ''}`;
         

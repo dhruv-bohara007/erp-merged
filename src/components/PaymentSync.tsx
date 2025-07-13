@@ -1,44 +1,41 @@
 
 import { useEffect } from 'react';
-import { useInvoices } from '@/hooks/useFirestore';
+import { useInvoices, usePayments } from '@/hooks/useFirestore';
 
 const PaymentSync = () => {
   const { invoices, updateInvoice } = useInvoices();
+  const { payments, addPayment } = usePayments();
 
   useEffect(() => {
-    // Update invoice status based on payment amounts in company currency
-    invoices.forEach(async (invoice) => {
-      const amountPaidInCompanyCurrency = invoice.amountPaidInCompanyCurrency || 0;
-      const totalCompanyAmount = invoice.totalAmount || 0;
-      const dueDate = invoice.dueDate || new Date();
-      const isOverdue = new Date() > dueDate;
+    // Check for invoices marked as "paid" that don't have corresponding payment records
+    const paidInvoices = invoices.filter(invoice => invoice.status === 'paid');
+    
+    paidInvoices.forEach(async (invoice) => {
+      // Check if this invoice already has a payment record
+      const existingPayment = payments.find(payment => payment.invoiceId === invoice.id);
       
-      let correctStatus = invoice.status;
-      
-      // Only update status if it's not draft
-      if (invoice.status !== 'draft') {
-        if (amountPaidInCompanyCurrency === 0 && !isOverdue) {
-          correctStatus = 'sent';
-        } else if (amountPaidInCompanyCurrency > 0 && amountPaidInCompanyCurrency < totalCompanyAmount && !isOverdue) {
-          correctStatus = 'pending';
-        } else if (amountPaidInCompanyCurrency < totalCompanyAmount && isOverdue) {
-          correctStatus = 'overdue';
-        } else if (amountPaidInCompanyCurrency >= totalCompanyAmount) {
-          correctStatus = 'paid';
-        }
-      }
-      
-      // Update status if it's incorrect
-      if (correctStatus !== invoice.status) {
+      if (!existingPayment) {
+        // Create a payment record for this paid invoice
         try {
-          await updateInvoice(invoice.id, { status: correctStatus });
-          console.log(`Updated invoice ${invoice.invoiceNumber} status from ${invoice.status} to ${correctStatus}`);
+          await addPayment({
+            invoiceId: invoice.id,
+            invoiceNumber: invoice.invoiceNumber,
+            clientId: invoice.clientId,
+            clientName: invoice.clientName,
+            amount: invoice.totalAmount || 0,
+            paymentMethod: 'cash', // Default method, can be updated later
+            paymentDate: invoice.updatedAt || new Date(),
+            status: 'completed',
+            notes: 'Auto-created from paid invoice',
+            amountPaidByClient: invoice.clientAmount || invoice.totalAmount || 0, // Add required field
+          });
+          console.log(`Created payment record for invoice ${invoice.invoiceNumber}`);
         } catch (error) {
-          console.error(`Failed to update invoice ${invoice.invoiceNumber} status:`, error);
+          console.error(`Failed to create payment record for invoice ${invoice.invoiceNumber}:`, error);
         }
       }
     });
-  }, [invoices, updateInvoice]);
+  }, [invoices, payments, addPayment]);
 
   return null; // This component doesn't render anything
 };

@@ -89,7 +89,7 @@ export const initializeCollections = async () => {
       console.log('Client added with ID:', clientRef.id);
     }
 
-    // Sample Invoice Data - now includes ALL required fields including amountPaidByClient and amountPaidInCompanyCurrency
+    // Sample Invoice Data - now includes ALL required fields including amountPaidByClient
     const sampleInvoice: Omit<Invoice, 'id'> = {
       companyId: companyRef.id,
       invoiceNumber: 'INV-2024-001',
@@ -118,7 +118,6 @@ export const initializeCollections = async () => {
       clientCurrency: 'INR',
       clientAmount: 118000,
       amountPaidByClient: 0,
-      amountPaidInCompanyCurrency: 0, // Initialize with default 0 for company currency payments
       conversionRate: {
         companyToINR: 1,
         INRToClient: 1,
@@ -162,25 +161,15 @@ export const initializeCollections = async () => {
     const invoiceRef = await addDoc(collection(db, 'invoices'), sampleInvoice);
     console.log('Invoice added with ID:', invoiceRef.id);
 
-    // Sample Payment Data - now includes all required multi-currency fields
+    // Sample Payment Data - using Date instead of Timestamp for paymentDate
     const samplePayment: Omit<Payment, 'id' | 'createdAt'> = {
       invoiceId: invoiceRef.id,
       invoiceNumber: 'INV-2024-001',
       clientId: clientRefs[0].id,
       clientName: 'ABC Corporation',
-      amount: 59000, // Amount in INR
-      // Required multi-currency fields
-      amountINR: 59000,
-      companyAmount: 59000, // Assuming 1:1 rate for sample data
-      clientAmount: 59000, // Assuming 1:1 rate for sample data
-      conversionRate: {
-        INRToCompany: 1,
-        companyToClient: 1,
-        INRToClient: 1,
-        timestamp: new Date()
-      },
+      amount: 59000,
       paymentMethod: 'neft',
-      paymentDate: new Date(),
+      paymentDate: new Date(), // Changed from Timestamp.now() to new Date()
       status: 'completed',
       referenceNumber: 'UTR123456789',
       bankDetails: {
