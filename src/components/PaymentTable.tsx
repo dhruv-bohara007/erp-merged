@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -67,12 +66,9 @@ const PaymentTable = ({ payments }: PaymentTableProps) => {
         existingGroup.latestPaymentMethod = payment.paymentMethod;
       }
     } else {
-      // Create new group
+      // Create new group using the updated invoice data
       const invoice = invoices.find(inv => inv.id === payment.invoiceId);
-      const totalInvoiceAmount = invoice?.totalAmountINR || invoice?.totalAmount || 0;
-      const invoicePayments = payments.filter(p => p.invoiceId === payment.invoiceId);
-      const totalPaid = invoicePayments.reduce((sum, p) => sum + (p.amount || 0), 0);
-      const pendingAmount = Math.max(0, totalInvoiceAmount - totalPaid);
+      const pendingAmount = invoice?.pendingINR || 0;
       
       acc.push({
         invoiceId: payment.invoiceId,
@@ -136,7 +132,7 @@ const PaymentTable = ({ payments }: PaymentTableProps) => {
               <TableHead>Date</TableHead>
               <TableHead>Pending Payment (INR)</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Notes</TableHead>
+              <TableHead>Payment Timing</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>

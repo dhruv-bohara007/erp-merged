@@ -45,6 +45,10 @@ export interface Invoice {
     INRToClient: number;
     timestamp: Date;
   };
+  // Payment tracking fields
+  paidUSD?: number; // Total paid in company currency
+  paidINR?: number; // Total paid in INR
+  pendingINR?: number; // Pending amount in INR
   // Country fields
   companyCountry: string;
   clientCountry: string;
@@ -224,27 +228,6 @@ export const useInvoices = () => {
         const invoiceData = snapshot.docs.map(doc => {
           const data = doc.data();
           
-          // Determine status based on amountPaidByClient and due date
-          const amountPaidByClient = data.amountPaidByClient || 0;
-          const clientAmount = data.clientAmount || data.totalAmount || 0;
-          const dueDate = data.dueDate?.toDate() || new Date();
-          const isOverdue = new Date() > dueDate;
-          
-          let status = data.status || 'draft';
-          
-          // Apply status determination logic only if not draft
-          if (status !== 'draft') {
-            if (amountPaidByClient === 0 && !isOverdue) {
-              status = 'sent';
-            } else if (amountPaidByClient > 0 && !isOverdue && amountPaidByClient < clientAmount) {
-              status = 'pending';
-            } else if (amountPaidByClient < clientAmount && isOverdue) {
-              status = 'overdue';
-            } else if (amountPaidByClient >= clientAmount) {
-              status = 'paid';
-            }
-          }
-          
           return {
             id: doc.id,
             ...data,
@@ -254,7 +237,11 @@ export const useInvoices = () => {
             companyAmount: data.companyAmount || data.totalAmount || 0,
             clientCurrency: data.clientCurrency || 'INR',
             clientAmount: data.clientAmount || data.totalAmount || 0,
-            amountPaidByClient: amountPaidByClient, // New field
+            amountPaidByClient: data.amountPaidByClient || 0,
+            // Payment tracking fields with fallbacks
+            paidUSD: data.paidUSD || 0,
+            paidINR: data.paidINR || 0,
+            pendingINR: data.pendingINR || data.totalAmountINR || data.totalAmount || 0,
             // Handle country fields with fallbacks
             companyCountry: data.companyCountry || 'IN',
             clientCountry: data.clientCountry || 'IN',
@@ -285,7 +272,7 @@ export const useInvoices = () => {
               ...data.conversionRate,
               timestamp: data.conversionRate.timestamp?.toDate?.() || new Date()
             } : undefined,
-            status, // Use determined status
+            status: data.status || 'draft',
             issueDate: data.issueDate?.toDate(),
             dueDate: data.dueDate?.toDate(),
             createdAt: data.createdAt?.toDate(),
