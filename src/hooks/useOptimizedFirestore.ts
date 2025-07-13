@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { 
   collection, 
@@ -45,11 +44,10 @@ export const useOptimizedInvoices = () => {
 
     console.log('Setting up optimized invoices listener for company:', currentUser.companyId);
     
-    // Use limit to reduce initial load
+    // Remove orderBy to avoid composite index requirement - we sort in memory anyway
     const q = query(
       collection(db, 'invoices'), 
       where('companyId', '==', currentUser.companyId),
-      orderBy('createdAt', 'desc'),
       limit(50) // Limit initial load to 50 most recent invoices
     );
     
@@ -85,6 +83,13 @@ export const useOptimizedInvoices = () => {
             createdAt: data.createdAt?.toDate(),
             updatedAt: data.updatedAt?.toDate(),
           };
+        });
+        
+        // Sort by createdAt in memory to avoid composite index requirement
+        invoiceData.sort((a, b) => {
+          const aTime = a.createdAt?.getTime() || 0;
+          const bTime = b.createdAt?.getTime() || 0;
+          return bTime - aTime; // Descending order (newest first)
         });
         
         setInvoices(invoiceData);
