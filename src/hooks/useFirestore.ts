@@ -40,6 +40,7 @@ export interface Invoice {
   clientCurrency: string;
   clientAmount: number;
   amountPaidByClient: number; // New field with default 0
+  amountPaidInCompanyCurrency: number; // Add this field for company currency payments
   conversionRate?: {
     companyToINR: number;
     INRToClient: number;
@@ -238,6 +239,7 @@ export const useInvoices = () => {
           
           // Determine status based on amountPaidByClient and due date
           const amountPaidByClient = Math.round(data.amountPaidByClient || 0);
+          const amountPaidInCompanyCurrency = data.amountPaidInCompanyCurrency || 0;
           const clientAmount = Math.round(data.clientAmount || data.totalAmount || 0);
           const dueDate = data.dueDate?.toDate() || new Date();
           const isOverdue = new Date() > dueDate;
@@ -273,6 +275,7 @@ export const useInvoices = () => {
             clientCurrency: data.clientCurrency || 'INR',
             clientAmount: Math.round(data.clientAmount || data.totalAmount || 0),
             amountPaidByClient: amountPaidByClient,
+            amountPaidInCompanyCurrency: amountPaidInCompanyCurrency,
             // Handle country fields with fallbacks
             companyCountry: data.companyCountry || 'IN',
             clientCountry: data.clientCountry || 'IN',
@@ -499,6 +502,7 @@ export const useInvoices = () => {
       if (updates.companyAmount !== undefined) roundedUpdates.companyAmount = Math.round(updates.companyAmount);
       if (updates.clientAmount !== undefined) roundedUpdates.clientAmount = Math.round(updates.clientAmount);
       if (updates.amountPaidByClient !== undefined) roundedUpdates.amountPaidByClient = Math.round(updates.amountPaidByClient);
+      if (updates.amountPaidInCompanyCurrency !== undefined) roundedUpdates.amountPaidInCompanyCurrency = updates.amountPaidInCompanyCurrency;
       
       await updateDoc(docRef, {
         ...roundedUpdates,
