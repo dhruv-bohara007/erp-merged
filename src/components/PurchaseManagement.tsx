@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -19,7 +20,6 @@ import {
 } from 'lucide-react';
 import { usePurchases } from '@/hooks/useFirestore';
 import { format } from 'date-fns';
-import StockDetails from './StockDetails';
 
 interface EditingPurchase {
   id: string;
@@ -32,6 +32,14 @@ interface EditingPurchase {
   pricePerUnit: number;
   totalAmountINR: number;
   purchaseDate: string;
+}
+
+interface StockItem {
+  productCategory: string;
+  itemName: string;
+  productVersion: string;
+  totalQuantity: number;
+  unit: string;
 }
 
 const PurchaseManagement = () => {
@@ -60,8 +68,8 @@ const PurchaseManagement = () => {
       productVersion: purchase.productVersion || '',
       quantity: purchase.quantity || 0,
       unit: purchase.unit || '',
-      pricePerUnit: Math.round((purchase.totalAmountINR || 0) / (purchase.quantity || 1)),
-      totalAmountINR: Math.round(purchase.totalAmountINR || 0),
+      pricePerUnit: Math.round((purchase.totalAmountINR || 0) / (purchase.quantity || 1) * 100) / 100,
+      totalAmountINR: Math.round((purchase.totalAmountINR || 0) * 100) / 100,
       purchaseDate: format(new Date(purchase.purchaseDate || purchase.expenseDate), 'yyyy-MM-dd')
     });
   };
@@ -70,12 +78,13 @@ const PurchaseManagement = () => {
     if (!editForm) return;
 
     try {
-      const totalAmountINR = Math.round(editForm.quantity * editForm.pricePerUnit);
+      const totalAmountINR = Math.round(editForm.quantity * editForm.pricePerUnit * 100) / 100;
       
       await updatePurchase(editForm.id, {
         supplierName: editForm.supplierName,
         itemName: editForm.itemName,
         productCategory: editForm.productCategory,
+        productName: editForm.itemName, // Update productName as well
         productVersion: editForm.productVersion,
         quantity: editForm.quantity,
         unit: editForm.unit,
@@ -97,7 +106,7 @@ const PurchaseManagement = () => {
     setEditForm(null);
   };
 
-  // Calculate total purchases and round to whole number
+  // Calculate total purchases and display as whole number
   const totalPurchases = Math.round(purchases.reduce((sum, purchase) => sum + (purchase.totalAmountINR || purchase.amount), 0));
 
   const formatCurrency = (amount: number) => {
@@ -116,6 +125,49 @@ const PurchaseManagement = () => {
     if (purchase.productVersion) parts.push(purchase.productVersion);
     
     return parts.length > 0 ? parts.join(' - ') : purchase.itemName || 'Unknown Item';
+  };
+
+  // Calculate total stock for each unique product combination
+  const calculateStockItems = (): StockItem[] => {
+    const stockMap = new Map<string, StockItem>();
+
+    purchases.forEach(purchase => {
+      if (purchase.itemName && purchase.quantity) {
+        const key = `${purchase.productCategory || ''}-${purchase.itemName}-${purchase.productVersion || ''}`;
+        
+        if (stockMap.has(key)) {
+          const existing = stockMap.get(key)!;
+          existing.totalQuantity += purchase.quantity;
+        } else {
+          stockMap.set(key, {
+            productCategory: purchase.productCategory || 'N/A',
+            itemName: purchase.itemName,
+            productVersion: purchase.productVersion || 'N/A',
+            totalQuantity: purchase.quantity,
+            unit: purchase.unit || 'pcs'
+          });
+        }
+      }
+    });
+
+    return Array.from(stockMap.values()).sort((a, b) => 
+      a.productCategory.localeCompare(b.productCategory) || 
+      a.itemName.localeCompare(b.itemName)
+    );
+  };
+
+  const stockItems = calculateStockItems();
+
+  const handleDeleteStock = async (item: StockItem) => {
+    if (window.confirm(`Are you sure you want to delete ${item.itemName} from stock?`)) {
+      try {
+        // This would need proper implementation to delete from inventory
+        console.log('Delete stock item:', item);
+        // For now, just log the action
+      } catch (error) {
+        console.error('Error deleting stock item:', error);
+      }
+    }
   };
 
   if (loading) {
@@ -189,168 +241,224 @@ const PurchaseManagement = () => {
         </Card>
       </div>
 
-      {/* Purchases Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Purchases</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {purchases.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Supplier Name</TableHead>
-                  <TableHead>Item Name</TableHead>
-                  <TableHead>Quantity Bought</TableHead>
-                  <TableHead>Unit</TableHead>
-                  <TableHead>Price per Unit (INR)</TableHead>
-                  <TableHead>Total Amount (INR)</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {purchases.map((purchase) => (
-                  <TableRow key={purchase.id}>
-                    <TableCell>
-                      {editingId === purchase.id ? (
-                        <Input
-                          value={editForm?.supplierName || ''}
-                          onChange={(e) => setEditForm(prev => prev ? {...prev, supplierName: e.target.value} : null)}
-                        />
-                      ) : (
-                        <div className="font-medium">{purchase.supplierName}</div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {editingId === purchase.id ? (
-                        <div className="space-y-2">
-                          <Input
-                            placeholder="Product Category"
-                            value={editForm?.productCategory || ''}
-                            onChange={(e) => setEditForm(prev => prev ? {...prev, productCategory: e.target.value} : null)}
-                          />
-                          <Input
-                            placeholder="Item Name"
-                            value={editForm?.itemName || ''}
-                            onChange={(e) => setEditForm(prev => prev ? {...prev, itemName: e.target.value} : null)}
-                          />
-                          <Input
-                            placeholder="Product Version"
-                            value={editForm?.productVersion || ''}
-                            onChange={(e) => setEditForm(prev => prev ? {...prev, productVersion: e.target.value} : null)}
-                          />
-                        </div>
-                      ) : (
-                        <div>
-                          <div className="font-medium">{getFullItemName(purchase)}</div>
-                          {purchase.description && (
-                            <div className="text-sm text-gray-500 truncate max-w-xs">
-                              {purchase.description}
+      {/* Tabs for Recent Purchases and Stock Details */}
+      <Tabs defaultValue="recent-purchases" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="recent-purchases">Recent Purchases</TabsTrigger>
+          <TabsTrigger value="stock-details">Stock Details</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="recent-purchases" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Purchases</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {purchases.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Supplier Name</TableHead>
+                      <TableHead>Item Name</TableHead>
+                      <TableHead>Quantity Bought</TableHead>
+                      <TableHead>Unit</TableHead>
+                      <TableHead>Price per Unit (INR)</TableHead>
+                      <TableHead>Total Amount (INR)</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {purchases.map((purchase) => (
+                      <TableRow key={purchase.id}>
+                        <TableCell>
+                          {editingId === purchase.id ? (
+                            <Input
+                              value={editForm?.supplierName || ''}
+                              onChange={(e) => setEditForm(prev => prev ? {...prev, supplierName: e.target.value} : null)}
+                            />
+                          ) : (
+                            <div className="font-medium">{purchase.supplierName}</div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {editingId === purchase.id ? (
+                            <div className="space-y-2">
+                              <Input
+                                placeholder="Product Category"
+                                value={editForm?.productCategory || ''}
+                                onChange={(e) => setEditForm(prev => prev ? {...prev, productCategory: e.target.value} : null)}
+                              />
+                              <Input
+                                placeholder="Item Name"
+                                value={editForm?.itemName || ''}
+                                onChange={(e) => setEditForm(prev => prev ? {...prev, itemName: e.target.value} : null)}
+                              />
+                              <Input
+                                placeholder="Product Version"
+                                value={editForm?.productVersion || ''}
+                                onChange={(e) => setEditForm(prev => prev ? {...prev, productVersion: e.target.value} : null)}
+                              />
+                            </div>
+                          ) : (
+                            <div>
+                              <div className="font-medium">{getFullItemName(purchase)}</div>
+                              {purchase.description && (
+                                <div className="text-sm text-gray-500 truncate max-w-xs">
+                                  {purchase.description}
+                                </div>
+                              )}
                             </div>
                           )}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {editingId === purchase.id ? (
-                        <Input
-                          type="number"
-                          value={editForm?.quantity || 0}
-                          onChange={(e) => setEditForm(prev => prev ? {...prev, quantity: parseFloat(e.target.value) || 0} : null)}
-                        />
-                      ) : (
-                        purchase.quantity || 0
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {editingId === purchase.id ? (
-                        <Input
-                          value={editForm?.unit || ''}
-                          onChange={(e) => setEditForm(prev => prev ? {...prev, unit: e.target.value} : null)}
-                        />
-                      ) : (
-                        <Badge variant="outline">{purchase.unit}</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {editingId === purchase.id ? (
-                        <Input
-                          type="number"
-                          value={editForm?.pricePerUnit || 0}
-                          onChange={(e) => setEditForm(prev => prev ? {...prev, pricePerUnit: parseFloat(e.target.value) || 0} : null)}
-                        />
-                      ) : (
-                        formatCurrency(Math.round((purchase.totalAmountINR || 0) / (purchase.quantity || 1)))
-                      )}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {formatCurrency(Math.round(purchase.totalAmountINR || purchase.amount))}
-                    </TableCell>
-                    <TableCell>
-                      {editingId === purchase.id ? (
-                        <Input
-                          type="date"
-                          value={editForm?.purchaseDate || ''}
-                          onChange={(e) => setEditForm(prev => prev ? {...prev, purchaseDate: e.target.value} : null)}
-                        />
-                      ) : (
-                        format(new Date(purchase.purchaseDate || purchase.expenseDate), 'MMM dd, yyyy')
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        {editingId === purchase.id ? (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={handleSaveEdit}
-                            >
-                              <Save className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={handleCancelEdit}
-                            >
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEdit(purchase)}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDelete(purchase.id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              No purchases recorded yet. Click "Add Purchase" to get started.
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                        </TableCell>
+                        <TableCell>
+                          {editingId === purchase.id ? (
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={editForm?.quantity || 0}
+                              onChange={(e) => setEditForm(prev => prev ? {...prev, quantity: parseFloat(e.target.value) || 0} : null)}
+                            />
+                          ) : (
+                            purchase.quantity || 0
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {editingId === purchase.id ? (
+                            <Input
+                              value={editForm?.unit || ''}
+                              onChange={(e) => setEditForm(prev => prev ? {...prev, unit: e.target.value} : null)}
+                            />
+                          ) : (
+                            <Badge variant="outline">{purchase.unit}</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {editingId === purchase.id ? (
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={editForm?.pricePerUnit || 0}
+                              onChange={(e) => setEditForm(prev => prev ? {...prev, pricePerUnit: parseFloat(e.target.value) || 0} : null)}
+                            />
+                          ) : (
+                            formatCurrency(Math.round((purchase.totalAmountINR || 0) / (purchase.quantity || 1)))
+                          )}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {formatCurrency(Math.round(purchase.totalAmountINR || purchase.amount))}
+                        </TableCell>
+                        <TableCell>
+                          {editingId === purchase.id ? (
+                            <Input
+                              type="date"
+                              value={editForm?.purchaseDate || ''}
+                              onChange={(e) => setEditForm(prev => prev ? {...prev, purchaseDate: e.target.value} : null)}
+                            />
+                          ) : (
+                            format(new Date(purchase.purchaseDate || purchase.expenseDate), 'MMM dd, yyyy')
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            {editingId === purchase.id ? (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={handleSaveEdit}
+                                >
+                                  <Save className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={handleCancelEdit}
+                                >
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEdit(purchase)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDelete(purchase.id)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  No purchases recorded yet. Click "Add Purchase" to get started.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {/* Stock Details Section */}
-      <StockDetails />
+        <TabsContent value="stock-details" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Stock Details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {stockItems.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product Category</TableHead>
+                      <TableHead>Product Name</TableHead>
+                      <TableHead>Product Version</TableHead>
+                      <TableHead>Total Stock Quantity</TableHead>
+                      <TableHead>Unit</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {stockItems.map((item, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{item.productCategory}</TableCell>
+                        <TableCell className="font-medium">{item.itemName}</TableCell>
+                        <TableCell>{item.productVersion}</TableCell>
+                        <TableCell className="font-medium">{item.totalQuantity}</TableCell>
+                        <TableCell>{item.unit}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteStock(item)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  No stock items found.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

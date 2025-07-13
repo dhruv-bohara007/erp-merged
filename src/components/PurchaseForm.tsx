@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -77,18 +78,18 @@ const PurchaseForm = () => {
     setItems(items.map(item => {
       if (item.id === id) {
         const updatedItem = { ...item, ...updates };
-        // Recalculate amount
+        // Recalculate amount with proper decimal handling (2 decimal places)
         const subtotal = updatedItem.quantity * updatedItem.pricePerUnit;
         const discount = subtotal * (updatedItem.discountRate / 100);
-        updatedItem.amount = Math.round(subtotal - discount); // Round to whole number
+        updatedItem.amount = Math.round((subtotal - discount) * 100) / 100; // Store with 2 decimal places
         return updatedItem;
       }
       return item;
     }));
   };
 
-  // Calculate totals
-  const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
+  // Calculate totals with proper decimal handling
+  const subtotal = Math.round(items.reduce((sum, item) => sum + item.amount, 0) * 100) / 100;
   const { totalTaxAmount, totalAmount } = calculateTaxes(subtotal, companyCountry, companyCountry);
 
   // Initialize with one item
@@ -119,35 +120,38 @@ const PurchaseForm = () => {
     }
 
     try {
-      // Convert total amount to INR and round to whole number
+      // Convert total amount to INR with 2 decimal places
       const { amountInINR, rate } = await convertToINR(totalAmount, companyCountry);
-      const totalAmountINRRounded = Math.round(amountInINR);
+      const totalAmountINRFormatted = Math.round(amountInINR * 100) / 100;
 
       // Process each item
       for (const item of items) {
-        // Convert item price to INR and round to whole numbers
+        // Convert item price to INR with 2 decimal places
         const { amountInINR: itemAmountInINR } = await convertToINR(item.amount, companyCountry);
         const { amountInINR: priceInINR } = await convertToINR(item.pricePerUnit, companyCountry);
         
-        const itemAmountINRRounded = Math.round(itemAmountInINR);
-        const priceInINRRounded = Math.round(priceInINR);
+        const itemAmountINRFormatted = Math.round(itemAmountInINR * 100) / 100;
+        const priceInINRFormatted = Math.round(priceInINR * 100) / 100;
 
-        // Add purchase record for each item
+        // Add purchase record for each item with product categorization fields
         await addPurchase({
           title: `${item.itemName} from ${supplierName}`,
           supplierName,
           itemName: item.itemName,
+          productCategory: item.productCategory, // Save product category
+          productName: item.itemName, // Save as productName for consistency
+          productVersion: item.productVersion, // Save product version
           quantity: item.quantity,
           unit: item.unit,
-          pricePerUnit: item.pricePerUnit,
-          discount: Math.round(item.quantity * item.pricePerUnit * item.discountRate / 100).toString(),
-          totalAmount: item.amount,
-          totalAmountINR: itemAmountINRRounded,
+          pricePerUnit: Math.round(item.pricePerUnit * 100) / 100, // Store with 2 decimal places
+          discount: (Math.round(item.quantity * item.pricePerUnit * item.discountRate / 100 * 100) / 100).toString(),
+          totalAmount: Math.round(item.amount * 100) / 100, // Store with 2 decimal places
+          totalAmountINR: itemAmountINRFormatted,
           companyCurrency: companyCurrency.code,
           exchangeRateUsed: rate,
           description,
           category: 'Purchase',
-          amount: item.amount,
+          amount: Math.round(item.amount * 100) / 100, // Store with 2 decimal places
           expenseDate: new Date(purchaseDate),
           purchaseDate: new Date(purchaseDate),
           status: 'recorded',
@@ -162,23 +166,23 @@ const PurchaseForm = () => {
         );
 
         if (existingItem) {
-          // Update existing inventory item with rounded values
+          // Update existing inventory item with 2 decimal places
           await updateInventoryItem(existingItem.id, {
-            unitPrice: priceInINRRounded,
-            rate: priceInINRRounded,
-            rateInInr: priceInINRRounded,
+            unitPrice: priceInINRFormatted,
+            rate: priceInINRFormatted,
+            rateInInr: priceInINRFormatted,
             exchangeRateUsed: rate,
             updatedAt: new Date()
           });
         } else {
-          // Add new inventory item with rounded values
+          // Add new inventory item with 2 decimal places
           await addInventoryItem({
             itemName: item.itemName,
             productCategory: item.productCategory,
             productVersion: item.productVersion,
-            unitPrice: priceInINRRounded,
-            rate: priceInINRRounded,
-            rateInInr: priceInINRRounded,
+            unitPrice: priceInINRFormatted,
+            rate: priceInINRFormatted,
+            rateInInr: priceInINRFormatted,
             exchangeRateUsed: rate,
             companyCurrency: companyCurrency.code,
             companyCountry: companyCountry,
@@ -322,7 +326,8 @@ const PurchaseForm = () => {
                 <div className="space-y-2">
                   <Label>Quantity</Label>
                   <Input
-                    type="text"
+                    type="number"
+                    step="0.01"
                     value={item.quantity}
                     onChange={(e) => updateItem(item.id, { quantity: parseFloat(e.target.value) || 0 })}
                   />
@@ -337,7 +342,8 @@ const PurchaseForm = () => {
                 <div className="space-y-2">
                   <Label>Price per Unit ({companyCurrency.symbol})</Label>
                   <Input
-                    type="text"
+                    type="number"
+                    step="0.01"
                     value={item.pricePerUnit}
                     onChange={(e) => updateItem(item.id, { pricePerUnit: parseFloat(e.target.value) || 0 })}
                   />
@@ -345,7 +351,8 @@ const PurchaseForm = () => {
                 <div className="space-y-2">
                   <Label>Discount Rate (%)</Label>
                   <Input
-                    type="text"
+                    type="number"
+                    step="0.01"
                     value={item.discountRate}
                     onChange={(e) => updateItem(item.id, { discountRate: parseFloat(e.target.value) || 0 })}
                   />
@@ -354,7 +361,7 @@ const PurchaseForm = () => {
                   <Label>Amount ({companyCurrency.symbol})</Label>
                   <Input
                     type="number"
-                    value={item.amount}
+                    value={item.amount.toFixed(2)}
                     readOnly
                     className="bg-gray-50"
                   />

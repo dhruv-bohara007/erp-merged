@@ -1,4 +1,3 @@
-
 import { Timestamp } from 'firebase/firestore';
 
 export interface Company {
@@ -174,4 +173,37 @@ export interface TDSRecord {
   certificateNumber?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+}
+
+export interface Expense {
+  id: string;
+  companyId?: string;
+  title: string;
+  amount: number;
+  category: string;
+  clientId?: string;
+  clientName?: string;
+  projectName?: string;
+  description: string;
+  expenseDate: Date;
+  receipt?: string;
+  status: 'recorded' | 'approved' | 'reimbursed';
+  // Purchase-specific fields (for when used as Purchase)
+  supplierName?: string;
+  itemName?: string;
+  productCategory?: string; // Added for product categorization
+  productName?: string; // Added for consistency with productCategory
+  productVersion?: string; // Added for product versioning
+  quantity?: number;
+  unit?: string;
+  pricePerUnit?: number;
+  discount?: string;
+  totalAmount?: number;
+  totalAmountINR?: number;
+  companyCurrency?: string;
+  exchangeRateUsed?: number;
+  purchaseDate?: Date;
+  purchaseStatus?: 'completed' | 'pending' | 'cancelled';
+  createdAt: Date;
+  updatedAt: Date;
 }
