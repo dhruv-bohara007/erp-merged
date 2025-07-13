@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,7 +16,7 @@ import {
   Plus,
   FileText
 } from 'lucide-react';
-import { useInvoices } from '@/hooks/useFirestore';
+import { useOptimizedInvoices } from '@/hooks/useOptimizedFirestore';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import InvoiceView from './InvoiceView';
@@ -26,7 +25,7 @@ import type { Invoice } from '@/hooks/useFirestore';
 const InvoiceList = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { invoices, loading, deleteInvoice, updateInvoice } = useInvoices();
+  const { invoices, loading, deleteInvoice, updateInvoice } = useOptimizedInvoices();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
