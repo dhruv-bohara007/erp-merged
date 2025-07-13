@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Search, 
   Plus, 
@@ -68,12 +69,12 @@ const PurchaseManagement = () => {
 
   // Group purchases by product for stock details
   const stockDetails = purchases.reduce((acc, purchase) => {
-    if (purchase.itemName) {
-      const key = `${purchase.productCategory}-${purchase.itemName}-${purchase.productVersion}`;
+    if (purchase.itemName || purchase.productCategory) {
+      const key = `${purchase.productCategory || 'Uncategorized'}-${purchase.itemName || 'Unknown'}-${purchase.productVersion || 'N/A'}`;
       if (!acc[key]) {
         acc[key] = {
-          productCategory: purchase.productCategory || 'N/A',
-          itemName: purchase.itemName,
+          productCategory: purchase.productCategory || 'Uncategorized',
+          itemName: purchase.itemName || 'Unknown',
           productVersion: purchase.productVersion || 'N/A',
           totalQuantity: 0,
           totalValue: 0,
@@ -188,11 +189,11 @@ const PurchaseManagement = () => {
         </Card>
       </div>
 
-      {/* Recent Purchases */}
+      {/* Tabs for Recent Purchases and Stock Details */}
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <CardTitle>Recent Purchases ({filteredPurchases.length})</CardTitle>
+            <CardTitle>Purchase Data</CardTitle>
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -229,125 +230,132 @@ const PurchaseManagement = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Supplier</TableHead>
-                  <TableHead>Item Name</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Amount (INR)</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Purchase Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPurchases.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                      No purchases found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredPurchases.map((purchase) => {
-                    const displayItemName = purchase.productCategory && purchase.itemName && purchase.productVersion
-                      ? `${purchase.productCategory} - ${purchase.itemName} ${purchase.productVersion}`
-                      : purchase.itemName || purchase.title || 'N/A';
-                    
-                    return (
-                      <TableRow key={purchase.id}>
-                        <TableCell>
-                          <div className="font-medium">{purchase.supplierName || 'N/A'}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-medium">{displayItemName}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div>{purchase.quantity || 'N/A'} {purchase.unit || ''}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-medium">{formatINR(purchase.totalAmountINR || purchase.amount || 0)}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div>{purchase.productCategory || 'N/A'}</div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={getStatusColor(purchase.purchaseStatus)}>
-                            {(purchase.purchaseStatus || 'completed').charAt(0).toUpperCase() + (purchase.purchaseStatus || 'completed').slice(1)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center text-sm">
-                            <Calendar className="w-3 h-3 mr-1 text-gray-400" />
-                            {(purchase.purchaseDate || purchase.expenseDate)?.toLocaleDateString() || 'N/A'}
-                          </div>
+          <Tabs defaultValue="recent-purchases" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="recent-purchases">Recent Purchases ({filteredPurchases.length})</TabsTrigger>
+              <TabsTrigger value="stock-details">Stock Details ({Object.keys(stockDetails).length})</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="recent-purchases">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Supplier Name</TableHead>
+                      <TableHead>Item Name</TableHead>
+                      <TableHead>Quantity Bought</TableHead>
+                      <TableHead>Unit</TableHead>
+                      <TableHead>Price per Unit (INR)</TableHead>
+                      <TableHead>Total Amount (INR)</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredPurchases.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                          No purchases found
                         </TableCell>
                       </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+                    ) : (
+                      filteredPurchases.map((purchase) => {
+                        const displayItemName = purchase.productCategory && purchase.itemName && purchase.productVersion
+                          ? `${purchase.productCategory}-${purchase.itemName} ${purchase.productVersion}`
+                          : purchase.itemName || purchase.title || 'N/A';
+                        
+                        return (
+                          <TableRow key={purchase.id}>
+                            <TableCell>
+                              <div className="font-medium">{purchase.supplierName || 'N/A'}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="font-medium">{displayItemName}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div>{purchase.quantity || 'N/A'}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div>{purchase.unit || 'N/A'}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="font-medium">{formatINR(purchase.pricePerUnit || 0)}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="font-medium">{formatINR(purchase.totalAmountINR || purchase.amount || 0)}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center text-sm">
+                                <Calendar className="w-3 h-3 mr-1 text-gray-400" />
+                                {(purchase.purchaseDate || purchase.expenseDate)?.toLocaleDateString() || 'N/A'}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={getStatusColor(purchase.purchaseStatus)}>
+                                {(purchase.purchaseStatus || 'completed').charAt(0).toUpperCase() + (purchase.purchaseStatus || 'completed').slice(1)}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
 
-      {/* Stock Details */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Stock Details</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Product Category</TableHead>
-                  <TableHead>Item Name</TableHead>
-                  <TableHead>Product Version</TableHead>
-                  <TableHead>Total Quantity</TableHead>
-                  <TableHead>Total Value (INR)</TableHead>
-                  <TableHead>Last Purchase</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {Object.keys(stockDetails).length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                      No stock items found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  Object.values(stockDetails).map((item: any, index) => (
-                    <TableRow key={index}>
-                      <TableCell>
-                        <div className="font-medium">{item.productCategory}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{item.itemName}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div>{item.productVersion}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div>{item.totalQuantity} {item.unit}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{formatINR(item.totalValue)}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center text-sm">
-                          <Calendar className="w-3 h-3 mr-1 text-gray-400" />
-                          {item.lastPurchaseDate?.toLocaleDateString() || 'N/A'}
-                        </div>
-                      </TableCell>
+            <TabsContent value="stock-details">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product Category</TableHead>
+                      <TableHead>Item Name</TableHead>
+                      <TableHead>Product Version</TableHead>
+                      <TableHead>Total Quantity</TableHead>
+                      <TableHead>Total Value (INR)</TableHead>
+                      <TableHead>Last Purchase</TableHead>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  </TableHeader>
+                  <TableBody>
+                    {Object.keys(stockDetails).length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                          No stock items found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      Object.values(stockDetails).map((item: any, index) => (
+                        <TableRow key={index}>
+                          <TableCell>
+                            <div className="font-medium">{item.productCategory}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-medium">{item.itemName}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div>{item.productVersion}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div>{item.totalQuantity} {item.unit}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-medium">{formatINR(item.totalValue)}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center text-sm">
+                              <Calendar className="w-3 h-3 mr-1 text-gray-400" />
+                              {item.lastPurchaseDate?.toLocaleDateString() || 'N/A'}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </div>

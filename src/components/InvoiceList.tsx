@@ -26,14 +26,30 @@ import type { Invoice } from '@/hooks/useFirestore';
 const InvoiceList = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { invoices, loading, deleteInvoice } = useInvoices();
+  const { invoices, loading, deleteInvoice, updateInvoice } = useInvoices();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
-  const filteredInvoices = invoices.filter(invoice => {
+  // Auto-update status to "paid" when pending amount is zero
+  const processedInvoices = invoices.map(invoice => {
+    const paidAmount = invoice.paidINR || 0;
+    const totalAmount = invoice.totalAmountINR || invoice.totalAmount || 0;
+    const pendingAmount = Math.max(0, Math.round((totalAmount - paidAmount) * 100) / 100);
+    
+    // If pending amount is zero and status is not already "paid", update it
+    if (pendingAmount === 0 && invoice.status !== 'paid' && invoice.status !== 'draft') {
+      // Update the invoice status in Firestore
+      updateInvoice(invoice.id, { status: 'paid' }).catch(console.error);
+      return { ...invoice, status: 'paid' as const };
+    }
+    
+    return invoice;
+  });
+
+  const filteredInvoices = processedInvoices.filter(invoice => {
     const matchesSearch = (invoice.invoiceNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (invoice.clientName || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
@@ -119,8 +135,8 @@ Terms: ${invoice.terms || 'N/A'}
   // Calculate totals for filtered invoices using totalAmountINR and payment tracking
   const totalAmount = filteredInvoices.reduce((sum, invoice) => sum + Math.round(invoice.totalAmountINR || invoice.totalAmount || 0), 0);
   const paidAmount = filteredInvoices.reduce((sum, invoice) => sum + Math.round(invoice.paidINR || 0), 0);
-  const pendingAmount = filteredInvoices.reduce((sum, invoice) => sum + Math.round(invoice.pendingINR || (invoice.totalAmountINR || invoice.totalAmount || 0) - (invoice.paidINR || 0)), 0);
-  const overdueAmount = filteredInvoices.filter(inv => inv.status === 'overdue').reduce((sum, invoice) => sum + Math.round(invoice.pendingINR || (invoice.totalAmountINR || invoice.totalAmount || 0) - (invoice.paidINR || 0)), 0);
+  const pendingAmount = filteredInvoices.reduce((sum, invoice) => sum + Math.round(Math.max(0, (invoice.totalAmountINR || invoice.totalAmount || 0) - (invoice.paidINR || 0))), 0);
+  const overdueAmount = filteredInvoices.filter(inv => inv.status === 'overdue').reduce((sum, invoice) => sum + Math.round(Math.max(0, (invoice.totalAmountINR || invoice.totalAmount || 0) - (invoice.paidINR || 0))), 0);
 
   // Format currency as whole numbers
   const formatINR = (amount: number) => {
