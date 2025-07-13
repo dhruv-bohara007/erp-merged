@@ -1,4 +1,5 @@
 
+
 import { useEffect } from 'react';
 import { useInvoices, usePayments } from '@/hooks/useFirestore';
 
@@ -17,6 +18,39 @@ const PaymentSync = () => {
       if (!existingPayment) {
         // Create a payment record for this paid invoice
         try {
+          // Ensure conversion rate has the correct structure for payments
+          const paymentConversionRate = {
+            INRToCompany: 1,
+            companyToClient: 1,
+            INRToClient: 1,
+            timestamp: new Date()
+          };
+
+          // If invoice has conversion rate, try to extract/convert the values
+          if (invoice.conversionRate) {
+            // Handle different possible structures of conversion rate
+            if ('INRToCompany' in invoice.conversionRate) {
+              paymentConversionRate.INRToCompany = invoice.conversionRate.INRToCompany;
+            } else if ('companyToINR' in invoice.conversionRate) {
+              // Convert companyToINR to INRToCompany (inverse)
+              paymentConversionRate.INRToCompany = 1 / invoice.conversionRate.companyToINR;
+            }
+
+            if ('companyToClient' in invoice.conversionRate) {
+              paymentConversionRate.companyToClient = invoice.conversionRate.companyToClient;
+            }
+
+            if ('INRToClient' in invoice.conversionRate) {
+              paymentConversionRate.INRToClient = invoice.conversionRate.INRToClient;
+            }
+
+            if (invoice.conversionRate.timestamp) {
+              paymentConversionRate.timestamp = invoice.conversionRate.timestamp instanceof Date 
+                ? invoice.conversionRate.timestamp 
+                : new Date();
+            }
+          }
+
           await addPayment({
             invoiceId: invoice.id,
             invoiceNumber: invoice.invoiceNumber,
@@ -27,12 +61,7 @@ const PaymentSync = () => {
             amountINR: invoice.totalAmountINR || invoice.totalAmount || 0,
             companyAmount: invoice.companyAmount || invoice.totalAmount || 0,
             clientAmount: invoice.clientAmount || invoice.totalAmount || 0,
-            conversionRate: invoice.conversionRate || {
-              INRToCompany: 1,
-              companyToClient: 1,
-              INRToClient: 1,
-              timestamp: new Date()
-            },
+            conversionRate: paymentConversionRate,
             paymentMethod: 'cash', // Default method, can be updated later
             paymentDate: invoice.updatedAt || new Date(),
             status: 'completed',
@@ -51,3 +80,4 @@ const PaymentSync = () => {
 };
 
 export default PaymentSync;
+
