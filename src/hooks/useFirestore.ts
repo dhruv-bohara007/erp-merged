@@ -178,6 +178,8 @@ export interface Expense {
   totalAmountINR?: number;
   companyCurrency?: string;
   exchangeRateUsed?: number;
+  productCategory?: string;
+  productVersion?: string;
   purchaseDate?: Date;
   purchaseStatus?: 'completed' | 'pending' | 'cancelled';
   createdAt: Date;
