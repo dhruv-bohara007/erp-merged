@@ -2,34 +2,22 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, DollarSign, Clock, CheckCircle } from 'lucide-react';
 import { useInvoices } from '@/hooks/useFirestore';
-import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 
 const PaymentSummaryCards = () => {
   const { invoices } = useInvoices();
 
-  // Calculate payment statistics from invoices
+  // Calculate payment statistics from invoices in company currency (USD)
   const stats = invoices.reduce((acc, invoice) => {
-    const amountPaidByClient = invoice.amountPaidByClient || 0;
-    const totalClientAmount = invoice.clientAmount || invoice.totalAmount || 0;
-    const pendingAmount = Math.max(0, totalClientAmount - amountPaidByClient);
+    const amountPaidInCompanyCurrency = invoice.amountPaidInCompanyCurrency || 0;
+    const totalCompanyAmount = invoice.totalAmount || 0;
+    const pendingAmount = Math.max(0, totalCompanyAmount - amountPaidInCompanyCurrency);
     
-    // Convert to INR for consistent totals
-    const clientCurrency = getCurrencyByCountry(invoice.clientCountry || 'IN').code;
-    let amountPaidINR = amountPaidByClient;
-    let pendingAmountINR = pendingAmount;
-    
-    // Simple conversion if not already in INR (using stored conversion rates)
-    if (clientCurrency !== 'INR' && invoice.conversionRate?.INRToClient) {
-      amountPaidINR = amountPaidByClient / invoice.conversionRate.INRToClient;
-      pendingAmountINR = pendingAmount / invoice.conversionRate.INRToClient;
-    }
-    
-    acc.totalPaid += amountPaidINR;
-    acc.totalPending += pendingAmountINR;
+    acc.totalPaid += amountPaidInCompanyCurrency;
+    acc.totalPending += pendingAmount;
     
     if (invoice.status === 'paid') {
       acc.completedPayments += 1;
-    } else if (amountPaidByClient > 0) {
+    } else if (amountPaidInCompanyCurrency > 0) {
       acc.partialPayments += 1;
     }
     
@@ -41,8 +29,8 @@ const PaymentSummaryCards = () => {
     partialPayments: 0
   });
 
-  const formatINR = (amount: number) => {
-    return `₹${Math.round(amount).toLocaleString()}`;
+  const formatUSD = (amount: number) => {
+    return `$${Math.round(amount).toLocaleString()}`;
   };
 
   return (
@@ -54,7 +42,7 @@ const PaymentSummaryCards = () => {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-green-600">
-            {formatINR(stats.totalPaid)}
+            {formatUSD(stats.totalPaid)}
           </div>
           <p className="text-xs text-muted-foreground">
             From {stats.completedPayments + stats.partialPayments} invoices
@@ -69,7 +57,7 @@ const PaymentSummaryCards = () => {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-orange-600">
-            {formatINR(stats.totalPending)}
+            {formatUSD(stats.totalPending)}
           </div>
           <p className="text-xs text-muted-foreground">
             Outstanding payments

@@ -9,7 +9,6 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useInvoices } from '@/hooks/useFirestore';
-import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 
 interface PaymentTableProps {
   invoices: any[];
@@ -18,9 +17,9 @@ interface PaymentTableProps {
 const PaymentTable = ({ invoices: filteredInvoices }: PaymentTableProps) => {
   const { invoices } = useInvoices();
 
-  // Filter invoices that have payments (amountPaidByClient > 0)
+  // Filter invoices that have payments (amountPaidInCompanyCurrency > 0)
   const invoicesWithPayments = (filteredInvoices || invoices).filter(invoice => 
-    (invoice.amountPaidByClient || 0) > 0
+    (invoice.amountPaidInCompanyCurrency || 0) > 0
   );
 
   const getStatusColor = (status: string) => {
@@ -36,9 +35,8 @@ const PaymentTable = ({ invoices: filteredInvoices }: PaymentTableProps) => {
     }
   };
 
-  const formatCurrency = (amount: number, countryCode: string) => {
-    const currencyInfo = getCurrencyByCountry(countryCode || 'IN');
-    return `${currencyInfo.symbol}${amount.toFixed(2)}`;
+  const formatUSD = (amount: number) => {
+    return `$${amount.toFixed(2)}`;
   };
 
   const formatDate = (date: Date | undefined) => {
@@ -61,19 +59,18 @@ const PaymentTable = ({ invoices: filteredInvoices }: PaymentTableProps) => {
           <TableRow>
             <TableHead>Invoice #</TableHead>
             <TableHead>Client</TableHead>
-            <TableHead>Total Amount</TableHead>
-            <TableHead>Amount Paid</TableHead>
-            <TableHead>Pending</TableHead>
+            <TableHead>Total Amount (USD)</TableHead>
+            <TableHead>Amount Paid (USD)</TableHead>
+            <TableHead>Pending (USD)</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Last Payment</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {invoicesWithPayments.map((invoice) => {
-            const amountPaidByClient = invoice.amountPaidByClient || 0;
-            const totalClientAmount = invoice.clientAmount || invoice.totalAmount || 0;
-            const pendingAmount = Math.max(0, totalClientAmount - amountPaidByClient);
-            const clientCountry = invoice.clientCountry || 'IN';
+            const amountPaidInCompanyCurrency = invoice.amountPaidInCompanyCurrency || 0;
+            const totalCompanyAmount = invoice.totalAmount || 0;
+            const pendingAmount = Math.max(0, totalCompanyAmount - amountPaidInCompanyCurrency);
             const lastPaymentDate = invoice.conversionRate?.lastPaymentDate || invoice.updatedAt;
 
             return (
@@ -83,13 +80,13 @@ const PaymentTable = ({ invoices: filteredInvoices }: PaymentTableProps) => {
                 </TableCell>
                 <TableCell>{invoice.clientName}</TableCell>
                 <TableCell>
-                  {formatCurrency(totalClientAmount, clientCountry)}
+                  {formatUSD(totalCompanyAmount)}
                 </TableCell>
                 <TableCell className="text-green-600 font-medium">
-                  {formatCurrency(amountPaidByClient, clientCountry)}
+                  {formatUSD(amountPaidInCompanyCurrency)}
                 </TableCell>
                 <TableCell className="text-orange-600">
-                  {formatCurrency(pendingAmount, clientCountry)}
+                  {formatUSD(pendingAmount)}
                 </TableCell>
                 <TableCell>
                   <Badge className={getStatusColor(invoice.status)}>

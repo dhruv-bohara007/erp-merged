@@ -6,10 +6,10 @@ const PaymentSync = () => {
   const { invoices, updateInvoice } = useInvoices();
 
   useEffect(() => {
-    // Update invoice status based on payment amounts
+    // Update invoice status based on payment amounts in company currency
     invoices.forEach(async (invoice) => {
-      const amountPaidByClient = invoice.amountPaidByClient || 0;
-      const totalClientAmount = invoice.clientAmount || invoice.totalAmount || 0;
+      const amountPaidInCompanyCurrency = invoice.amountPaidInCompanyCurrency || 0;
+      const totalCompanyAmount = invoice.totalAmount || 0;
       const dueDate = invoice.dueDate || new Date();
       const isOverdue = new Date() > dueDate;
       
@@ -17,13 +17,13 @@ const PaymentSync = () => {
       
       // Only update status if it's not draft
       if (invoice.status !== 'draft') {
-        if (amountPaidByClient === 0 && !isOverdue) {
+        if (amountPaidInCompanyCurrency === 0 && !isOverdue) {
           correctStatus = 'sent';
-        } else if (amountPaidByClient > 0 && amountPaidByClient < totalClientAmount && !isOverdue) {
+        } else if (amountPaidInCompanyCurrency > 0 && amountPaidInCompanyCurrency < totalCompanyAmount && !isOverdue) {
           correctStatus = 'pending';
-        } else if (amountPaidByClient < totalClientAmount && isOverdue) {
+        } else if (amountPaidInCompanyCurrency < totalCompanyAmount && isOverdue) {
           correctStatus = 'overdue';
-        } else if (amountPaidByClient >= totalClientAmount) {
+        } else if (amountPaidInCompanyCurrency >= totalCompanyAmount) {
           correctStatus = 'paid';
         }
       }
