@@ -1,8 +1,7 @@
 
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Download } from 'lucide-react';
+import { Search } from 'lucide-react';
 
 interface PaymentFiltersProps {
   searchTerm: string;
@@ -19,7 +18,7 @@ const PaymentFilters = ({
   statusFilter,
   onStatusFilterChange,
   methodFilter,
-  onMethodFilterChange,
+  onMethodFilterChange
 }: PaymentFiltersProps) => {
   return (
     <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
@@ -32,6 +31,7 @@ const PaymentFilters = ({
           className="pl-10 w-full sm:w-64"
         />
       </div>
+      
       <Select value={statusFilter} onValueChange={onStatusFilterChange}>
         <SelectTrigger className="w-full sm:w-32">
           <SelectValue placeholder="Status" />
@@ -41,8 +41,10 @@ const PaymentFilters = ({
           <SelectItem value="completed">Completed</SelectItem>
           <SelectItem value="pending">Pending</SelectItem>
           <SelectItem value="failed">Failed</SelectItem>
+          <SelectItem value="overdue">Overdue</SelectItem>
         </SelectContent>
       </Select>
+
       <Select value={methodFilter} onValueChange={onMethodFilterChange}>
         <SelectTrigger className="w-full sm:w-32">
           <SelectValue placeholder="Method" />
@@ -59,10 +61,6 @@ const PaymentFilters = ({
           <SelectItem value="cheque">Cheque</SelectItem>
         </SelectContent>
       </Select>
-      <Button variant="outline">
-        <Download className="w-4 h-4 mr-2" />
-        Export
-      </Button>
     </div>
   );
 };

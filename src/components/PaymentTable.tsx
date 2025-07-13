@@ -10,15 +10,17 @@ import {
   Smartphone,
   Building,
   IndianRupee,
-  History
+  History,
+  Trash2
 } from 'lucide-react';
 import { Payment } from '@/hooks/useFirestore';
 import { useInvoices } from '@/hooks/useFirestore';
 import PaymentHistoryModal from './PaymentHistoryModal';
-import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
+import { useToast } from '@/hooks/use-toast';
 
 interface PaymentTableProps {
   payments: Payment[];
+  onDeletePayment?: (paymentId: string) => void;
 }
 
 interface GroupedPayment {
@@ -32,10 +34,12 @@ interface GroupedPayment {
   status: string;
   paymentTiming: string;
   companyCountry?: string;
+  paymentIds: string[];
 }
 
-const PaymentTable = ({ payments }: PaymentTableProps) => {
+const PaymentTable = ({ payments, onDeletePayment }: PaymentTableProps) => {
   const { invoices } = useInvoices();
+  const { toast } = useToast();
   const [paymentHistoryModal, setPaymentHistoryModal] = useState({
     open: false,
     invoiceId: '',
@@ -61,7 +65,8 @@ const PaymentTable = ({ payments }: PaymentTableProps) => {
     
     if (existingGroup) {
       // Update existing group with accumulated data
-      existingGroup.totalAmountPaid += payment.amount || 0;
+      existingGroup.totalAmountPaid += Math.round(payment.amount || 0);
+      existingGroup.paymentIds.push(payment.id);
       if (payment.paymentDate > existingGroup.latestPaymentDate) {
         existingGroup.latestPaymentDate = payment.paymentDate;
         existingGroup.latestPaymentMethod = payment.paymentMethod;
@@ -69,19 +74,20 @@ const PaymentTable = ({ payments }: PaymentTableProps) => {
     } else {
       // Create new group
       const invoice = invoices.find(inv => inv.id === payment.invoiceId);
-      const pendingAmount = invoice?.pendingINR || 0;
+      const pendingAmount = Math.round(invoice?.pendingINR || 0);
       
       acc.push({
         invoiceId: payment.invoiceId,
         invoiceNumber: payment.invoiceNumber,
         clientName: payment.clientName,
-        totalAmountPaid: payment.amount || 0,
+        totalAmountPaid: Math.round(payment.amount || 0),
         latestPaymentDate: payment.paymentDate,
         latestPaymentMethod: payment.paymentMethod,
         pendingAmountINR: pendingAmount,
         status: pendingAmount > 0 ? 'pending' : 'completed',
         paymentTiming: getPaymentTiming(payment.paymentDate, payment.invoiceId, invoice),
-        companyCountry: invoice?.companyCountry
+        companyCountry: invoice?.companyCountry,
+        paymentIds: [payment.id]
       });
     }
     
@@ -118,6 +124,30 @@ const PaymentTable = ({ payments }: PaymentTableProps) => {
       invoiceNumber,
       companyCountry: companyCountry || ''
     });
+  };
+
+  const handleDeletePayment = async (paymentIds: string[]) => {
+    if (!confirm('Are you sure you want to delete this payment record?')) return;
+    
+    try {
+      // Delete all payments in the group
+      for (const paymentId of paymentIds) {
+        if (onDeletePayment) {
+          await onDeletePayment(paymentId);
+        }
+      }
+      
+      toast({
+        title: "Success",
+        description: "Payment record deleted successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete payment record",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -182,14 +212,25 @@ const PaymentTable = ({ payments }: PaymentTableProps) => {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewPaymentHistory(group.invoiceId, group.invoiceNumber, group.companyCountry)}
-                    >
-                      <History className="w-4 h-4 mr-1" />
-                      History
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewPaymentHistory(group.invoiceId, group.invoiceNumber, group.companyCountry)}
+                      >
+                        <History className="w-4 h-4 mr-1" />
+                        History
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeletePayment(group.paymentIds)}
+                        className="text-red-600 hover:text-red-700"
+                        title="Delete Payment"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

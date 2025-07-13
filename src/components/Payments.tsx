@@ -2,16 +2,20 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, Download } from 'lucide-react';
 import { usePayments } from '@/hooks/useFirestore';
+import { useToast } from '@/hooks/use-toast';
 import PaymentModal from './PaymentModal';
 import PaymentSummaryCards from './PaymentSummaryCards';
 import PaymentFilters from './PaymentFilters';
 import PaymentTable from './PaymentTable';
 import PaymentSync from './PaymentSync';
+import { doc, deleteDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 const Payments = () => {
   const { payments, loading, error } = usePayments();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [methodFilter, setMethodFilter] = useState('all');
@@ -24,6 +28,66 @@ const Payments = () => {
     const matchesMethod = methodFilter === 'all' || payment.paymentMethod === methodFilter;
     return matchesSearch && matchesStatus && matchesMethod;
   });
+
+  const handleDeletePayment = async (paymentId: string) => {
+    try {
+      await deleteDoc(doc(db, 'payments', paymentId));
+      toast({
+        title: "Success",
+        description: "Payment deleted successfully",
+      });
+    } catch (error) {
+      console.error('Error deleting payment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete payment",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleExportAll = () => {
+    if (filteredPayments.length === 0) {
+      toast({
+        title: "No Data",
+        description: "No payments to export",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create CSV content
+    const csvHeader = 'Invoice Number,Client Name,Amount (INR),Payment Method,Payment Date,Status,Reference Number,Notes\n';
+    const csvContent = filteredPayments.map(payment => {
+      const amount = Math.round(payment.amount || 0);
+      return [
+        payment.invoiceNumber,
+        payment.clientName,
+        amount,
+        payment.paymentMethod,
+        payment.paymentDate?.toLocaleDateString() || '',
+        payment.status,
+        payment.referenceNumber || '',
+        payment.notes || ''
+      ].join(',');
+    }).join('\n');
+
+    const csvData = csvHeader + csvContent;
+    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `payments_export_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Export Successful",
+      description: `Exported ${filteredPayments.length} payment records`,
+    });
+  };
 
   if (loading) {
     return (
@@ -47,13 +111,23 @@ const Payments = () => {
       
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Payment Management</h1>
-        <Button 
-          className="bg-blue-600 hover:bg-blue-700"
-          onClick={() => setIsPaymentModalOpen(true)}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Record Payment
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline"
+            onClick={handleExportAll}
+            disabled={filteredPayments.length === 0}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export All
+          </Button>
+          <Button 
+            className="bg-blue-600 hover:bg-blue-700"
+            onClick={() => setIsPaymentModalOpen(true)}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Record Payment
+          </Button>
+        </div>
       </div>
 
       <PaymentSummaryCards payments={filteredPayments} />
@@ -73,7 +147,10 @@ const Payments = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <PaymentTable payments={filteredPayments} />
+          <PaymentTable 
+            payments={filteredPayments} 
+            onDeletePayment={handleDeletePayment}
+          />
         </CardContent>
       </Card>
 

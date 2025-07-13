@@ -26,7 +26,7 @@ import type { Invoice } from '@/hooks/useFirestore';
 const InvoiceList = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { invoices, loading, deleteInvoice, updateInvoice } = useInvoices();
+  const { invoices, loading, deleteInvoice } = useInvoices();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -48,22 +48,6 @@ const InvoiceList = () => {
       case 'draft': return 'bg-gray-100 text-gray-800';
       case 'overdue': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const handleMarkAsPaid = async (id: string) => {
-    try {
-      await updateInvoice(id, { status: 'paid' });
-      toast({
-        title: "Success",
-        description: "Invoice marked as paid",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update invoice",
-        variant: "destructive",
-      });
     }
   };
 
@@ -133,14 +117,14 @@ Terms: ${invoice.terms || 'N/A'}
   };
 
   // Calculate totals for filtered invoices using totalAmountINR and payment tracking
-  const totalAmount = filteredInvoices.reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
-  const paidAmount = filteredInvoices.reduce((sum, invoice) => sum + (invoice.paidINR || 0), 0);
-  const pendingAmount = filteredInvoices.reduce((sum, invoice) => sum + (invoice.pendingINR || 0), 0);
-  const overdueAmount = filteredInvoices.filter(inv => inv.status === 'overdue').reduce((sum, invoice) => sum + (invoice.pendingINR || invoice.totalAmountINR || invoice.totalAmount || 0), 0);
+  const totalAmount = filteredInvoices.reduce((sum, invoice) => sum + Math.round(invoice.totalAmountINR || invoice.totalAmount || 0), 0);
+  const paidAmount = filteredInvoices.reduce((sum, invoice) => sum + Math.round(invoice.paidINR || 0), 0);
+  const pendingAmount = filteredInvoices.reduce((sum, invoice) => sum + Math.round(invoice.pendingINR || (invoice.totalAmountINR || invoice.totalAmount || 0) - (invoice.paidINR || 0)), 0);
+  const overdueAmount = filteredInvoices.filter(inv => inv.status === 'overdue').reduce((sum, invoice) => sum + Math.round(invoice.pendingINR || (invoice.totalAmountINR || invoice.totalAmount || 0) - (invoice.paidINR || 0)), 0);
 
-  // Format currency to 2 decimal places
+  // Format currency as whole numbers
   const formatINR = (amount: number) => {
-    return `₹${amount.toFixed(2)}`;
+    return `₹${Math.round(amount).toLocaleString()}`;
   };
 
   if (loading) {
@@ -294,90 +278,85 @@ Terms: ${invoice.terms || 'N/A'}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredInvoices.map((invoice) => (
-                    <TableRow key={invoice.id}>
-                      <TableCell>
-                        <div className="font-medium">{invoice.invoiceNumber || 'N/A'}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{invoice.clientName || 'N/A'}</div>
-                          <div className="text-sm text-gray-500">{invoice.clientEmail || 'N/A'}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{formatINR(invoice.totalAmountINR || invoice.totalAmount || 0)}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium text-green-600">{formatINR(invoice.paidINR || 0)}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium text-yellow-600">{formatINR(invoice.pendingINR || (invoice.totalAmountINR || invoice.totalAmount || 0))}</div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(invoice.status || 'draft')}>
-                          {(invoice.status || 'draft').charAt(0).toUpperCase() + (invoice.status || 'draft').slice(1)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center text-sm">
-                          <Calendar className="w-3 h-3 mr-1 text-gray-400" />
-                          {invoice.issueDate ? invoice.issueDate.toLocaleDateString() : 'N/A'}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className={`flex items-center text-sm ${
-                          invoice.status === 'overdue' ? 'text-red-600' : ''
-                        }`}>
-                          <Calendar className="w-3 h-3 mr-1 text-gray-400" />
-                          {invoice.dueDate ? invoice.dueDate.toLocaleDateString() : 'N/A'}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            title="View Invoice"
-                            onClick={() => handleViewInvoice(invoice)}
-                          >
-                            <Eye className="w-3 h-3" />
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            title="Download PDF"
-                            onClick={() => handleDownloadPDF(invoice)}
-                          >
-                            <Download className="w-3 h-3" />
-                          </Button>
-                          <Button variant="outline" size="sm" title="Send Email">
-                            <Mail className="w-3 h-3" />
-                          </Button>
-                          {(invoice.status === 'sent' || invoice.status === 'overdue') && (
+                  {filteredInvoices.map((invoice) => {
+                    const paidAmount = invoice.paidINR || 0;
+                    const totalAmount = invoice.totalAmountINR || invoice.totalAmount || 0;
+                    const pendingAmount = Math.max(0, totalAmount - paidAmount);
+                    
+                    return (
+                      <TableRow key={invoice.id}>
+                        <TableCell>
+                          <div className="font-medium">{invoice.invoiceNumber || 'N/A'}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{invoice.clientName || 'N/A'}</div>
+                            <div className="text-sm text-gray-500">{invoice.clientEmail || 'N/A'}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">{formatINR(totalAmount)}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium text-green-600">{formatINR(paidAmount)}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium text-yellow-600">{formatINR(pendingAmount)}</div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(invoice.status || 'draft')}>
+                            {(invoice.status || 'draft').charAt(0).toUpperCase() + (invoice.status || 'draft').slice(1)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center text-sm">
+                            <Calendar className="w-3 h-3 mr-1 text-gray-400" />
+                            {invoice.issueDate ? invoice.issueDate.toLocaleDateString() : 'N/A'}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className={`flex items-center text-sm ${
+                            invoice.status === 'overdue' ? 'text-red-600' : ''
+                          }`}>
+                            <Calendar className="w-3 h-3 mr-1 text-gray-400" />
+                            {invoice.dueDate ? invoice.dueDate.toLocaleDateString() : 'N/A'}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
                             <Button 
                               variant="outline" 
                               size="sm" 
-                              onClick={() => handleMarkAsPaid(invoice.id)}
-                              className="text-green-600 hover:text-green-700"
-                              title="Mark as Paid"
+                              title="View Invoice"
+                              onClick={() => handleViewInvoice(invoice)}
                             >
-                              ✓
+                              <Eye className="w-3 h-3" />
                             </Button>
-                          )}
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleDeleteInvoice(invoice.id)}
-                            className="text-red-600 hover:text-red-700"
-                            title="Delete Invoice"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              title="Download PDF"
+                              onClick={() => handleDownloadPDF(invoice)}
+                            >
+                              <Download className="w-3 h-3" />
+                            </Button>
+                            <Button variant="outline" size="sm" title="Send Email">
+                              <Mail className="w-3 h-3" />
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleDeleteInvoice(invoice.id)}
+                              className="text-red-600 hover:text-red-700"
+                              title="Delete Invoice"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
