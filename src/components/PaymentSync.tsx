@@ -1,5 +1,6 @@
 
 
+
 import { useEffect } from 'react';
 import { useInvoices, usePayments } from '@/hooks/useFirestore';
 
@@ -28,20 +29,20 @@ const PaymentSync = () => {
 
           // If invoice has conversion rate, try to extract/convert the values
           if (invoice.conversionRate) {
-            // Handle different possible structures of conversion rate
+            // Handle different possible structures of conversion rate with proper type assertions
             if ('INRToCompany' in invoice.conversionRate) {
-              paymentConversionRate.INRToCompany = invoice.conversionRate.INRToCompany;
+              paymentConversionRate.INRToCompany = invoice.conversionRate.INRToCompany as number;
             } else if ('companyToINR' in invoice.conversionRate) {
               // Convert companyToINR to INRToCompany (inverse)
-              paymentConversionRate.INRToCompany = 1 / invoice.conversionRate.companyToINR;
+              paymentConversionRate.INRToCompany = 1 / (invoice.conversionRate.companyToINR as number);
             }
 
             if ('companyToClient' in invoice.conversionRate) {
-              paymentConversionRate.companyToClient = invoice.conversionRate.companyToClient;
+              paymentConversionRate.companyToClient = invoice.conversionRate.companyToClient as number;
             }
 
             if ('INRToClient' in invoice.conversionRate) {
-              paymentConversionRate.INRToClient = invoice.conversionRate.INRToClient;
+              paymentConversionRate.INRToClient = invoice.conversionRate.INRToClient as number;
             }
 
             if (invoice.conversionRate.timestamp) {
@@ -80,4 +81,5 @@ const PaymentSync = () => {
 };
 
 export default PaymentSync;
+
 
