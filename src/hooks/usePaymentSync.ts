@@ -1,12 +1,13 @@
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useInvoices, usePayments } from '@/hooks/useFirestore';
 import { updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export const usePaymentSync = () => {
-  const { invoices, updateInvoice } = useInvoices();
+  const { invoices } = useInvoices();
   const { payments } = usePayments();
+  const syncingRef = useRef(false);
 
   useEffect(() => {
     // Function to calculate payment totals for a specific invoice
@@ -68,11 +69,12 @@ export const usePaymentSync = () => {
             status
           });
 
-          await updateInvoice(invoice.id, {
+          await updateDoc(doc(db, 'invoices', invoice.id), {
             paidUSD,
             paidINR,
             pendingINR,
-            status
+            status,
+            updatedAt: new Date()
           });
         }
       } catch (error) {
@@ -82,32 +84,40 @@ export const usePaymentSync = () => {
 
     // Sync all invoices when payments change
     const syncAllInvoices = async () => {
-      if (invoices.length === 0 || payments.length === 0) return;
-
-      // Group invoices that have payments
-      const invoicesWithPayments = invoices.filter(invoice => 
-        payments.some(payment => payment.invoiceId === invoice.id)
-      );
-
-      // Also sync invoices that might need status updates (e.g., overdue)
-      const invoicesNeedingSync = invoices.filter(invoice => {
-        const hasPayments = payments.some(payment => payment.invoiceId === invoice.id);
-        const isOverdue = invoice.dueDate && new Date() > invoice.dueDate;
-        const needsStatusUpdate = isOverdue && (invoice.status === 'sent' || !invoice.status);
+      if (invoices.length === 0 || payments.length === 0 || syncingRef.current) return;
+      
+      syncingRef.current = true;
+      
+      try {
+        console.log('Invoices snapshot received:', invoices.length, 'documents');
         
-        return hasPayments || needsStatusUpdate;
-      });
+        // Group invoices that have payments
+        const invoicesWithPayments = invoices.filter(invoice => 
+          payments.some(payment => payment.invoiceId === invoice.id)
+        );
 
-      // Remove duplicates
-      const uniqueInvoices = [...new Set([...invoicesWithPayments, ...invoicesNeedingSync])];
+        // Also sync invoices that might need status updates (e.g., overdue)
+        const invoicesNeedingSync = invoices.filter(invoice => {
+          const hasPayments = payments.some(payment => payment.invoiceId === invoice.id);
+          const isOverdue = invoice.dueDate && new Date() > invoice.dueDate;
+          const needsStatusUpdate = isOverdue && (invoice.status === 'sent' || !invoice.status);
+          
+          return hasPayments || needsStatusUpdate;
+        });
 
-      for (const invoice of uniqueInvoices) {
-        await syncInvoice(invoice);
+        // Remove duplicates
+        const uniqueInvoices = [...new Set([...invoicesWithPayments, ...invoicesNeedingSync])];
+
+        for (const invoice of uniqueInvoices) {
+          await syncInvoice(invoice);
+        }
+      } finally {
+        syncingRef.current = false;
       }
     };
 
     syncAllInvoices();
-  }, [invoices, payments, updateInvoice]);
+  }, [invoices, payments]);
 
   return null;
 };
