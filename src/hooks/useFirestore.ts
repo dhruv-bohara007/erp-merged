@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { 
   collection, 
@@ -133,7 +132,17 @@ export interface Payment {
   invoiceNumber: string;
   clientId: string;
   clientName: string;
-  amount: number;
+  amount: number; // Amount in INR (primary storage currency)
+  // Multi-currency fields
+  amountINR: number; // Amount paid in INR
+  companyAmount: number; // Amount in company currency (e.g., USD)
+  clientAmount: number; // Amount in client currency (e.g., GBP)
+  conversionRate?: {
+    INRToCompany: number; // e.g., INR to USD rate
+    companyToClient: number; // e.g., USD to GBP rate
+    INRToClient: number; // e.g., INR to GBP rate
+    timestamp: Date;
+  };
   paymentMethod: string;
   paymentDate: Date;
   status: 'completed' | 'pending' | 'failed';
@@ -630,11 +639,19 @@ export const usePayments = () => {
         const paymentData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
-          // Round all monetary values
-          amount: Math.round(doc.data().amount || 0),
-          pendingAmountINR: Math.round(doc.data().pendingAmountINR || 0),
-          originalPaymentAmount: Math.round(doc.data().originalPaymentAmount || 0),
-          amountPaidByClient: Math.round(doc.data().amountPaidByClient || 0),
+          // Handle monetary values with precision (no rounding during storage)
+          amount: doc.data().amount || 0,
+          amountINR: doc.data().amountINR || 0,
+          companyAmount: doc.data().companyAmount || 0,
+          clientAmount: doc.data().clientAmount || 0,
+          pendingAmountINR: doc.data().pendingAmountINR || 0,
+          originalPaymentAmount: doc.data().originalPaymentAmount || 0,
+          amountPaidByClient: doc.data().amountPaidByClient || 0,
+          // Handle conversion rate with timestamp
+          conversionRate: doc.data().conversionRate ? {
+            ...doc.data().conversionRate,
+            timestamp: doc.data().conversionRate.timestamp?.toDate?.() || new Date()
+          } : undefined,
           paymentDate: doc.data().paymentDate?.toDate(),
           createdAt: doc.data().createdAt?.toDate(),
         })) as Payment[];
@@ -665,11 +682,19 @@ export const usePayments = () => {
       const docRef = await addDoc(collection(db, 'payments'), {
         ...payment,
         companyId: currentUser.companyId,
-        // Round all monetary values
-        amount: Math.round(payment.amount || 0),
-        pendingAmountINR: Math.round(payment.pendingAmountINR || 0),
-        originalPaymentAmount: Math.round(payment.originalPaymentAmount || 0),
-        amountPaidByClient: Math.round(payment.amountPaidByClient || 0),
+        // Store monetary values with full precision
+        amount: payment.amount || 0,
+        amountINR: payment.amountINR || 0,
+        companyAmount: payment.companyAmount || 0,
+        clientAmount: payment.clientAmount || 0,
+        pendingAmountINR: payment.pendingAmountINR || 0,
+        originalPaymentAmount: payment.originalPaymentAmount || 0,
+        amountPaidByClient: payment.amountPaidByClient || 0,
+        // Handle conversion rate timestamp
+        conversionRate: payment.conversionRate ? {
+          ...payment.conversionRate,
+          timestamp: Timestamp.fromDate(payment.conversionRate.timestamp)
+        } : undefined,
         paymentDate: Timestamp.fromDate(payment.paymentDate),
         createdAt: Timestamp.now(),
       });
