@@ -139,9 +139,9 @@ const PurchaseManagement = () => {
           existing.totalQuantity += purchase.quantity;
         } else {
           stockMap.set(key, {
-            productCategory: purchase.productCategory || 'N/A',
+            productCategory: purchase.productCategory || '',
             itemName: purchase.itemName,
-            productVersion: purchase.productVersion || 'N/A',
+            productVersion: purchase.productVersion || '',
             totalQuantity: purchase.quantity,
             unit: purchase.unit || 'pcs'
           });
@@ -301,7 +301,14 @@ const PurchaseManagement = () => {
                             </div>
                           ) : (
                             <div>
-                              <div className="font-medium">{getFullItemName(purchase)}</div>
+                              <div className="font-medium">
+                                {purchase.productCategory && purchase.productVersion 
+                                  ? `${purchase.productCategory} - ${purchase.itemName} ${purchase.productVersion}`
+                                  : purchase.productCategory 
+                                    ? `${purchase.productCategory} - ${purchase.itemName}`
+                                    : purchase.itemName || 'Unknown Item'
+                                }
+                              </div>
                               {purchase.description && (
                                 <div className="text-sm text-gray-500 truncate max-w-xs">
                                   {purchase.description}
@@ -431,9 +438,9 @@ const PurchaseManagement = () => {
                   <TableBody>
                     {stockItems.map((item, index) => (
                       <TableRow key={index}>
-                        <TableCell>{item.productCategory}</TableCell>
+                        <TableCell>{item.productCategory || 'Not Categorized'}</TableCell>
                         <TableCell className="font-medium">{item.itemName}</TableCell>
-                        <TableCell>{item.productVersion}</TableCell>
+                        <TableCell>{item.productVersion || 'Not Specified'}</TableCell>
                         <TableCell className="font-medium">{item.totalQuantity}</TableCell>
                         <TableCell>{item.unit}</TableCell>
                         <TableCell>
