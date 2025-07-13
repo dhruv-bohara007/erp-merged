@@ -69,10 +69,7 @@ const PaymentTable = ({ payments }: PaymentTableProps) => {
     } else {
       // Create new group
       const invoice = invoices.find(inv => inv.id === payment.invoiceId);
-      const totalInvoiceAmount = invoice?.totalAmountINR || invoice?.totalAmount || 0;
-      const invoicePayments = payments.filter(p => p.invoiceId === payment.invoiceId);
-      const totalPaid = invoicePayments.reduce((sum, p) => sum + (p.amount || 0), 0);
-      const pendingAmount = Math.max(0, totalInvoiceAmount - totalPaid);
+      const pendingAmount = invoice?.pendingINR || 0;
       
       acc.push({
         invoiceId: payment.invoiceId,

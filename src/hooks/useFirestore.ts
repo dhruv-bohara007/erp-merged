@@ -40,6 +40,10 @@ export interface Invoice {
   clientCurrency: string;
   clientAmount: number;
   amountPaidByClient: number; // New field with default 0
+  // Payment tracking fields
+  paidUSD?: number; // Total paid in company currency
+  paidINR?: number; // Total paid in INR
+  pendingINR?: number; // Pending amount in INR
   conversionRate?: {
     companyToINR: number;
     INRToClient: number;
@@ -176,6 +180,8 @@ export interface Expense {
   exchangeRateUsed?: number;
   purchaseDate?: Date;
   purchaseStatus?: 'completed' | 'pending' | 'cancelled';
+  productCategory?: string;
+  productVersion?: string;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -43,6 +43,7 @@ const InvoiceList = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'paid': return 'bg-green-100 text-green-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'sent': return 'bg-blue-100 text-blue-800';
       case 'draft': return 'bg-gray-100 text-gray-800';
       case 'overdue': return 'bg-red-100 text-red-800';
@@ -131,11 +132,11 @@ Terms: ${invoice.terms || 'N/A'}
     });
   };
 
-  // Calculate totals for filtered invoices using totalAmountINR
+  // Calculate totals for filtered invoices using totalAmountINR and payment tracking
   const totalAmount = filteredInvoices.reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
-  const paidAmount = filteredInvoices.filter(inv => inv.status === 'paid').reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
-  const unpaidAmount = filteredInvoices.filter(inv => inv.status === 'sent' || inv.status === 'draft').reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
-  const overdueAmount = filteredInvoices.filter(inv => inv.status === 'overdue').reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
+  const paidAmount = filteredInvoices.reduce((sum, invoice) => sum + (invoice.paidINR || 0), 0);
+  const pendingAmount = filteredInvoices.reduce((sum, invoice) => sum + (invoice.pendingINR || 0), 0);
+  const overdueAmount = filteredInvoices.filter(inv => inv.status === 'overdue').reduce((sum, invoice) => sum + (invoice.pendingINR || invoice.totalAmountINR || invoice.totalAmount || 0), 0);
 
   // Format currency to 2 decimal places
   const formatINR = (amount: number) => {
@@ -200,8 +201,8 @@ Terms: ${invoice.terms || 'N/A'}
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Unpaid</p>
-                <p className="text-2xl font-bold text-yellow-600">{formatINR(unpaidAmount)}</p>
+                <p className="text-sm font-medium text-gray-600">Pending</p>
+                <p className="text-2xl font-bold text-yellow-600">{formatINR(pendingAmount)}</p>
               </div>
               <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
                 <IndianRupee className="h-4 w-4 text-yellow-600" />
@@ -248,6 +249,7 @@ Terms: ${invoice.terms || 'N/A'}
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="draft">Draft</SelectItem>
                   <SelectItem value="sent">Sent</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="paid">Paid</SelectItem>
                   <SelectItem value="overdue">Overdue</SelectItem>
                 </SelectContent>
@@ -283,6 +285,8 @@ Terms: ${invoice.terms || 'N/A'}
                     <TableHead>Invoice #</TableHead>
                     <TableHead>Client</TableHead>
                     <TableHead>Total Amount</TableHead>
+                    <TableHead>Paid Amount</TableHead>
+                    <TableHead>Pending Amount</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Issue Date</TableHead>
                     <TableHead>Due Date</TableHead>
@@ -303,6 +307,12 @@ Terms: ${invoice.terms || 'N/A'}
                       </TableCell>
                       <TableCell>
                         <div className="font-medium">{formatINR(invoice.totalAmountINR || invoice.totalAmount || 0)}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium text-green-600">{formatINR(invoice.paidINR || 0)}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium text-yellow-600">{formatINR(invoice.pendingINR || (invoice.totalAmountINR || invoice.totalAmount || 0))}</div>
                       </TableCell>
                       <TableCell>
                         <Badge className={getStatusColor(invoice.status || 'draft')}>

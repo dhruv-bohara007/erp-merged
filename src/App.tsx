@@ -24,6 +24,7 @@ import ProfitabilityReports from "./components/ProfitabilityReports";
 import CompanySignupForm from "./components/CompanySignupForm";
 import PurchaseManagement from "./components/PurchaseManagement";
 import PurchaseForm from "./components/PurchaseForm";
+import PaymentSyncProvider from "./components/PaymentSyncProvider";
 
 const queryClient = new QueryClient();
 
@@ -267,7 +268,9 @@ const App = () => (
       <BrowserRouter>
         <ThemeProvider>
           <AuthProvider>
-            <AuthenticatedApp />
+            <PaymentSyncProvider>
+              <AuthenticatedApp />
+            </PaymentSyncProvider>
           </AuthProvider>
         </ThemeProvider>
       </BrowserRouter>
