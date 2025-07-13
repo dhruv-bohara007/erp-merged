@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,9 +18,9 @@ import { format } from 'date-fns';
 
 interface PurchaseItem {
   id: string;
+  productCategory: string;
   itemName: string;
-  productCategory?: string;
-  productVersion?: string;
+  productVersion: string;
   quantity: number;
   unit: string;
   existingStock?: number;
@@ -60,7 +59,9 @@ const PurchaseForm = () => {
   const addNewItem = () => {
     const newItem: PurchaseItem = {
       id: Math.random().toString(36).substr(2, 9),
+      productCategory: '',
       itemName: '',
+      productVersion: '',
       quantity: 1,
       unit: 'pcs',
       pricePerUnit: 0,
@@ -312,12 +313,31 @@ const PurchaseForm = () => {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  <Label>Item Name</Label>
-                  <Input
-                    value={item.itemName}
-                    onChange={(e) => updateItem(item.id, { itemName: e.target.value })}
-                  />
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Product Category</Label>
+                    <Input
+                      value={item.productCategory}
+                      onChange={(e) => updateItem(item.id, { productCategory: e.target.value })}
+                      placeholder="Enter product category"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Product Name</Label>
+                    <Input
+                      value={item.itemName}
+                      onChange={(e) => updateItem(item.id, { itemName: e.target.value })}
+                      placeholder="Enter product name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Product Version</Label>
+                    <Input
+                      value={item.productVersion}
+                      onChange={(e) => updateItem(item.id, { productVersion: e.target.value })}
+                      placeholder="Enter product version"
+                    />
+                  </div>
                 </div>
               )}
 
@@ -325,8 +345,7 @@ const PurchaseForm = () => {
                 <div className="space-y-2">
                   <Label>Quantity</Label>
                   <Input
-                    type="number"
-                    step="0.01"
+                    type="text"
                     value={item.quantity}
                     onChange={(e) => updateItem(item.id, { quantity: parseFloat(e.target.value) || 0 })}
                   />
@@ -341,8 +360,7 @@ const PurchaseForm = () => {
                 <div className="space-y-2">
                   <Label>Price per Unit ({companyCurrency.symbol})</Label>
                   <Input
-                    type="number"
-                    step="0.01"
+                    type="text"
                     value={item.pricePerUnit}
                     onChange={(e) => updateItem(item.id, { pricePerUnit: parseFloat(e.target.value) || 0 })}
                   />
@@ -350,8 +368,7 @@ const PurchaseForm = () => {
                 <div className="space-y-2">
                   <Label>Discount Rate (%)</Label>
                   <Input
-                    type="number"
-                    step="0.01"
+                    type="text"
                     value={item.discountRate}
                     onChange={(e) => updateItem(item.id, { discountRate: parseFloat(e.target.value) || 0 })}
                   />
