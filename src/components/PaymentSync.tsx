@@ -23,11 +23,21 @@ const PaymentSync = () => {
             clientId: invoice.clientId,
             clientName: invoice.clientName,
             amount: invoice.totalAmount || 0,
+            // Required multi-currency fields
+            amountINR: invoice.totalAmountINR || invoice.totalAmount || 0,
+            companyAmount: invoice.companyAmount || invoice.totalAmount || 0,
+            clientAmount: invoice.clientAmount || invoice.totalAmount || 0,
+            conversionRate: invoice.conversionRate || {
+              INRToCompany: 1,
+              companyToClient: 1,
+              INRToClient: 1,
+              timestamp: new Date()
+            },
             paymentMethod: 'cash', // Default method, can be updated later
             paymentDate: invoice.updatedAt || new Date(),
             status: 'completed',
             notes: 'Auto-created from paid invoice',
-            amountPaidByClient: invoice.clientAmount || invoice.totalAmount || 0, // Add required field
+            amountPaidByClient: invoice.clientAmount || invoice.totalAmount || 0,
           });
           console.log(`Created payment record for invoice ${invoice.invoiceNumber}`);
         } catch (error) {

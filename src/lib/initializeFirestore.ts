@@ -1,4 +1,3 @@
-
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { Company, Client, GSTReturn, TDSRecord } from '../types/firestore';
@@ -161,15 +160,25 @@ export const initializeCollections = async () => {
     const invoiceRef = await addDoc(collection(db, 'invoices'), sampleInvoice);
     console.log('Invoice added with ID:', invoiceRef.id);
 
-    // Sample Payment Data - using Date instead of Timestamp for paymentDate
+    // Sample Payment Data - now includes all required multi-currency fields
     const samplePayment: Omit<Payment, 'id' | 'createdAt'> = {
       invoiceId: invoiceRef.id,
       invoiceNumber: 'INV-2024-001',
       clientId: clientRefs[0].id,
       clientName: 'ABC Corporation',
-      amount: 59000,
+      amount: 59000, // Amount in INR
+      // Required multi-currency fields
+      amountINR: 59000,
+      companyAmount: 59000, // Assuming 1:1 rate for sample data
+      clientAmount: 59000, // Assuming 1:1 rate for sample data
+      conversionRate: {
+        INRToCompany: 1,
+        companyToClient: 1,
+        INRToClient: 1,
+        timestamp: new Date()
+      },
       paymentMethod: 'neft',
-      paymentDate: new Date(), // Changed from Timestamp.now() to new Date()
+      paymentDate: new Date(),
       status: 'completed',
       referenceNumber: 'UTR123456789',
       bankDetails: {

@@ -221,7 +221,6 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
         totalAmount: selectedInvoice.totalAmount,
         totalAmountINR: selectedInvoice.totalAmountINR,
         companyCurrency: selectedInvoice.companyCurrency,
-        companyAmount: selectedInvoice.companyAmount,
         clientCurrency: selectedInvoice.clientCurrency,
         companyCountry: selectedInvoice.companyCountry,
         clientCountry: selectedInvoice.clientCountry,
