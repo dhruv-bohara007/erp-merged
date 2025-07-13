@@ -75,7 +75,8 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
       // Calculate amount already paid for this invoice in company currency
       if (invoice) {
         const invoicePayments = payments.filter(p => p.invoiceId === invoice.id);
-        const totalPaidCompanyCurrency = invoicePayments.reduce((sum, p) => sum + (p.companyAmount || p.originalPaymentAmount || 0), 0);
+        // Use companyAmount from payments to get accurate amount in company currency
+        const totalPaidCompanyCurrency = invoicePayments.reduce((sum, p) => sum + (p.companyAmount || 0), 0);
         setAmountAlreadyPaidCompanyCurrency(totalPaidCompanyCurrency);
       }
     } else {
@@ -87,15 +88,22 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
   // Filter invoices to show only those with pending payments
   const invoicesWithPendingPayments = invoices.filter(invoice => {
     const invoicePayments = payments.filter(p => p.invoiceId === invoice.id);
-    const totalPaidINR = invoicePayments.reduce((sum, p) => sum + (p.amount || 0), 0);
-    const totalAmountINR = invoice.totalAmountINR || invoice.totalAmount || 0;
-    return totalPaidINR < totalAmountINR;
+    // Check based on company currency amounts for more accurate pending calculation
+    const totalPaidCompanyCurrency = invoicePayments.reduce((sum, p) => sum + (p.companyAmount || 0), 0);
+    const totalAmountCompanyCurrency = invoice.companyAmount || invoice.totalAmount || 0;
+    return totalPaidCompanyCurrency < totalAmountCompanyCurrency;
   });
 
   const getCompanyCurrencySymbol = (invoice: any) => {
     if (!invoice) return '$';
     const currencyInfo = getCurrencyByCountry(invoice.companyCountry || 'US');
     return currencyInfo.symbol;
+  };
+
+  const getCompanyCurrencyCode = (invoice: any) => {
+    if (!invoice) return 'USD';
+    const currencyInfo = getCurrencyByCountry(invoice.companyCountry || 'US');
+    return currencyInfo.code;
   };
 
   // Helper function to filter out undefined values from an object
@@ -124,12 +132,13 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
 
       console.log('Processing multi-currency payment for invoice:', selectedInvoice);
       
-      // Payment amount in INR (the amount client is paying)
-      const amountINR = parseFloat(data.amount);
-      if (isNaN(amountINR) || amountINR <= 0) {
+      // Payment amount in company currency (the amount entered by user)
+      const amountCompanyCurrency = parseFloat(data.amount);
+      if (isNaN(amountCompanyCurrency) || amountCompanyCurrency <= 0) {
+        const companyCurrencyCode = getCompanyCurrencyCode(selectedInvoice);
         toast({
           title: "Error",
-          description: "Please enter a valid payment amount in INR",
+          description: `Please enter a valid payment amount in ${companyCurrencyCode}`,
           variant: "destructive",
         });
         return;
@@ -140,7 +149,7 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
       const clientCurrency = getCurrencyByCountry(selectedInvoice.clientCountry || 'IN').code;
       
       console.log('Converting payment:', {
-        amountINR,
+        amountCompanyCurrency,
         companyCurrency,
         clientCurrency
       });
@@ -148,40 +157,49 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
       // Fetch current exchange rates and perform conversions
       const rates = await exchangeRateService.getRates();
       
-      // Calculate conversion rates
-      const INRToCompany = rates[companyCurrency] ? (1 / rates[companyCurrency]) : 1; // 1 INR = X Company Currency
-      const companyToClient = rates[clientCurrency] && rates[companyCurrency] 
-        ? (rates[clientCurrency] / rates[companyCurrency]) 
-        : 1; // 1 Company Currency = Y Client Currency
-      const INRToClient = rates[clientCurrency] ? rates[clientCurrency] : 1; // 1 INR = Z Client Currency
+      // Calculate conversion rates (all rates are relative to USD as base)
+      const companyToUSD = rates[companyCurrency] ? (1 / rates[companyCurrency]) : 1;
+      const USDToINR = rates['INR'] || 83; // Default to 83 if INR rate not available
+      const USDToClient = rates[clientCurrency] || 1;
 
-      // Convert amounts with full precision (no rounding during calculations)
-      const companyAmount = amountINR * INRToCompany; // Amount in company currency (e.g., USD)
-      const clientAmount = companyAmount * companyToClient; // Amount in client currency (e.g., GBP)
+      // Convert amounts with full precision
+      const amountUSD = amountCompanyCurrency * companyToUSD; // Company currency to USD
+      const amountINR = amountUSD * USDToINR; // USD to INR
+      const clientAmount = amountUSD * USDToClient; // USD to client currency
+
+      // Store conversion rates for reference
+      const conversionRateData = {
+        INRToCompany: companyToUSD / USDToINR, // How much company currency per INR
+        companyToClient: USDToClient / companyToUSD, // How much client currency per company currency
+        INRToClient: USDToClient / USDToINR, // How much client currency per INR
+        timestamp: new Date()
+      };
 
       console.log('Conversion results:', {
-        INRToCompany,
-        companyToClient,
-        INRToClient,
-        companyAmount,
-        clientAmount
+        companyToUSD,
+        USDToINR,
+        USDToClient,
+        amountCompanyCurrency,
+        amountINR,
+        clientAmount,
+        conversionRateData
       });
 
-      // Calculate pending amount in INR
-      const totalAmountINR = selectedInvoice.totalAmountINR || selectedInvoice.totalAmount || 0;
+      // Calculate pending amount in company currency for status determination
+      const totalAmountCompanyCurrency = selectedInvoice.companyAmount || selectedInvoice.totalAmount || 0;
       const invoicePayments = payments.filter(p => p.invoiceId === selectedInvoice.id);
-      const totalAlreadyPaidINR = invoicePayments.reduce((sum, p) => sum + (p.amount || 0), 0);
-      const pendingAmountINR = totalAmountINR - (totalAlreadyPaidINR + amountINR);
+      const totalAlreadyPaidCompanyCurrency = invoicePayments.reduce((sum, p) => sum + (p.companyAmount || 0), 0);
+      const pendingAmountCompanyCurrency = totalAmountCompanyCurrency - (totalAlreadyPaidCompanyCurrency + amountCompanyCurrency);
 
       console.log('Payment calculation:', {
-        totalAmountINR,
-        totalAlreadyPaidINR,
-        amountINR,
-        pendingAmountINR
+        totalAmountCompanyCurrency,
+        totalAlreadyPaidCompanyCurrency,
+        amountCompanyCurrency,
+        pendingAmountCompanyCurrency
       });
 
       // Determine status based on pending amount
-      const paymentStatus = pendingAmountINR <= 0 ? 'completed' : 'pending';
+      const paymentStatus = pendingAmountCompanyCurrency <= 0 ? 'completed' : 'pending';
 
       // Prepare payment data with multi-currency fields
       const paymentData = filterUndefinedValues({
@@ -190,18 +208,13 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
         invoiceNumber: selectedInvoice.invoiceNumber,
         clientId: selectedInvoice.clientId,
         clientName: selectedInvoice.clientName,
-        amount: amountINR, // Store INR amount as primary amount
+        amount: amountINR, // Store INR amount as primary amount for consistency
         
         // Multi-currency fields
         amountINR: amountINR,
-        companyAmount: companyAmount,
-        clientAmount: clientAmount,
-        conversionRate: {
-          INRToCompany: INRToCompany,
-          companyToClient: companyToClient,
-          INRToClient: INRToClient,
-          timestamp: new Date()
-        },
+        companyAmount: amountCompanyCurrency, // Amount in company currency
+        clientAmount: clientAmount, // Amount in client currency
+        conversionRate: conversionRateData,
         
         paymentMethod: data.paymentMethod,
         paymentDate: new Date(data.paymentDate),
@@ -246,11 +259,11 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
         notes: selectedInvoice.notes,
         terms: selectedInvoice.terms,
         
-        // Add pending amount calculation
-        pendingAmountINR: Math.max(0, pendingAmountINR),
+        // Add pending amount calculation (in INR for consistency)
+        pendingAmountINR: Math.max(0, pendingAmountCompanyCurrency * (amountINR / amountCompanyCurrency)),
         
         // Legacy fields for backward compatibility
-        originalPaymentAmount: companyAmount,
+        originalPaymentAmount: amountCompanyCurrency,
         originalCurrency: companyCurrency,
         amountPaidByClient: clientAmount,
       });
@@ -269,9 +282,10 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
 
       console.log('Updated invoice amountPaidByClient:', newAmountPaidByClient);
 
+      const companyCurrencyCode = getCompanyCurrencyCode(selectedInvoice);
       toast({
         title: "Success",
-        description: "Multi-currency payment recorded successfully",
+        description: `Payment of ${getCompanyCurrencySymbol(selectedInvoice)}${amountCompanyCurrency.toFixed(2)} ${companyCurrencyCode} recorded successfully`,
       });
 
       form.reset();
@@ -292,7 +306,10 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Record Payment (INR)</DialogTitle>
+          <DialogTitle>
+            Record Payment
+            {selectedInvoice && ` (${getCompanyCurrencyCode(selectedInvoice)})`}
+          </DialogTitle>
         </DialogHeader>
         
         <Form {...form}>
@@ -347,12 +364,14 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
               name="amount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Payment Amount (INR)</FormLabel>
+                  <FormLabel>
+                    Payment Amount ({selectedInvoice ? getCompanyCurrencyCode(selectedInvoice) : 'Amount'})
+                  </FormLabel>
                   <FormControl>
                     <Input
                       type="number"
                       step="0.01"
-                      placeholder="Enter amount in INR"
+                      placeholder={`Enter amount in ${selectedInvoice ? getCompanyCurrencyCode(selectedInvoice) : 'company currency'}`}
                       {...field}
                     />
                   </FormControl>
