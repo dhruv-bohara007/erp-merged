@@ -19,9 +19,9 @@
 
 .gooey-nav-container nav ul {
   display: flex;
-  gap: 2em;
+  gap: 1.5em;
   list-style: none;
-  padding: 0 1em;
+  padding: 0 0.75em;
   margin: 0;
   position: relative;
   z-index: 3;
@@ -40,9 +40,11 @@
 
 .gooey-nav-container nav ul li a {
   display: inline-block;
-  padding: 0.6em 1em;
+  padding: 0.4em 0.75em;
   text-decoration: none;
   color: inherit;
+  font-size: 0.9em;
+  font-weight: 500;
 }
 
 .gooey-nav-container nav ul li:focus-within:has(:focus-visible) {
@@ -53,7 +55,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 10px;
+  border-radius: 8px;
   background: white;
   opacity: 0;
   transform: scale(0);
@@ -87,6 +89,8 @@
 .gooey-nav-container .effect.text {
   color: white;
   transition: color 0.3s ease;
+  font-size: 0.9em;
+  font-weight: 500;
 }
 
 .gooey-nav-container .effect.text.active {
@@ -132,24 +136,24 @@
 .point {
   display: block;
   opacity: 0;
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   border-radius: 100%;
   transform-origin: center;
 }
 
 .particle {
-  --time: 5s;
+  --time: 4s;
   position: absolute;
-  top: calc(50% - 8px);
-  left: calc(50% - 8px);
-  animation: particle calc(var(--time)) ease 1 -350ms;
+  top: calc(50% - 6px);
+  left: calc(50% - 6px);
+  animation: particle calc(var(--time)) ease 1 -300ms;
 }
 
 .point {
   background: var(--color);
   opacity: 1;
-  animation: point calc(var(--time)) ease 1 -350ms;
+  animation: point calc(var(--time)) ease 1 -300ms;
 }
 
 @keyframes particle {
