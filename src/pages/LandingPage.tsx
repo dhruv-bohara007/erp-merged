@@ -119,7 +119,7 @@ const LandingPage = () => {
       </div>
 
       {/* Custom Styles */}
-      <style jsx>{`
+      <style>{`
         .gooey-nav {
           filter: url('#gooey');
         }
