@@ -3,24 +3,34 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Play } from 'lucide-react';
+import GooeyNav from '@/components/GooeyNav';
+import Aurora from '@/components/Aurora';
 
 const LandingPage = () => {
   const [isVideoPlaying, setIsVideoPlaying] = useState(true);
+
+  const navItems = [
+    { label: "Features", href: "#features" },
+    { label: "Pricing", href: "#pricing" },
+    { label: "About", href: "#about" },
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 relative overflow-hidden">
       {/* Aurora Background */}
       <div className="absolute inset-0 opacity-60">
-        <div className="absolute top-0 -left-4 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl animate-pulse"></div>
-        <div className="absolute top-0 -right-4 w-96 h-96 bg-yellow-500 rounded-full mix-blend-multiply filter blur-xl animate-pulse animation-delay-2000"></div>
-        <div className="absolute -bottom-8 left-20 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl animate-pulse animation-delay-4000"></div>
-        <div className="aurora-animation absolute inset-0 bg-gradient-to-r from-blue-400/20 via-purple-400/20 to-pink-400/20"></div>
+        <Aurora
+          colorStops={["#3A29FF", "#FF94B4", "#FF3232"]}
+          blend={0.5}
+          amplitude={1.0}
+          speed={0.5}
+        />
       </div>
 
       {/* Gooey Navigation */}
       <nav className="relative z-50 p-6">
         <div className="max-w-7xl mx-auto">
-          <div className="gooey-nav bg-white/10 backdrop-blur-md rounded-full px-8 py-4 border border-white/20">
+          <div className="bg-white/10 backdrop-blur-md rounded-full px-8 py-4 border border-white/20">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-purple-600 rounded-full"></div>
@@ -28,9 +38,18 @@ const LandingPage = () => {
               </div>
               
               <div className="hidden md:flex items-center space-x-8">
-                <a href="#features" className="text-white/80 hover:text-white transition-colors">Features</a>
-                <a href="#pricing" className="text-white/80 hover:text-white transition-colors">Pricing</a>
-                <a href="#about" className="text-white/80 hover:text-white transition-colors">About</a>
+                <div style={{ height: '60px', position: 'relative' }}>
+                  <GooeyNav
+                    items={navItems}
+                    particleCount={15}
+                    particleDistances={[90, 10]}
+                    particleR={100}
+                    initialActiveIndex={0}
+                    animationTime={600}
+                    timeVariance={300}
+                    colors={[1, 2, 3, 1, 2, 3, 1, 4]}
+                  />
+                </div>
                 <Link to="/login">
                   <Button variant="ghost" className="text-white border-white/20 hover:bg-white/10">
                     Login
@@ -120,20 +139,6 @@ const LandingPage = () => {
 
       {/* Custom Styles */}
       <style>{`
-        .gooey-nav {
-          filter: url('#gooey');
-        }
-        
-        .aurora-animation {
-          animation: aurora 20s ease-in-out infinite;
-        }
-        
-        @keyframes aurora {
-          0%, 100% { transform: rotate(0deg) scale(1); }
-          33% { transform: rotate(120deg) scale(1.1); }
-          66% { transform: rotate(240deg) scale(0.9); }
-        }
-        
         .blur-text-word {
           filter: blur(8px);
           animation: blur-in 0.8s ease-out forwards;
@@ -160,17 +165,6 @@ const LandingPage = () => {
           animation-delay: 4s;
         }
       `}</style>
-
-      {/* SVG Filter for Gooey Effect */}
-      <svg className="absolute" width="0" height="0">
-        <defs>
-          <filter id="gooey">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
-            <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -9" result="gooey" />
-            <feComposite in="SourceGraphic" in2="gooey" operator="atop"/>
-          </filter>
-        </defs>
-      </svg>
     </div>
   );
 };
