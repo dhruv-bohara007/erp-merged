@@ -123,7 +123,7 @@ const PurchaseManagement = () => {
         <h1 className="text-3xl font-bold">Purchase Management</h1>
         <Button 
           className="bg-blue-600 hover:bg-blue-700"
-          onClick={() => navigate('/purchases/new')}
+          onClick={() => navigate('/add-purchase')}
         >
           <Plus className="w-4 h-4 mr-2" />
           Add Purchase
