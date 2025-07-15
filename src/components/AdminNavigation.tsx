@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -20,7 +21,8 @@ import {
   Package,
   TrendingUp,
   Moon,
-  Sun
+  Sun,
+  Truck
 } from 'lucide-react';
 
 const AdminNavigation = () => {
@@ -34,6 +36,7 @@ const AdminNavigation = () => {
     { to: '/admin-dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/invoices', icon: FileText, label: 'Invoices' },
     { to: '/clients', icon: Users, label: 'Clients' },
+    { to: '/suppliers', icon: Truck, label: 'Suppliers' },
     { to: '/payments', icon: DollarSign, label: 'Payments' },
     { to: '/purchases', icon: ShoppingCart, label: 'Purchases' },
     { to: '/inventory', icon: Package, label: 'Products' },
@@ -166,10 +169,10 @@ const AdminNavigation = () => {
           </div>
         </div>
 
-        {/* Mobile menu */}
+        {/* Mobile menu with smooth scrolling */}
         {isMobileMenuOpen && (
           <div className="lg:hidden">
-            <div className="pt-2 pb-3 space-y-1 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+            <div className="pt-2 pb-3 space-y-1 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 max-h-96 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-300">
               {navItems.map((item) => (
                 <NavLink
                   key={item.to}
@@ -192,7 +195,7 @@ const AdminNavigation = () => {
                 </NavLink>
               ))}
               
-              {/* Mobile Theme Toggle */}
+              {/* Mobile Theme Toggle and User Info */}
               <div className="px-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg mb-3">
                   <div className="flex items-center space-x-2">

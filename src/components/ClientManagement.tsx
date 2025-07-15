@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -125,8 +126,8 @@ const ClientManagement = () => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: companyCurrency.code,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
     }).format(amount);
   };
 
@@ -175,7 +176,7 @@ const ClientManagement = () => {
     };
   };
 
-  // Calculate dynamic metrics from Firestore data
+  // Calculate dynamic metrics from Firestore data - using totalAmount for consistency
   const calculateClientMetrics = () => {
     const totalRevenue = invoices
       .reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);

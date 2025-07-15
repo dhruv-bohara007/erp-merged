@@ -62,6 +62,20 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
     }
 
+    // SUPPLIERS: only accessible by users from the same company
+    match /suppliers/{supplierId} {
+      // For existing documents, check if the document's companyId matches user's companyId
+      allow read, write: if isCompanyAdmin() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      // For new documents, ensure the companyId is set to user's companyId
+      allow create: if isCompanyAdmin() &&
+        request.resource.data.companyId == getUserData().companyId;
+      
+      // Super admin has full access
+      allow read, write: if isSuperAdmin();
+    }
+
     // INVOICES: only accessible by users from the same company
     match /invoices/{invoiceId} {
       allow read, write: if isCompanyAdmin() && 
