@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,6 +14,7 @@ import SuperDashboard from "./pages/SuperDashboard";
 import InvoiceForm from "./components/InvoiceForm";
 import InvoiceList from "./components/InvoiceList";
 import ClientManagement from "./components/ClientManagement";
+import SupplierManagement from "./components/SupplierManagement";
 import Payments from "./components/Payments";
 import Reports from "./components/Reports";
 import Settings from "./components/Settings";
@@ -137,6 +139,21 @@ const AuthenticatedApp = () => {
                 <AdminNavigation />
                 <div className="lg:pl-64">
                   <ClientManagement />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+
+        <Route path="/suppliers" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <SupplierManagement />
                 </div>
               </div>
             ) : (
