@@ -261,9 +261,12 @@ export interface Employee {
   companyId: string;
   name: string;
   email: string;
-  temporaryPassword?: string;
-  status: 'active' | 'inactive';
+  temporaryPassword: string;
+  country?: string;
+  phoneCode?: string;
+  phoneNumber?: string;
+  status: 'active' | 'inactive' | 'not_verified';
   role: 'employee';
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: any;
+  updatedAt: any;
 }

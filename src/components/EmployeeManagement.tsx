@@ -1,27 +1,23 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, getDocs, query, where, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, deleteDoc, doc } from 'firebase/firestore';
 import { useAuth } from '@/contexts/AuthContext';
 import { Employee } from '@/types/firestore';
-import { Plus, Users, UserCheck, UserX, Mail } from 'lucide-react';
+import { Plus, Users, UserCheck, UserX, Mail, Edit, Trash2 } from 'lucide-react';
+import AddEditEmployeeModal from './AddEditEmployeeModal';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const EmployeeManagement = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    temporaryPassword: ''
-  });
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const { currentUser } = useAuth();
   const { toast } = useToast();
 
@@ -55,68 +51,6 @@ const EmployeeManagement = () => {
     }
   };
 
-  const generatePassword = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let password = '';
-    for (let i = 0; i < 8; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    setFormData(prev => ({ ...prev, temporaryPassword: password }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formData.name || !formData.email || !formData.temporaryPassword) {
-      toast({
-        title: 'Error',
-        description: 'Please fill in all fields',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    try {
-      if (!currentUser?.companyId) {
-        toast({
-          title: 'Error',
-          description: 'Company information not found',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      const newEmployee: Omit<Employee, 'id'> = {
-        companyId: currentUser.companyId,
-        name: formData.name,
-        email: formData.email,
-        temporaryPassword: formData.temporaryPassword,
-        status: 'active',
-        role: 'employee',
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-      };
-
-      await addDoc(collection(db, 'employees'), newEmployee);
-      
-      toast({
-        title: 'Success',
-        description: 'Employee added successfully',
-      });
-      
-      setFormData({ name: '', email: '', temporaryPassword: '' });
-      setIsModalOpen(false);
-      loadEmployees();
-    } catch (error) {
-      console.error('Error adding employee:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to add employee',
-        variant: 'destructive',
-      });
-    }
-  };
-
   const handleSendEmail = (employee: Employee) => {
     const subject = encodeURIComponent('Your Employee Account Details');
     const body = encodeURIComponent(
@@ -125,7 +59,71 @@ const EmployeeManagement = () => {
     window.open(`mailto:${employee.email}?subject=${subject}&body=${body}`);
   };
 
+  const handleEditEmployee = (employee: Employee) => {
+    setEditingEmployee(employee);
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteEmployee = async (employeeId: string) => {
+    if (!confirm('Are you sure you want to delete this employee?')) {
+      return;
+    }
+
+    try {
+      await deleteDoc(doc(db, 'employees', employeeId));
+      toast({
+        title: 'Success',
+        description: 'Employee deleted successfully',
+      });
+      loadEmployees();
+    } catch (error) {
+      console.error('Error deleting employee:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete employee',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleAddEmployee = () => {
+    setEditingEmployee(null);
+    setIsModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setEditingEmployee(null);
+  };
+
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'active':
+        return 'default';
+      case 'not_verified':
+        return 'secondary';
+      case 'inactive':
+        return 'destructive';
+      default:
+        return 'secondary';
+    }
+  };
+
+  const getStatusDisplayText = (status: string) => {
+    switch (status) {
+      case 'not_verified':
+        return 'Not Verified';
+      case 'active':
+        return 'Active';
+      case 'inactive':
+        return 'Inactive';
+      default:
+        return status;
+    }
+  };
+
   const activeEmployees = employees.filter(emp => emp.status === 'active');
+  const notVerifiedEmployees = employees.filter(emp => emp.status === 'not_verified');
   const inactiveEmployees = employees.filter(emp => emp.status === 'inactive');
 
   if (isLoading) {
@@ -136,64 +134,14 @@ const EmployeeManagement = () => {
     <div className="space-y-6 p-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Employee Management</h1>
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Employee
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Employee</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="name">Employee Name</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Enter employee name"
-                />
-              </div>
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="Enter employee email"
-                />
-              </div>
-              <div>
-                <Label htmlFor="password">Temporary Password</Label>
-                <div className="flex space-x-2">
-                  <Input
-                    id="password"
-                    value={formData.temporaryPassword}
-                    onChange={(e) => setFormData(prev => ({ ...prev, temporaryPassword: e.target.value }))}
-                    placeholder="Enter temporary password"
-                  />
-                  <Button type="button" onClick={generatePassword} variant="outline">
-                    Generate
-                  </Button>
-                </div>
-              </div>
-              <div className="flex space-x-2 pt-4">
-                <Button type="submit" className="flex-1">Add Employee</Button>
-                <Button type="button" variant="outline" className="flex-1" onClick={() => setIsModalOpen(false)}>
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={handleAddEmployee}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Employee
+        </Button>
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
@@ -211,6 +159,16 @@ const EmployeeManagement = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{activeEmployees.length}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Not Verified</CardTitle>
+            <UserX className="h-4 w-4 text-yellow-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-600">{notVerifiedEmployees.length}</div>
           </CardContent>
         </Card>
 
@@ -236,6 +194,7 @@ const EmployeeManagement = () => {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Phone</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created Date</TableHead>
                 <TableHead>Actions</TableHead>
@@ -247,8 +206,14 @@ const EmployeeManagement = () => {
                   <TableCell className="font-medium">{employee.name}</TableCell>
                   <TableCell>{employee.email}</TableCell>
                   <TableCell>
-                    <Badge variant={employee.status === 'active' ? 'default' : 'secondary'}>
-                      {employee.status}
+                    {employee.phoneCode && employee.phoneNumber 
+                      ? `${employee.phoneCode} ${employee.phoneNumber}`
+                      : '-'
+                    }
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={getStatusBadgeVariant(employee.status)}>
+                      {getStatusDisplayText(employee.status)}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -258,20 +223,41 @@ const EmployeeManagement = () => {
                     }
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleSendEmail(employee)}
-                    >
-                      <Mail className="h-4 w-4 mr-2" />
-                      Send Email
-                    </Button>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSendEmail(employee)}
+                      >
+                        <Mail className="h-4 w-4" />
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            Actions
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem onClick={() => handleEditEmployee(employee)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteEmployee(employee.id)}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
               {employees.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     No employees found. Add your first employee to get started.
                   </TableCell>
                 </TableRow>
@@ -280,6 +266,13 @@ const EmployeeManagement = () => {
           </Table>
         </CardContent>
       </Card>
+
+      <AddEditEmployeeModal
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+        employee={editingEmployee}
+        onEmployeeAdded={loadEmployees}
+      />
     </div>
   );
 };
