@@ -1,3 +1,4 @@
+
 import { Timestamp } from 'firebase/firestore';
 
 export interface Company {
@@ -44,6 +45,29 @@ export interface Client {
   totalInvoices: number;
   totalAmount: number;
   outstandingAmount: number;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  country?: string; // ISO country code (e.g., 'IN', 'US', 'GB')
+  taxInfo?: {
+    id: string; // Tax ID (GSTIN, EIN, VAT, etc.)
+    type: string; // Tax type label (GSTIN, Federal EIN, VAT Number, etc.)
+  };
+  category: 'General' | 'Raw Materials' | 'Equipment' | 'Services' | 'Technology' | 'Office Supplies';
+  status: 'active' | 'inactive';
+  totalExpenses?: number;
+  totalAmount?: number;
+  outstandingAmount?: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -187,8 +211,9 @@ export interface Expense {
   description: string;
   expenseDate: Date;
   receipt?: string;
-  status: 'recorded' | 'approved' | 'reimbursed';
+  status: 'recorded' | 'approved' | 'reimbursed' | 'pending';
   // Purchase-specific fields (for when used as Purchase)
+  supplierId?: string;
   supplierName?: string;
   itemName?: string;
   productCategory?: string; // Added for product categorization

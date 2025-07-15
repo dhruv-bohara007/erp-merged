@@ -44,7 +44,7 @@ const InvoiceList = () => {
   // Auto-update status to "paid" when pending amount is zero
   const processedInvoices = invoices.map(invoice => {
     const paidAmount = invoice.paidUSD || 0;
-    const totalAmount = invoice.totalAmount || 0;
+    const totalAmount = invoice.totalAmountINR || invoice.totalAmount || 0;
     const pendingAmount = Math.max(0, totalAmount - paidAmount);
     
     // If pending amount is zero and status is not already "paid", update it
@@ -118,7 +118,7 @@ ${invoice.items?.map(item =>
 Subtotal: ${companyCurrencyInfo.symbol}${(invoice.subtotal || 0).toFixed(2)}
 Total GST: ${companyCurrencyInfo.symbol}${(invoice.totalGst || 0).toFixed(2)}
 
-TOTAL AMOUNT: ${companyCurrencyInfo.symbol}${(invoice.totalAmount || 0).toFixed(2)}
+TOTAL AMOUNT: ${companyCurrencyInfo.symbol}${(invoice.totalAmountINR || invoice.totalAmount || 0).toFixed(2)}
 
 Notes: ${invoice.notes || 'N/A'}
 Terms: ${invoice.terms || 'N/A'}
@@ -140,11 +140,11 @@ Terms: ${invoice.terms || 'N/A'}
     });
   };
 
-  // Calculate totals for filtered invoices using company currency with proper decimal formatting
-  const totalAmount = filteredInvoices.reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
+  // Calculate totals for filtered invoices using totalAmountINR consistently
+  const totalAmount = filteredInvoices.reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
   const paidAmount = filteredInvoices.reduce((sum, invoice) => sum + (invoice.paidUSD || 0), 0);
-  const pendingAmount = filteredInvoices.reduce((sum, invoice) => sum + Math.max(0, (invoice.totalAmount || 0) - (invoice.paidUSD || 0)), 0);
-  const overdueAmount = filteredInvoices.filter(inv => inv.status === 'overdue').reduce((sum, invoice) => sum + Math.max(0, (invoice.totalAmount || 0) - (invoice.paidUSD || 0)), 0);
+  const pendingAmount = filteredInvoices.reduce((sum, invoice) => sum + Math.max(0, (invoice.totalAmountINR || invoice.totalAmount || 0) - (invoice.paidUSD || 0)), 0);
+  const overdueAmount = filteredInvoices.filter(inv => inv.status === 'overdue').reduce((sum, invoice) => sum + Math.max(0, (invoice.totalAmountINR || invoice.totalAmount || 0) - (invoice.paidUSD || 0)), 0);
 
   // Format currency using company's currency with consistent decimal places
   const formatCurrency = (amount: number) => {
@@ -304,7 +304,7 @@ Terms: ${invoice.terms || 'N/A'}
                 <TableBody>
                   {filteredInvoices.map((invoice) => {
                     const paidAmount = invoice.paidUSD || 0;
-                    const totalAmount = invoice.totalAmount || 0;
+                    const totalAmount = invoice.totalAmountINR || invoice.totalAmount || 0;
                     const pendingAmount = Math.max(0, totalAmount - paidAmount);
                     
                     return (
