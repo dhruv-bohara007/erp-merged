@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,25 +18,33 @@ import {
   FileText
 } from 'lucide-react';
 import { useOptimizedInvoices } from '@/hooks/useOptimizedFirestore';
+import { useCompanyData } from '@/hooks/useCompanyData';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import InvoiceView from './InvoiceView';
+import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 import type { Invoice } from '@/hooks/useFirestore';
 
 const InvoiceList = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { invoices, loading, deleteInvoice, updateInvoice } = useOptimizedInvoices();
+  const { companyData } = useCompanyData();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
+  // Get company currency info
+  const companyCurrencyInfo = companyData?.country 
+    ? getCurrencyByCountry(companyData.country)
+    : { code: 'USD', symbol: '$', name: 'US Dollar' };
+
   // Auto-update status to "paid" when pending amount is zero
   const processedInvoices = invoices.map(invoice => {
-    const paidAmount = invoice.paidINR || 0;
-    const totalAmount = invoice.totalAmountINR || invoice.totalAmount || 0;
+    const paidAmount = invoice.paidUSD || 0;
+    const totalAmount = invoice.totalAmount || 0;
     const pendingAmount = Math.max(0, Math.round((totalAmount - paidAmount) * 100) / 100);
     
     // If pending amount is zero and status is not already "paid", update it
@@ -103,13 +112,13 @@ Due Date: ${invoice.dueDate?.toLocaleDateString()}
 
 Items:
 ${invoice.items?.map(item => 
-  `${item.description} - Qty: ${item.quantity} - Rate: ₹${item.rate} - Amount: ₹${item.amount}`
+  `${item.description} - Qty: ${item.quantity} - Rate: ${companyCurrencyInfo.symbol}${item.rate} - Amount: ${companyCurrencyInfo.symbol}${item.amount}`
 ).join('\n')}
 
-Subtotal: ₹${invoice.subtotal?.toLocaleString()}
-Total GST: ₹${invoice.totalGst?.toLocaleString()}
+Subtotal: ${companyCurrencyInfo.symbol}${invoice.subtotal?.toLocaleString()}
+Total GST: ${companyCurrencyInfo.symbol}${invoice.totalGst?.toLocaleString()}
 
-TOTAL AMOUNT: ₹${invoice.totalAmount?.toLocaleString()}
+TOTAL AMOUNT: ${companyCurrencyInfo.symbol}${invoice.totalAmount?.toLocaleString()}
 
 Notes: ${invoice.notes || 'N/A'}
 Terms: ${invoice.terms || 'N/A'}
@@ -131,15 +140,15 @@ Terms: ${invoice.terms || 'N/A'}
     });
   };
 
-  // Calculate totals for filtered invoices using totalAmountINR and payment tracking
-  const totalAmount = filteredInvoices.reduce((sum, invoice) => sum + Math.round(invoice.totalAmountINR || invoice.totalAmount || 0), 0);
-  const paidAmount = filteredInvoices.reduce((sum, invoice) => sum + Math.round(invoice.paidINR || 0), 0);
-  const pendingAmount = filteredInvoices.reduce((sum, invoice) => sum + Math.round(Math.max(0, (invoice.totalAmountINR || invoice.totalAmount || 0) - (invoice.paidINR || 0))), 0);
-  const overdueAmount = filteredInvoices.filter(inv => inv.status === 'overdue').reduce((sum, invoice) => sum + Math.round(Math.max(0, (invoice.totalAmountINR || invoice.totalAmount || 0) - (invoice.paidINR || 0))), 0);
+  // Calculate totals for filtered invoices using company currency (totalAmount and paidUSD)
+  const totalAmount = filteredInvoices.reduce((sum, invoice) => sum + Math.round(invoice.totalAmount || 0), 0);
+  const paidAmount = filteredInvoices.reduce((sum, invoice) => sum + Math.round(invoice.paidUSD || 0), 0);
+  const pendingAmount = filteredInvoices.reduce((sum, invoice) => sum + Math.round(Math.max(0, (invoice.totalAmount || 0) - (invoice.paidUSD || 0))), 0);
+  const overdueAmount = filteredInvoices.filter(inv => inv.status === 'overdue').reduce((sum, invoice) => sum + Math.round(Math.max(0, (invoice.totalAmount || 0) - (invoice.paidUSD || 0))), 0);
 
-  // Format currency as whole numbers
-  const formatINR = (amount: number) => {
-    return `₹${Math.round(amount).toLocaleString()}`;
+  // Format currency using company's currency
+  const formatCurrency = (amount: number) => {
+    return `${companyCurrencyInfo.symbol}${Math.round(amount).toLocaleString()}`;
   };
 
   if (loading) {
@@ -173,7 +182,7 @@ Terms: ${invoice.terms || 'N/A'}
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Amount</p>
-                <p className="text-2xl font-bold">{formatINR(totalAmount)}</p>
+                <p className="text-2xl font-bold">{formatCurrency(totalAmount)}</p>
               </div>
               <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
                 <IndianRupee className="h-4 w-4 text-blue-600" />
@@ -187,7 +196,7 @@ Terms: ${invoice.terms || 'N/A'}
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Paid</p>
-                <p className="text-2xl font-bold text-green-600">{formatINR(paidAmount)}</p>
+                <p className="text-2xl font-bold text-green-600">{formatCurrency(paidAmount)}</p>
               </div>
               <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
                 <IndianRupee className="h-4 w-4 text-green-600" />
@@ -201,7 +210,7 @@ Terms: ${invoice.terms || 'N/A'}
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Pending</p>
-                <p className="text-2xl font-bold text-yellow-600">{formatINR(pendingAmount)}</p>
+                <p className="text-2xl font-bold text-yellow-600">{formatCurrency(pendingAmount)}</p>
               </div>
               <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
                 <IndianRupee className="h-4 w-4 text-yellow-600" />
@@ -215,7 +224,7 @@ Terms: ${invoice.terms || 'N/A'}
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Overdue</p>
-                <p className="text-2xl font-bold text-red-600">{formatINR(overdueAmount)}</p>
+                <p className="text-2xl font-bold text-red-600">{formatCurrency(overdueAmount)}</p>
               </div>
               <div className="h-8 w-8 bg-red-100 rounded-full flex items-center justify-center">
                 <IndianRupee className="h-4 w-4 text-red-600" />
@@ -294,8 +303,8 @@ Terms: ${invoice.terms || 'N/A'}
                 </TableHeader>
                 <TableBody>
                   {filteredInvoices.map((invoice) => {
-                    const paidAmount = invoice.paidINR || 0;
-                    const totalAmount = invoice.totalAmountINR || invoice.totalAmount || 0;
+                    const paidAmount = invoice.paidUSD || 0;
+                    const totalAmount = invoice.totalAmount || 0;
                     const pendingAmount = Math.max(0, totalAmount - paidAmount);
                     
                     return (
@@ -310,13 +319,13 @@ Terms: ${invoice.terms || 'N/A'}
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="font-medium">{formatINR(totalAmount)}</div>
+                          <div className="font-medium">{formatCurrency(totalAmount)}</div>
                         </TableCell>
                         <TableCell>
-                          <div className="font-medium text-green-600">{formatINR(paidAmount)}</div>
+                          <div className="font-medium text-green-600">{formatCurrency(paidAmount)}</div>
                         </TableCell>
                         <TableCell>
-                          <div className="font-medium text-yellow-600">{formatINR(pendingAmount)}</div>
+                          <div className="font-medium text-yellow-600">{formatCurrency(pendingAmount)}</div>
                         </TableCell>
                         <TableCell>
                           <Badge className={getStatusColor(invoice.status || 'draft')}>
