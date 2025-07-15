@@ -1,4 +1,3 @@
-
 import { Timestamp } from 'firebase/firestore';
 
 export interface Company {
@@ -260,16 +259,11 @@ export interface Expense {
 export interface Employee {
   id: string;
   companyId: string;
-  userId: string; // Firebase Auth UID
   name: string;
   email: string;
   temporaryPassword?: string;
-  needsPasswordReset: boolean;
-  country?: string;
-  phoneCode?: string;
-  phoneNumber?: string;
-  status: 'active' | 'inactive' | 'not_verified';
+  status: 'active' | 'inactive';
   role: 'employee';
-  createdAt: any;
-  updatedAt: any;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
