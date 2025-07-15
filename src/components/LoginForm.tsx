@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Building, Mail, Lock } from 'lucide-react';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 const LoginForm = () => {
   const [email, setEmail] = useState('');
@@ -17,12 +19,46 @@ const LoginForm = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const checkEmployeePasswordReset = async (userEmail: string) => {
+    try {
+      const employeesRef = collection(db, 'employees');
+      const q = query(employeesRef, where('email', '==', userEmail));
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        const employeeDoc = querySnapshot.docs[0];
+        const employeeData = employeeDoc.data();
+        
+        if (employeeData.needsPasswordReset) {
+          return true;
+        }
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error checking employee password reset status:', error);
+      return false;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
       await login(email, password);
+      
+      // Check if employee needs password reset
+      const needsReset = await checkEmployeePasswordReset(email);
+      
+      if (needsReset) {
+        navigate('/password-reset');
+        toast({
+          title: 'Password Reset Required',
+          description: 'Please set a new password to continue.',
+        });
+        return;
+      }
       
       // Redirect based on role - removed client dashboard
       const roleRedirects = {

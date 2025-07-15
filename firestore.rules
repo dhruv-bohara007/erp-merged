@@ -8,6 +8,11 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
+    // Helper function to get employee data
+    function getEmployeeData() {
+      return get(/databases/$(database)/documents/employees/$(request.auth.uid)).data;
+    }
+
     // Helper function to check if user belongs to a company
     function belongsToCompany(companyId) {
       return getUserData().companyId == companyId;
@@ -26,6 +31,12 @@ service cloud.firestore {
         getUserData().role == 'super_admin';
     }
 
+    // Helper function to check if user is an employee
+    function isEmployee() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/employees/$(request.auth.uid));
+    }
+
     // USERS: each user can only access their own document
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
@@ -38,6 +49,9 @@ service cloud.firestore {
     match /companies/{companyId} {
       // Company admin can read/write their own company
       allow read, write: if isCompanyAdmin() && belongsToCompany(companyId);
+      
+      // Employees can read their company data
+      allow read: if isEmployee() && getEmployeeData().companyId == companyId;
       
       // Super admin can access all companies
       allow read, write: if isSuperAdmin();
@@ -58,6 +72,10 @@ service cloud.firestore {
       allow create: if isCompanyAdmin() &&
         request.resource.data.companyId == getUserData().companyId;
       
+      // Employees can read clients from their company
+      allow read: if isEmployee() && 
+        (resource == null || resource.data.companyId == getEmployeeData().companyId);
+      
       // Super admin has full access
       allow read, write: if isSuperAdmin();
     }
@@ -70,6 +88,10 @@ service cloud.firestore {
       allow create: if isCompanyAdmin() &&
         request.resource.data.companyId == getUserData().companyId;
       
+      // Employees can read invoices from their company
+      allow read: if isEmployee() && 
+        (resource == null || resource.data.companyId == getEmployeeData().companyId);
+      
       allow read, write: if isSuperAdmin();
     }
 
@@ -80,6 +102,10 @@ service cloud.firestore {
       
       allow create: if isCompanyAdmin() &&
         request.resource.data.companyId == getUserData().companyId;
+      
+      // Employees can read payments from their company
+      allow read: if isEmployee() && 
+        (resource == null || resource.data.companyId == getEmployeeData().companyId);
       
       allow read, write: if isSuperAdmin();
     }
@@ -92,6 +118,10 @@ service cloud.firestore {
       allow create: if isCompanyAdmin() &&
         request.resource.data.companyId == getUserData().companyId;
       
+      // Employees can read expenses from their company
+      allow read: if isEmployee() && 
+        (resource == null || resource.data.companyId == getEmployeeData().companyId);
+      
       allow read, write: if isSuperAdmin();
     }
 
@@ -102,6 +132,10 @@ service cloud.firestore {
       
       allow create: if isCompanyAdmin() &&
         request.resource.data.companyId == getUserData().companyId;
+      
+      // Employees can read purchases from their company
+      allow read: if isEmployee() && 
+        (resource == null || resource.data.companyId == getEmployeeData().companyId);
       
       allow read, write: if isSuperAdmin();
     }
@@ -114,6 +148,10 @@ service cloud.firestore {
       allow create: if isCompanyAdmin() &&
         request.resource.data.companyId == getUserData().companyId;
       
+      // Employees can read inventory from their company
+      allow read: if isEmployee() && 
+        (resource == null || resource.data.companyId == getEmployeeData().companyId);
+      
       allow read, write: if isSuperAdmin();
     }
 
@@ -124,6 +162,10 @@ service cloud.firestore {
       
       allow create: if isCompanyAdmin() &&
         request.resource.data.companyId == getUserData().companyId;
+      
+      // Employees can read TDS records from their company
+      allow read: if isEmployee() && 
+        (resource == null || resource.data.companyId == getEmployeeData().companyId);
       
       allow read, write: if isSuperAdmin();
     }
@@ -136,6 +178,10 @@ service cloud.firestore {
       allow create: if isCompanyAdmin() &&
         request.resource.data.companyId == getUserData().companyId;
       
+      // Employees can read suppliers from their company
+      allow read: if isEmployee() && 
+        (resource == null || resource.data.companyId == getEmployeeData().companyId);
+      
       allow read, write: if isSuperAdmin();
     }
 
@@ -146,6 +192,9 @@ service cloud.firestore {
       
       allow create: if isCompanyAdmin() &&
         request.resource.data.companyId == getUserData().companyId;
+      
+      // Employees can read and update their own document
+      allow read, update: if request.auth != null && request.auth.uid == employeeId;
       
       allow read, write: if isSuperAdmin();
     }

@@ -1,3 +1,4 @@
+
 import { Timestamp } from 'firebase/firestore';
 
 export interface Company {
@@ -261,7 +262,8 @@ export interface Employee {
   companyId: string;
   name: string;
   email: string;
-  temporaryPassword: string;
+  temporaryPassword?: string;
+  needsPasswordReset: boolean;
   country?: string;
   phoneCode?: string;
   phoneNumber?: string;

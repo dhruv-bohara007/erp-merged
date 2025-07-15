@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,6 +9,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import LoginForm from "@/components/LoginForm";
 import RegisterForm from "@/components/RegisterForm";
+import PasswordResetForm from "@/components/PasswordResetForm";
 import Index from "./pages/Index";
 import SuperDashboard from "./pages/SuperDashboard";
 import InvoiceForm from "./components/InvoiceForm";
@@ -56,6 +58,7 @@ const AuthenticatedApp = () => {
         {/* Public routes - Always accessible */}
         <Route path="/login" element={<LoginForm />} />
         <Route path="/register" element={<RegisterForm />} />
+        <Route path="/password-reset" element={<PasswordResetForm />} />
 
         {/* Company Setup Route - Only for authenticated company admins */}
         <Route path="/company-setup" element={

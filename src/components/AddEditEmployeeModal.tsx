@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, updateDoc, doc, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, doc, Timestamp, getDoc } from 'firebase/firestore';
 import { useAuth } from '@/contexts/AuthContext';
 import { Employee } from '@/types/firestore';
 import { countries } from '@/data/countries';
@@ -31,6 +31,7 @@ const AddEditEmployeeModal = ({ isOpen, onClose, employee, onEmployeeAdded }: Ad
     phoneNumber: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
   const { currentUser } = useAuth();
   const { toast } = useToast();
 
@@ -74,7 +75,47 @@ const AddEditEmployeeModal = ({ isOpen, onClose, employee, onEmployeeAdded }: Ad
     }));
   };
 
-  const handleSendEmail = () => {
+  const sendWelcomeEmail = async (employeeData: any, companyName: string) => {
+    try {
+      setIsSendingEmail(true);
+      
+      const response = await fetch('http://localhost:3001/api/send-welcome-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          employeeName: employeeData.name,
+          employeeEmail: employeeData.email,
+          temporaryPassword: employeeData.temporaryPassword,
+          companyName: companyName,
+          loginUrl: `${window.location.origin}/login`
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: 'Success',
+          description: 'Welcome email sent successfully',
+        });
+      } else {
+        throw new Error(result.message || 'Failed to send email');
+      }
+    } catch (error) {
+      console.error('Error sending email:', error);
+      toast({
+        title: 'Email Error',
+        description: 'Failed to send welcome email. Please check if the backend server is running.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
+  const handleSendEmail = async () => {
     if (!formData.name || !formData.email || !formData.temporaryPassword) {
       toast({
         title: 'Error',
@@ -84,11 +125,20 @@ const AddEditEmployeeModal = ({ isOpen, onClose, employee, onEmployeeAdded }: Ad
       return;
     }
 
-    const subject = encodeURIComponent('Your Employee Account Details');
-    const body = encodeURIComponent(
-      `Dear ${formData.name},\n\nYour employee account has been created:\n\nEmail: ${formData.email}\nTemporary Password: ${formData.temporaryPassword}\n\nPlease change your password after first login.\n\nBest regards,\nHR Team`
-    );
-    window.open(`mailto:${formData.email}?subject=${subject}&body=${body}`);
+    try {
+      // Get company name
+      let companyName = 'Your Company';
+      if (currentUser?.companyId) {
+        const companyDoc = await getDoc(doc(db, 'companies', currentUser.companyId));
+        if (companyDoc.exists()) {
+          companyName = companyDoc.data().name;
+        }
+      }
+
+      await sendWelcomeEmail(formData, companyName);
+    } catch (error) {
+      console.error('Error in handleSendEmail:', error);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -129,10 +179,11 @@ const AddEditEmployeeModal = ({ isOpen, onClose, employee, onEmployeeAdded }: Ad
         name: formData.name,
         email: formData.email,
         temporaryPassword: formData.temporaryPassword,
+        needsPasswordReset: true,
         country: formData.country,
         phoneCode: formData.phoneCode,
         phoneNumber: formData.phoneNumber,
-        status: employee ? employee.status : 'not_verified',
+        status: employee ? employee.status : 'active',
         role: 'employee',
         updatedAt: Timestamp.now(),
       };
@@ -148,9 +199,25 @@ const AddEditEmployeeModal = ({ isOpen, onClose, employee, onEmployeeAdded }: Ad
           ...employeeData,
           createdAt: Timestamp.now(),
         });
+        
+        // Send welcome email for new employees
+        try {
+          let companyName = 'Your Company';
+          if (currentUser?.companyId) {
+            const companyDoc = await getDoc(doc(db, 'companies', currentUser.companyId));
+            if (companyDoc.exists()) {
+              companyName = companyDoc.data().name;
+            }
+          }
+          await sendWelcomeEmail(employeeData, companyName);
+        } catch (emailError) {
+          console.error('Email sending failed:', emailError);
+          // Don't fail the employee creation if email fails
+        }
+
         toast({
           title: 'Success',
-          description: 'Employee added successfully',
+          description: 'Employee added successfully and welcome email sent',
         });
       }
       
@@ -263,10 +330,10 @@ const AddEditEmployeeModal = ({ isOpen, onClose, employee, onEmployeeAdded }: Ad
               type="button" 
               variant="outline" 
               onClick={handleSendEmail}
-              disabled={!formData.name || !formData.email || !formData.temporaryPassword}
+              disabled={!formData.name || !formData.email || !formData.temporaryPassword || isSendingEmail}
             >
               <Mail className="h-4 w-4 mr-2" />
-              Send Email
+              {isSendingEmail ? 'Sending...' : 'Send Email'}
             </Button>
           </div>
           
