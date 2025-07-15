@@ -70,7 +70,7 @@ const PaymentTable = ({ payments, onDeletePayment }: PaymentTableProps) => {
   const formatCurrency = (amount: number) => {
     const currency = companyData?.companyCurrency || 'USD';
     const symbol = getCurrencySymbol(currency);
-    return `${symbol}${amount.toLocaleString()}`;
+    return `${symbol}${amount.toFixed(2)}`;
   };
 
   // Calculate payment timing relative to due date
@@ -85,13 +85,13 @@ const PaymentTable = ({ payments, onDeletePayment }: PaymentTableProps) => {
     return `${Math.abs(diffDays)} days before due date`;
   };
 
-  // Group payments by invoice - Each payment is now a separate document, so we need to sum them
+  // Group payments by invoice and properly sum all payments
   const groupedPayments: GroupedPayment[] = payments.reduce((acc, payment) => {
     const existingGroup = acc.find(group => group.invoiceId === payment.invoiceId);
     
     if (existingGroup) {
-      // Accumulate the payment amounts from multiple payment documents
-      existingGroup.totalAmountPaid += Math.round(payment.originalPaymentAmount || 0);
+      // Sum all originalPaymentAmount values for the invoice
+      existingGroup.totalAmountPaid += (payment.originalPaymentAmount || 0);
       existingGroup.paymentIds.push(payment.id);
       
       // Update latest payment info if this payment is more recent
@@ -101,14 +101,14 @@ const PaymentTable = ({ payments, onDeletePayment }: PaymentTableProps) => {
         existingGroup.paymentTiming = getPaymentTiming(payment.paymentDate, payment.invoiceId, invoices.find(inv => inv.id === payment.invoiceId));
       }
       
-      // Recalculate status and pending amount based on total paid
+      // Recalculate pending amount based on total amount paid
       const invoice = invoices.find(inv => inv.id === payment.invoiceId);
       const companyAmount = invoice?.companyAmount || invoice?.totalAmount || 0;
       const pendingAmount = Math.max(0, companyAmount - existingGroup.totalAmountPaid);
       existingGroup.pendingAmountINR = pendingAmount;
       
-      // Update status
-      if (pendingAmount <= 0) {
+      // Update status based on total payments
+      if (pendingAmount <= 0.01) { // Using small threshold for floating point precision
         existingGroup.status = 'completed';
       } else if (existingGroup.totalAmountPaid > 0) {
         const dueDate = invoice?.dueDate || new Date();
@@ -121,12 +121,12 @@ const PaymentTable = ({ payments, onDeletePayment }: PaymentTableProps) => {
       // Create new group with the payment amount
       const invoice = invoices.find(inv => inv.id === payment.invoiceId);
       const companyAmount = invoice?.companyAmount || invoice?.totalAmount || 0;
-      const paidAmount = Math.round(payment.originalPaymentAmount || 0);
+      const paidAmount = payment.originalPaymentAmount || 0;
       const pendingAmount = Math.max(0, companyAmount - paidAmount);
       
       // Determine status based on pending amount and due date
       let status: string;
-      if (pendingAmount <= 0) {
+      if (pendingAmount <= 0.01) { // Using small threshold for floating point precision
         status = 'completed';
       } else if (paidAmount > 0) {
         // Check if overdue

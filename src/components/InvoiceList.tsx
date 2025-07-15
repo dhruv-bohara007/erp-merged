@@ -45,10 +45,10 @@ const InvoiceList = () => {
   const processedInvoices = invoices.map(invoice => {
     const paidAmount = invoice.paidUSD || 0;
     const totalAmount = invoice.totalAmount || 0;
-    const pendingAmount = Math.max(0, Math.round((totalAmount - paidAmount) * 100) / 100);
+    const pendingAmount = Math.max(0, totalAmount - paidAmount);
     
     // If pending amount is zero and status is not already "paid", update it
-    if (pendingAmount === 0 && invoice.status !== 'paid' && invoice.status !== 'draft') {
+    if (pendingAmount <= 0.01 && invoice.status !== 'paid' && invoice.status !== 'draft') {
       // Update the invoice status in Firestore
       updateInvoice(invoice.id, { status: 'paid' }).catch(console.error);
       return { ...invoice, status: 'paid' as const };
@@ -112,13 +112,13 @@ Due Date: ${invoice.dueDate?.toLocaleDateString()}
 
 Items:
 ${invoice.items?.map(item => 
-  `${item.description} - Qty: ${item.quantity} - Rate: ${companyCurrencyInfo.symbol}${item.rate} - Amount: ${companyCurrencyInfo.symbol}${item.amount}`
+  `${item.description} - Qty: ${item.quantity} - Rate: ${companyCurrencyInfo.symbol}${item.rate.toFixed(2)} - Amount: ${companyCurrencyInfo.symbol}${item.amount.toFixed(2)}`
 ).join('\n')}
 
-Subtotal: ${companyCurrencyInfo.symbol}${invoice.subtotal?.toLocaleString()}
-Total GST: ${companyCurrencyInfo.symbol}${invoice.totalGst?.toLocaleString()}
+Subtotal: ${companyCurrencyInfo.symbol}${(invoice.subtotal || 0).toFixed(2)}
+Total GST: ${companyCurrencyInfo.symbol}${(invoice.totalGst || 0).toFixed(2)}
 
-TOTAL AMOUNT: ${companyCurrencyInfo.symbol}${invoice.totalAmount?.toLocaleString()}
+TOTAL AMOUNT: ${companyCurrencyInfo.symbol}${(invoice.totalAmount || 0).toFixed(2)}
 
 Notes: ${invoice.notes || 'N/A'}
 Terms: ${invoice.terms || 'N/A'}
@@ -140,15 +140,15 @@ Terms: ${invoice.terms || 'N/A'}
     });
   };
 
-  // Calculate totals for filtered invoices using company currency (totalAmount and paidUSD)
-  const totalAmount = filteredInvoices.reduce((sum, invoice) => sum + Math.round(invoice.totalAmount || 0), 0);
-  const paidAmount = filteredInvoices.reduce((sum, invoice) => sum + Math.round(invoice.paidUSD || 0), 0);
-  const pendingAmount = filteredInvoices.reduce((sum, invoice) => sum + Math.round(Math.max(0, (invoice.totalAmount || 0) - (invoice.paidUSD || 0))), 0);
-  const overdueAmount = filteredInvoices.filter(inv => inv.status === 'overdue').reduce((sum, invoice) => sum + Math.round(Math.max(0, (invoice.totalAmount || 0) - (invoice.paidUSD || 0))), 0);
+  // Calculate totals for filtered invoices using company currency with proper decimal formatting
+  const totalAmount = filteredInvoices.reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
+  const paidAmount = filteredInvoices.reduce((sum, invoice) => sum + (invoice.paidUSD || 0), 0);
+  const pendingAmount = filteredInvoices.reduce((sum, invoice) => sum + Math.max(0, (invoice.totalAmount || 0) - (invoice.paidUSD || 0)), 0);
+  const overdueAmount = filteredInvoices.filter(inv => inv.status === 'overdue').reduce((sum, invoice) => sum + Math.max(0, (invoice.totalAmount || 0) - (invoice.paidUSD || 0)), 0);
 
-  // Format currency using company's currency
+  // Format currency using company's currency with consistent decimal places
   const formatCurrency = (amount: number) => {
-    return `${companyCurrencyInfo.symbol}${Math.round(amount).toLocaleString()}`;
+    return `${companyCurrencyInfo.symbol}${amount.toFixed(2)}`;
   };
 
   if (loading) {
