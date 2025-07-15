@@ -54,15 +54,34 @@ const Dashboard = () => {
     return `${symbol}${amount.toFixed(2)}`;
   };
 
-  // Calculate dashboard metrics using totalAmountINR
+  // Calculate dashboard metrics using payments data for consistency with Payment Management page
   const totalInvoices = invoices.length;
+  
+  // Total Received from payments (sum of all original payment amounts) - matches Payment Management
+  const totalReceived = payments.reduce((sum, payment) => sum + (payment.originalPaymentAmount || 0), 0);
+
+  // Calculate Pending from outstanding invoices minus payments made - matches Payment Management
+  const pendingAmount = invoices.reduce((total, invoice) => {
+    if (['draft', 'sent', 'overdue', 'pending'].includes(invoice.status)) {
+      const invoiceTotal = invoice.companyAmount || invoice.totalAmount || 0;
+      const invoicePayments = payments.filter(p => p.invoiceId === invoice.id);
+      const totalPaid = invoicePayments.reduce((sum, p) => sum + (p.originalPaymentAmount || 0), 0);
+      return total + Math.max(0, invoiceTotal - totalPaid);
+    }
+    return total;
+  }, 0);
+
+  // Calculate overdue amount using invoice status - matches Invoice Management
+  const overdueInvoices = invoices.filter(inv => inv.status === 'overdue');
+  const totalOverdueAmount = overdueInvoices.reduce((sum, inv) => {
+    const invoiceTotal = inv.companyAmount || inv.totalAmount || 0;
+    const invoicePayments = payments.filter(p => p.invoiceId === inv.id);
+    const totalPaid = invoicePayments.reduce((sum, p) => sum + (p.originalPaymentAmount || 0), 0);
+    return sum + Math.max(0, invoiceTotal - totalPaid);
+  }, 0);
+
   const paidInvoices = invoices.filter(inv => inv.status === 'paid');
   const unpaidInvoices = invoices.filter(inv => inv.status === 'sent' || inv.status === 'draft');
-  const overdueInvoices = invoices.filter(inv => inv.status === 'overdue');
-
-  const totalPaidAmount = paidInvoices.reduce((sum, inv) => sum + (inv.totalAmountINR || inv.totalAmount || 0), 0);
-  const totalUnpaidAmount = unpaidInvoices.reduce((sum, inv) => sum + (inv.totalAmountINR || inv.totalAmount || 0), 0);
-  const totalOverdueAmount = overdueInvoices.reduce((sum, inv) => sum + (inv.totalAmountINR || inv.totalAmount || 0), 0);
 
   // Status data for pie chart
   const statusData = [
@@ -71,7 +90,7 @@ const Dashboard = () => {
     { name: 'Overdue', value: overdueInvoices.length, color: '#EF4444' },
   ];
 
-  // Monthly revenue data (last 6 months) using totalAmountINR
+  // Monthly revenue data (last 6 months) using payments data in company currency
   const getMonthlyRevenue = () => {
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const last6Months = [];
@@ -81,13 +100,15 @@ const Dashboard = () => {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const monthYear = `${monthNames[date.getMonth()]}`;
       
-      const monthlyTotal = paidInvoices
-        .filter(inv => {
-          if (!inv.issueDate) return false;
-          const invDate = new Date(inv.issueDate);
-          return invDate.getMonth() === date.getMonth() && invDate.getFullYear() === date.getFullYear();
+      // Use payments data for more accurate revenue calculation
+      const monthlyTotal = payments
+        .filter(payment => {
+          if (!payment.paymentDate) return false;
+          const paymentDate = new Date(payment.paymentDate);
+          return paymentDate.getMonth() === date.getMonth() && 
+                 paymentDate.getFullYear() === date.getFullYear();
         })
-        .reduce((sum, inv) => sum + (inv.totalAmountINR || inv.totalAmount || 0), 0);
+        .reduce((sum, payment) => sum + (payment.originalPaymentAmount || 0), 0);
       
       last6Months.push({ month: monthYear, revenue: monthlyTotal });
     }
@@ -95,17 +116,17 @@ const Dashboard = () => {
     return last6Months;
   };
 
-  // Top clients by total invoice value using totalAmountINR
+  // Top clients by total paid amount using payments data in company currency
   const getTopClients = () => {
     const clientTotals = new Map();
     
-    invoices.forEach(invoice => {
-      if (!invoice.clientId || !invoice.clientName) return;
-      const invoiceAmount = invoice.totalAmountINR || invoice.totalAmount || 0;
+    payments.forEach(payment => {
+      if (!payment.clientId || !payment.clientName) return;
+      const paymentAmount = payment.originalPaymentAmount || 0;
       
-      const current = clientTotals.get(invoice.clientId) || { name: invoice.clientName, total: 0 };
-      current.total += invoiceAmount;
-      clientTotals.set(invoice.clientId, current);
+      const current = clientTotals.get(payment.clientId) || { name: payment.clientName, total: 0 };
+      current.total += paymentAmount;
+      clientTotals.set(payment.clientId, current);
     });
     
     return Array.from(clientTotals.values())
@@ -121,20 +142,20 @@ const Dashboard = () => {
     
     // Recent payments
     payments.slice(0, 2).forEach(payment => {
-      if (!payment.id || !payment.clientName || !payment.amount || !payment.createdAt) return;
+      if (!payment.id || !payment.clientName || !payment.originalPaymentAmount || !payment.createdAt) return;
       
       activities.push({
         id: `payment-${payment.id}`,
         type: 'payment',
         message: `Payment received from ${payment.clientName}`,
-        amount: `${getCurrencySymbol(companyData?.companyCurrency || 'USD')}${payment.amount.toLocaleString()}`,
+        amount: formatCurrency(payment.originalPaymentAmount),
         time: formatTimeAgo(payment.createdAt)
       });
     });
     
     // Recent invoices
     invoices.slice(0, 2).forEach(invoice => {
-      if (!invoice.id || !invoice.invoiceNumber || !invoice.totalAmount || !invoice.createdAt) return;
+      if (!invoice.id || !invoice.invoiceNumber || !invoice.companyAmount || !invoice.createdAt) return;
       
       activities.push({
         id: `invoice-${invoice.id}`,
@@ -142,7 +163,7 @@ const Dashboard = () => {
         message: invoice.status === 'overdue' 
           ? `Invoice ${invoice.invoiceNumber} is overdue`
           : `Invoice ${invoice.invoiceNumber} sent to ${invoice.clientName || 'Client'}`,
-        amount: `${getCurrencySymbol(companyData?.companyCurrency || 'USD')}${invoice.totalAmount.toLocaleString()}`,
+        amount: formatCurrency(invoice.companyAmount),
         time: formatTimeAgo(invoice.createdAt)
       });
     });
@@ -166,6 +187,18 @@ const Dashboard = () => {
   // Get the data by calling the functions
   const revenueData = getMonthlyRevenue();
   const recentActivities = getRecentActivities();
+
+  // Fix Y-axis formatting for revenue chart
+  const formatYAxisTick = (value: number) => {
+    const currency = companyData?.companyCurrency || 'USD';
+    const symbol = getCurrencySymbol(currency);
+    if (value >= 1000000) {
+      return `${symbol}${(value / 1000000).toFixed(1)}M`;
+    } else if (value >= 1000) {
+      return `${symbol}${(value / 1000).toFixed(0)}K`;
+    }
+    return `${symbol}${value}`;
+  };
 
   if (invoicesLoading || clientsLoading || paymentsLoading) {
     return (
@@ -224,7 +257,7 @@ const Dashboard = () => {
               <IndianRupee className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(totalPaidAmount)}</div>
+              <div className="text-2xl font-bold">{formatCurrency(totalReceived)}</div>
               <p className="text-xs text-gray-500">{paidInvoices.length} invoices paid</p>
             </CardContent>
           </Card>
@@ -235,7 +268,7 @@ const Dashboard = () => {
               <Calendar className="h-4 w-4 text-orange-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(totalUnpaidAmount)}</div>
+              <div className="text-2xl font-bold">{formatCurrency(pendingAmount)}</div>
               <p className="text-xs text-gray-500">{unpaidInvoices.length} invoices pending</p>
             </CardContent>
           </Card>
@@ -267,7 +300,7 @@ const Dashboard = () => {
                 <BarChart data={revenueData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
-                  <YAxis tickFormatter={(value) => `${getCurrencySymbol(companyData?.companyCurrency || 'USD')}${(value/100000).toFixed(0)}L`} />
+                  <YAxis tickFormatter={formatYAxisTick} />
                   <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Revenue']} />
                   <Bar dataKey="revenue" fill="#3B82F6" />
                 </BarChart>
@@ -415,7 +448,7 @@ const Dashboard = () => {
                 onClick={() => navigate('/settings')}
               >
                 <Settings className="w-6 h-6 mb-2" />
-                Settings
+                Company Profile
               </Button>
             </div>
           </CardContent>
