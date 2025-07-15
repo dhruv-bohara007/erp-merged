@@ -175,6 +175,54 @@ export interface TDSRecord {
   updatedAt: Timestamp;
 }
 
+export interface Supplier {
+  id: string;
+  companyId?: string;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  country: string;
+  taxInfo?: {
+    id: string;
+    type: string;
+  };
+  status: 'active' | 'inactive';
+  totalPurchases?: number;
+  totalAmount?: number;
+  outstandingAmount?: number;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface Purchase {
+  id: string;
+  companyId?: string;
+  supplierId?: string;
+  supplierName?: string;
+  itemName?: string;
+  productCategory?: string;
+  productName?: string;
+  productVersion?: string;
+  quantity?: number;
+  unit?: string;
+  pricePerUnit?: number;
+  discount?: string;
+  totalAmount?: number;
+  totalAmountINR?: number;
+  companyCurrency?: string;
+  exchangeRateUsed?: number;
+  purchaseDate?: Date;
+  status?: 'completed' | 'pending' | 'cancelled';
+  description?: string;
+  receipt?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface Expense {
   id: string;
   companyId?: string;

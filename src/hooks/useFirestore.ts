@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import type { Supplier, Purchase } from '@/types/firestore';
 
 export interface Invoice {
   id: string;
@@ -933,4 +934,99 @@ export const usePurchases = () => {
   };
 
   return { purchases, loading, error, addPurchase, updatePurchase, deletePurchase };
+};
+
+export const useSuppliers = () => {
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { currentUser } = useAuth();
+
+  useEffect(() => {
+    if (!currentUser?.companyId) {
+      setSuppliers([]);
+      setLoading(false);
+      return;
+    }
+
+    console.log('Setting up suppliers listener for company:', currentUser.companyId);
+    
+    const q = query(
+      collection(db, 'suppliers'), 
+      where('companyId', '==', currentUser.companyId)
+    );
+    
+    const unsubscribe = onSnapshot(q, 
+      (snapshot) => {
+        console.log('Suppliers snapshot received:', snapshot.docs.length, 'documents');
+        const supplierData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate(),
+          updatedAt: doc.data().updatedAt?.toDate(),
+        })) as Supplier[];
+        
+        // Sort in memory instead of using orderBy to avoid composite index
+        supplierData.sort((a, b) => {
+          const aTime = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
+          const bTime = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
+          return bTime - aTime;
+        });
+        
+        setSuppliers(supplierData);
+        setLoading(false);
+        setError(null);
+      },
+      (err) => {
+        console.error('Error fetching suppliers:', err);
+        setError(err.message);
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [currentUser?.companyId]);
+
+  const addSupplier = async (supplier: Omit<Supplier, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (!currentUser?.companyId) {
+      throw new Error('User company ID not found');
+    }
+
+    try {
+      const docRef = await addDoc(collection(db, 'suppliers'), {
+        ...supplier,
+        companyId: currentUser.companyId,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+      return docRef.id;
+    } catch (err) {
+      console.error('Error adding supplier:', err);
+      throw new Error(err instanceof Error ? err.message : 'Failed to add supplier');
+    }
+  };
+
+  const updateSupplier = async (id: string, updates: Partial<Supplier>) => {
+    try {
+      const docRef = doc(db, 'suppliers', id);
+      await updateDoc(docRef, {
+        ...updates,
+        updatedAt: Timestamp.now(),
+      });
+    } catch (err) {
+      console.error('Error updating supplier:', err);
+      throw new Error(err instanceof Error ? err.message : 'Failed to update supplier');
+    }
+  };
+
+  const deleteSupplier = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'suppliers', id));
+    } catch (err) {
+      console.error('Error deleting supplier:', err);
+      throw new Error(err instanceof Error ? err.message : 'Failed to delete supplier');
+    }
+  };
+
+  return { suppliers, loading, error, addSupplier, updateSupplier, deleteSupplier };
 };

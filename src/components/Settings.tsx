@@ -39,6 +39,14 @@ const Settings = () => {
   const [invoiceFormData, setInvoiceFormData] = useState<InvoiceSettings | null>(null);
   const [selectedCountryInfo, setSelectedCountryInfo] = useState<CountryTaxInfo | null>(null);
 
+  // Smooth scrolling to company profile
+  const scrollToCompanyProfile = () => {
+    const element = document.getElementById('company-profile');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   // Notification settings
   const [notifications, setNotifications] = useState({
     emailReminders: true,
@@ -213,7 +221,7 @@ const Settings = () => {
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
-        <div>
+        <div id="company-profile">
           <h1 className="text-3xl font-bold text-gray-900">Company Profile</h1>
           <p className="text-gray-600 mt-2">Manage your company profile and application preferences</p>
         </div>

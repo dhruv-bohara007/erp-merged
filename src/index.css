@@ -98,6 +98,22 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Fixed positioning for header elements */
+  .fixed-header {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 1000;
+    background: var(--background);
+    border-bottom: 1px solid var(--border);
+    padding: 1rem;
+  }
+
   /* Dark theme specific overrides for better text visibility */
   .dark {
     /* Ensure all text labels are white in dark mode */

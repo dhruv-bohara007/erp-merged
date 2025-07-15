@@ -34,6 +34,7 @@ const AdminNavigation = () => {
     { to: '/admin-dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/invoices', icon: FileText, label: 'Invoices' },
     { to: '/clients', icon: Users, label: 'Clients' },
+    { to: '/suppliers', icon: Building, label: 'Suppliers' },
     { to: '/payments', icon: DollarSign, label: 'Payments' },
     { to: '/purchases', icon: ShoppingCart, label: 'Purchases' },
     { to: '/inventory', icon: Package, label: 'Products' },

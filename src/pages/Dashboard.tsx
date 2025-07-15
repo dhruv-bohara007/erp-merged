@@ -445,7 +445,16 @@ const Dashboard = () => {
               <Button 
                 variant="outline" 
                 className="h-20 flex-col"
-                onClick={() => navigate('/settings')}
+                onClick={() => {
+                  navigate('/settings');
+                  // Scroll to company profile section after navigation
+                  setTimeout(() => {
+                    const element = document.getElementById('company-profile');
+                    if (element) {
+                      element.scrollIntoView({ behavior: 'smooth' });
+                    }
+                  }, 100);
+                }}
               >
                 <Settings className="w-6 h-6 mb-2" />
                 Company Profile
