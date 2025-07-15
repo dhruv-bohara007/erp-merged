@@ -20,7 +20,8 @@ import {
   Package,
   TrendingUp,
   Moon,
-  Sun
+  Sun,
+  UserCheck
 } from 'lucide-react';
 
 const AdminNavigation = () => {
@@ -35,6 +36,7 @@ const AdminNavigation = () => {
     { to: '/invoices', icon: FileText, label: 'Invoices' },
     { to: '/clients', icon: Users, label: 'Clients' },
     { to: '/suppliers', icon: Building, label: 'Suppliers' },
+    { to: '/employees', icon: UserCheck, label: 'Employees' },
     { to: '/payments', icon: DollarSign, label: 'Payments' },
     { to: '/purchases', icon: ShoppingCart, label: 'Purchases' },
     { to: '/inventory', icon: Package, label: 'Products' },
@@ -67,14 +69,15 @@ const AdminNavigation = () => {
     <>
       {/* Desktop Sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex flex-col flex-grow bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 pt-5 pb-4 overflow-y-auto">
+        <div className="flex flex-col flex-grow bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 pt-5 pb-4">
           <div className="flex items-center flex-shrink-0 px-4">
             <Building className="h-8 w-8 text-blue-600 dark:text-blue-400" />
             <span className="ml-2 text-xl font-semibold text-gray-900 dark:text-white">InvoiceApp</span>
           </div>
           
           <div className="mt-8 flex-1 flex flex-col">
-            <nav className="flex-1 px-2 space-y-1">
+            {/* Scrollable Navigation */}
+            <nav className="flex-1 px-2 space-y-1 overflow-y-auto max-h-[calc(100vh-300px)]">
               {navItems.map((item) => (
                 <NavLink
                   key={item.to}
@@ -97,8 +100,8 @@ const AdminNavigation = () => {
               ))}
             </nav>
             
-            {/* Theme Toggle */}
-            <div className="px-2 mb-4">
+            {/* Fixed Theme Toggle */}
+            <div className="flex-shrink-0 px-2 mb-4">
               <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <div className="flex items-center space-x-2">
                   {theme === 'light' ? (
@@ -117,7 +120,7 @@ const AdminNavigation = () => {
               </div>
             </div>
             
-            {/* User Info and Logout */}
+            {/* Fixed User Info and Logout */}
             <div className="flex-shrink-0 px-2 pb-4">
               <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 mb-3">
                 <p className="text-xs text-gray-500 dark:text-gray-400">Logged in as:</p>
@@ -170,7 +173,7 @@ const AdminNavigation = () => {
         {/* Mobile menu */}
         {isMobileMenuOpen && (
           <div className="lg:hidden">
-            <div className="pt-2 pb-3 space-y-1 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+            <div className="pt-2 pb-3 space-y-1 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 max-h-[calc(100vh-200px)] overflow-y-auto">
               {navItems.map((item) => (
                 <NavLink
                   key={item.to}
@@ -193,8 +196,8 @@ const AdminNavigation = () => {
                 </NavLink>
               ))}
               
-              {/* Mobile Theme Toggle */}
-              <div className="px-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              {/* Fixed Mobile Theme Toggle */}
+              <div className="px-4 pt-4 border-t border-gray-200 dark:border-gray-700 sticky bottom-0 bg-white dark:bg-gray-900">
                 <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg mb-3">
                   <div className="flex items-center space-x-2">
                     {theme === 'light' ? (
