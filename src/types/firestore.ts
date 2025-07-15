@@ -260,6 +260,7 @@ export interface Expense {
 export interface Employee {
   id: string;
   companyId: string;
+  userId: string; // Firebase Auth UID
   name: string;
   email: string;
   temporaryPassword?: string;

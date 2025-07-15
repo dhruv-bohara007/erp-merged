@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -5,8 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import { collection, addDoc, updateDoc, doc, Timestamp, getDoc } from 'firebase/firestore';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { useAuth } from '@/contexts/AuthContext';
 import { Employee } from '@/types/firestore';
 import { countries } from '@/data/countries';
@@ -78,7 +80,6 @@ const AddEditEmployeeModal = ({ isOpen, onClose, employee, onEmployeeAdded }: Ad
     try {
       setIsSendingEmail(true);
 
-      // Construct the payload and log it before sending
       const payload = {
         employeeName: employeeData.name,
         employeeEmail: employeeData.email,
@@ -86,7 +87,7 @@ const AddEditEmployeeModal = ({ isOpen, onClose, employee, onEmployeeAdded }: Ad
         companyName: companyName,
         loginUrl: `${window.location.origin}/login`
       };
-      console.log('Frontend: Sending email payload:', payload); // IMPORTANT: Check this in your browser console
+      console.log('Frontend: Sending email payload:', payload);
 
       const response = await fetch('http://localhost:3001/api/send-welcome-email', {
         method: 'POST',
@@ -104,7 +105,6 @@ const AddEditEmployeeModal = ({ isOpen, onClose, employee, onEmployeeAdded }: Ad
           description: 'Welcome email sent successfully',
         });
       } else {
-        // Log the full error response from the backend
         console.error('Frontend: Backend error response:', result);
         throw new Error(result.message || 'Failed to send email (backend reported error)');
       }
@@ -131,33 +131,21 @@ const AddEditEmployeeModal = ({ isOpen, onClose, employee, onEmployeeAdded }: Ad
     }
 
     try {
-      let companyName = 'Your Company'; // Default company name
+      let companyName = 'Your Company';
       if (currentUser?.companyId) {
         const companyDoc = await getDoc(doc(db, 'companies', currentUser.companyId));
         if (companyDoc.exists()) {
           const data = companyDoc.data();
-          // Ensure company name exists and is not an empty string
           if (data && typeof data.name === 'string' && data.name.trim() !== '') {
             companyName = data.name;
           }
         }
       }
 
-      const loginUrl = `${window.location.origin}/login`;
-
-      // Final validation before calling sendWelcomeEmail
-      if (!companyName.trim()) { // Check if companyName is truly empty or just whitespace
+      if (!companyName.trim()) {
         toast({
           title: 'Error',
           description: 'Company name could not be determined. Cannot send email.',
-          variant: 'destructive',
-        });
-        return;
-      }
-      if (!loginUrl.trim()) { // Check if loginUrl is truly empty or just whitespace (highly unlikely)
-        toast({
-          title: 'Error',
-          description: 'Login URL could not be determined. Cannot send email.',
           variant: 'destructive',
         });
         return;
@@ -202,8 +190,28 @@ const AddEditEmployeeModal = ({ isOpen, onClose, employee, onEmployeeAdded }: Ad
         return;
       }
 
+      let userId = employee?.userId;
+
+      // Create Firebase Auth account for new employees
+      if (!employee) {
+        try {
+          const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.temporaryPassword);
+          userId = userCredential.user.uid;
+          console.log('Created Firebase Auth account for employee:', userId);
+        } catch (authError) {
+          console.error('Error creating Firebase Auth account:', authError);
+          toast({
+            title: 'Error',
+            description: 'Failed to create employee account. Please try again.',
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+
       const employeeData = {
         companyId: currentUser.companyId,
+        userId: userId,
         name: formData.name,
         email: formData.email,
         temporaryPassword: formData.temporaryPassword,
@@ -243,11 +251,9 @@ const AddEditEmployeeModal = ({ isOpen, onClose, employee, onEmployeeAdded }: Ad
           await sendWelcomeEmail(employeeData, companyName);
         } catch (emailError) {
           console.error('Frontend: Email sending failed during employee creation:', emailError);
-          // Don't fail the employee creation if email fails, but log it
           toast({
-            title: 'Email Send Warning',
+            title: 'Warning',
             description: 'Employee added, but failed to send welcome email. Please try sending manually.',
-            variant: 'warning',
           });
         }
 

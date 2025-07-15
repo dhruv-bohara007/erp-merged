@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { 
   User,
@@ -6,10 +7,10 @@ import {
   signOut,
   onAuthStateChanged
 } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 
-export type UserRole = 'company_admin' | 'super_admin';
+export type UserRole = 'company_admin' | 'super_admin' | 'employee';
 
 export interface AuthUser extends User {
   role?: UserRole;
@@ -42,18 +43,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserData = async (user: User) => {
     try {
+      // First check if user is in users collection (admin)
       const userDoc = await getDoc(doc(db, 'users', user.uid));
-      const userData = userDoc.data();
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        return {
+          ...user,
+          role: userData?.role || 'company_admin',
+          companyId: userData?.companyId,
+          hasCompletedSetup: userData?.hasCompletedSetup || false
+        };
+      }
+
+      // If not in users, check employees collection
+      const employeesRef = collection(db, 'employees');
+      const q = query(employeesRef, where('userId', '==', user.uid));
+      const querySnapshot = await getDocs(q);
       
+      if (!querySnapshot.empty) {
+        const employeeDoc = querySnapshot.docs[0];
+        const employeeData = employeeDoc.data();
+        return {
+          ...user,
+          role: 'employee' as UserRole,
+          companyId: employeeData?.companyId,
+          hasCompletedSetup: true // Employees don't need company setup
+        };
+      }
+
+      // Default fallback for users not found in either collection
       return {
         ...user,
-        role: userData?.role || 'company_admin',
-        companyId: userData?.companyId,
-        hasCompletedSetup: userData?.hasCompletedSetup || false
+        role: 'company_admin' as UserRole,
+        hasCompletedSetup: false
       };
     } catch (error) {
       console.log('Error fetching user data:', error);
-      // Return user with default values if Firestore fails
       return {
         ...user,
         role: 'company_admin' as UserRole,

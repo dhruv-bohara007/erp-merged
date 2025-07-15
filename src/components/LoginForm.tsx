@@ -60,14 +60,15 @@ const LoginForm = () => {
         return;
       }
       
-      // Redirect based on role - removed client dashboard
+      // Redirect based on role
       const roleRedirects = {
         company_admin: '/admin-dashboard',
-        super_admin: '/super-dashboard'
+        super_admin: '/super-dashboard',
+        employee: '/employee-dashboard'
       };
       
       const userRole = currentUser?.role || 'company_admin';
-      navigate(roleRedirects[userRole]);
+      navigate(roleRedirects[userRole] || '/admin-dashboard');
       
       toast({
         title: 'Login Successful',
