@@ -15,8 +15,7 @@ import {
   BarChart3
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { useOptimizedInvoices } from '@/hooks/useOptimizedFirestore';
-import { useClients, usePayments } from '@/hooks/useFirestore';
+import { useInvoices, useClients, usePayments } from '@/hooks/useFirestore';
 import { useCompanyData } from '@/hooks/useCompanyData';
 import ReportsMetrics from './ReportsMetrics';
 
@@ -24,7 +23,7 @@ const Reports = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [selectedYear, setSelectedYear] = useState('2024');
 
-  const { invoices, loading: invoicesLoading } = useOptimizedInvoices();
+  const { invoices, loading: invoicesLoading } = useInvoices();
   const { clients, loading: clientsLoading } = useClients();
   const { payments, loading: paymentsLoading } = usePayments();
   const { companyData } = useCompanyData();

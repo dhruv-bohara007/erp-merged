@@ -934,5 +934,3 @@ export const usePurchases = () => {
 
   return { purchases, loading, error, addPurchase, updatePurchase, deletePurchase };
 };
-
-export { useSuppliers } from './useSuppliers';

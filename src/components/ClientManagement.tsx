@@ -125,8 +125,8 @@ const ClientManagement = () => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: companyCurrency.code,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
     }).format(amount);
   };
 
@@ -160,13 +160,13 @@ const ClientManagement = () => {
     return client.gstin || 'N/A';
   };
 
-  // Calculate client-specific metrics from invoices using totalAmountINR consistently
+  // Calculate client-specific metrics from invoices
   const getClientMetrics = (clientId: string) => {
     const clientInvoices = invoices.filter(invoice => invoice.clientId === clientId);
-    const totalAmount = clientInvoices.reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
+    const totalAmount = clientInvoices.reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
     const outstandingAmount = clientInvoices
       .filter(invoice => invoice.status === 'sent' || invoice.status === 'draft' || invoice.status === 'overdue')
-      .reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
+      .reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
     
     return {
       invoiceCount: clientInvoices.length,
@@ -175,14 +175,14 @@ const ClientManagement = () => {
     };
   };
 
-  // Calculate dynamic metrics from Firestore data using totalAmountINR consistently
+  // Calculate dynamic metrics from Firestore data
   const calculateClientMetrics = () => {
     const totalRevenue = invoices
-      .reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
+      .reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
 
     const outstandingAmount = invoices
       .filter(invoice => invoice.status === 'sent' || invoice.status === 'draft' || invoice.status === 'overdue')
-      .reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
+      .reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
 
     return { totalRevenue, outstandingAmount };
   };
