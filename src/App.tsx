@@ -10,7 +10,6 @@ import LoginForm from "@/components/LoginForm";
 import RegisterForm from "@/components/RegisterForm";
 import Index from "./pages/Index";
 import SuperDashboard from "./pages/SuperDashboard";
-import LandingPage from "./pages/LandingPage";
 import InvoiceForm from "./components/InvoiceForm";
 import InvoiceList from "./components/InvoiceList";
 import ClientManagement from "./components/ClientManagement";
@@ -52,9 +51,6 @@ const AuthenticatedApp = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Routes>
-        {/* Landing Page - Public */}
-        <Route path="/landing" element={<LandingPage />} />
-
         {/* Public routes - Always accessible */}
         <Route path="/login" element={<LoginForm />} />
         <Route path="/register" element={<RegisterForm />} />
@@ -254,8 +250,8 @@ const AuthenticatedApp = () => {
           </ProtectedRoute>
         } />
 
-        {/* Root redirect - Go to landing page first */}
-        <Route path="/" element={<Navigate to="/landing" replace />} />
+        {/* Root redirect - Always go to login first */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
 
         {/* 404 page */}
         <Route path="*" element={<NotFound />} />
