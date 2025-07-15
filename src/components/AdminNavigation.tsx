@@ -20,7 +20,8 @@ import {
   Package,
   TrendingUp,
   Moon,
-  Sun
+  Sun,
+  UserCheck
 } from 'lucide-react';
 
 const AdminNavigation = () => {
@@ -34,6 +35,7 @@ const AdminNavigation = () => {
     { to: '/admin-dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/invoices', icon: FileText, label: 'Invoices' },
     { to: '/clients', icon: Users, label: 'Clients' },
+    { to: '/employees', icon: UserCheck, label: 'Employees' },
     { to: '/suppliers', icon: Building, label: 'Suppliers' },
     { to: '/payments', icon: DollarSign, label: 'Payments' },
     { to: '/purchases', icon: ShoppingCart, label: 'Purchases' },
@@ -74,7 +76,7 @@ const AdminNavigation = () => {
           </div>
           
           <div className="mt-8 flex-1 flex flex-col">
-            <nav className="flex-1 px-2 space-y-1">
+            <nav className="flex-1 px-2 space-y-1 overflow-y-auto max-h-[calc(100vh-400px)]">
               {navItems.map((item) => (
                 <NavLink
                   key={item.to}

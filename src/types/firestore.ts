@@ -255,3 +255,15 @@ export interface Expense {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export interface Employee {
+  id: string;
+  companyId: string;
+  name: string;
+  email: string;
+  temporaryPassword: string;
+  status: 'active' | 'inactive';
+  role: 'employee';
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}

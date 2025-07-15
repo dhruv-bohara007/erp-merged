@@ -26,6 +26,7 @@ import CompanySignupForm from "./components/CompanySignupForm";
 import PurchaseManagement from "./components/PurchaseManagement";
 import PurchaseForm from "./components/PurchaseForm";
 import PaymentSyncProvider from "./components/PaymentSyncProvider";
+import EmployeeManagement from "./components/EmployeeManagement";
 
 const queryClient = new QueryClient();
 
@@ -138,6 +139,21 @@ const AuthenticatedApp = () => {
                 <AdminNavigation />
                 <div className="lg:pl-64">
                   <ClientManagement />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+
+        <Route path="/employees" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <EmployeeManagement />
                 </div>
               </div>
             ) : (
