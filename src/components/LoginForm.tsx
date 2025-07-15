@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -10,6 +9,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Building, Mail, Lock } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 const LoginForm = () => {
   const [email, setEmail] = useState('');
@@ -19,7 +20,7 @@ const LoginForm = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const checkEmployeePasswordReset = async (userEmail: string) => {
+  const checkEmployeeTemporaryLogin = async (userEmail: string, userPassword: string) => {
     try {
       const employeesRef = collection(db, 'employees');
       const q = query(employeesRef, where('email', '==', userEmail));
@@ -29,15 +30,16 @@ const LoginForm = () => {
         const employeeDoc = querySnapshot.docs[0];
         const employeeData = employeeDoc.data();
         
-        if (employeeData.needsPasswordReset) {
-          return true;
+        // Check if this is a temporary password login
+        if (employeeData.temporaryPassword === userPassword && employeeData.needsPasswordReset && employeeData.userId) {
+          return employeeData;
         }
       }
       
-      return false;
+      return null;
     } catch (error) {
-      console.error('Error checking employee password reset status:', error);
-      return false;
+      console.error('Error checking employee temporary login:', error);
+      return null;
     }
   };
 
@@ -46,12 +48,13 @@ const LoginForm = () => {
     setLoading(true);
 
     try {
+      // First try normal login
       await login(email, password);
       
       // Check if employee needs password reset
-      const needsReset = await checkEmployeePasswordReset(email);
+      const userRole = currentUser?.role || 'company_admin';
       
-      if (needsReset) {
+      if (currentUser?.needsPasswordReset) {
         navigate('/password-reset');
         toast({
           title: 'Password Reset Required',
@@ -67,17 +70,38 @@ const LoginForm = () => {
         employee: '/employee-dashboard'
       };
       
-      const userRole = currentUser?.role || 'company_admin';
       navigate(roleRedirects[userRole] || '/admin-dashboard');
       
       toast({
         title: 'Login Successful',
         description: 'Welcome back!',
       });
-    } catch (error) {
+    } catch (error: any) {
+      // Handle temporary password login for employees
+      if (error.message === 'TEMP_PASSWORD_LOGIN' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        const employeeData = await checkEmployeeTemporaryLogin(email, password);
+        
+        if (employeeData && employeeData.userId) {
+          try {
+            // Try to sign in with the employee's Firebase Auth account using the temporary password
+            // Since the account was created with the temporary password, this should work
+            await signInWithEmailAndPassword(auth, email, password);
+            
+            navigate('/password-reset');
+            toast({
+              title: 'First Time Login',
+              description: 'Please set a new password to continue.',
+            });
+            return;
+          } catch (tempLoginError) {
+            console.error('Temporary login failed:', tempLoginError);
+          }
+        }
+      }
+      
       toast({
         title: 'Login Failed',
-        description: error instanceof Error ? error.message : 'An error occurred during login',
+        description: error instanceof Error ? error.message : 'Invalid email or password',
         variant: 'destructive',
       });
     } finally {

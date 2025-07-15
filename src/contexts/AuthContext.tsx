@@ -5,9 +5,10 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  updatePassword
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 
 export type UserRole = 'company_admin' | 'super_admin' | 'employee';
@@ -16,6 +17,7 @@ export interface AuthUser extends User {
   role?: UserRole;
   companyId?: string;
   hasCompletedSetup?: boolean;
+  needsPasswordReset?: boolean;
 }
 
 interface AuthContextType {
@@ -25,6 +27,7 @@ interface AuthContextType {
   register: (email: string, password: string, role?: UserRole) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateEmployeePassword: (newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -51,7 +54,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ...user,
           role: userData?.role || 'company_admin',
           companyId: userData?.companyId,
-          hasCompletedSetup: userData?.hasCompletedSetup || false
+          hasCompletedSetup: userData?.hasCompletedSetup || false,
+          needsPasswordReset: userData?.needsPasswordReset || false
         };
       }
 
@@ -67,7 +71,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ...user,
           role: 'employee' as UserRole,
           companyId: employeeData?.companyId,
-          hasCompletedSetup: true // Employees don't need company setup
+          hasCompletedSetup: true,
+          needsPasswordReset: employeeData?.needsPasswordReset || false
         };
       }
 
@@ -75,22 +80,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return {
         ...user,
         role: 'company_admin' as UserRole,
-        hasCompletedSetup: false
+        hasCompletedSetup: false,
+        needsPasswordReset: false
       };
     } catch (error) {
       console.log('Error fetching user data:', error);
       return {
         ...user,
         role: 'company_admin' as UserRole,
-        hasCompletedSetup: false
+        hasCompletedSetup: false,
+        needsPasswordReset: false
       };
     }
   };
 
   const login = async (email: string, password: string) => {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const authUser = await fetchUserData(userCredential.user);
-    setCurrentUser(authUser);
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const authUser = await fetchUserData(userCredential.user);
+      setCurrentUser(authUser);
+    } catch (error: any) {
+      // If login fails, check if it's an employee with temporary password
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        // Check if there's an employee with this email and a temporary password
+        const employeesRef = collection(db, 'employees');
+        const q = query(employeesRef, where('email', '==', email));
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) {
+          const employeeDoc = querySnapshot.docs[0];
+          const employeeData = employeeDoc.data();
+          
+          if (employeeData.temporaryPassword === password && employeeData.needsPasswordReset) {
+            // This is a valid temporary password login
+            // We need to sign in using the Firebase Auth account we created
+            throw new Error('TEMP_PASSWORD_LOGIN');
+          }
+        }
+      }
+      throw error;
+    }
   };
 
   const register = async (email: string, password: string, role: UserRole = 'company_admin') => {
@@ -111,10 +140,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const authUser: AuthUser = {
       ...userCredential.user,
       role: role,
-      hasCompletedSetup: false
+      hasCompletedSetup: false,
+      needsPasswordReset: false
     };
     
     setCurrentUser(authUser);
+  };
+
+  const updateEmployeePassword = async (newPassword: string) => {
+    if (!auth.currentUser) {
+      throw new Error('No authenticated user');
+    }
+
+    // Update Firebase Auth password
+    await updatePassword(auth.currentUser, newPassword);
+
+    // Update employee document in Firestore
+    const employeesRef = collection(db, 'employees');
+    const q = query(employeesRef, where('userId', '==', auth.currentUser.uid));
+    const querySnapshot = await getDocs(q);
+    
+    if (!querySnapshot.empty) {
+      const employeeDoc = querySnapshot.docs[0];
+      await updateDoc(employeeDoc.ref, {
+        needsPasswordReset: false,
+        temporaryPassword: null,
+        updatedAt: new Date().toISOString()
+      });
+    }
+
+    // Refresh user data
+    await refreshUser();
   };
 
   const refreshUser = async () => {
@@ -149,7 +205,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     login,
     register,
     logout,
-    refreshUser
+    refreshUser,
+    updateEmployeePassword
   };
 
   return (
