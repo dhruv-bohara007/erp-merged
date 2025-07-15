@@ -107,8 +107,8 @@ Invoice Number: ${invoice.invoiceNumber}
 Client: ${invoice.clientName}
 Email: ${invoice.clientEmail}
 
-Issue Date: ${invoice.issueDate?.toDate ? invoice.issueDate.toDate().toLocaleDateString() : 'N/A'}
-Due Date: ${invoice.dueDate?.toDate ? invoice.dueDate.toDate().toLocaleDateString() : 'N/A'}
+Issue Date: ${invoice.issueDate?.toLocaleDateString()}
+Due Date: ${invoice.dueDate?.toLocaleDateString()}
 
 Items:
 ${invoice.items?.map(item => 
@@ -116,9 +116,9 @@ ${invoice.items?.map(item =>
 ).join('\n')}
 
 Subtotal: ${companyCurrencyInfo.symbol}${(invoice.subtotal || 0).toFixed(2)}
-Total GST: ${companyCurrencyInfo.symbol}${(invoice.totalGST || 0).toFixed(2)}
+Total GST: ${companyCurrencyInfo.symbol}${(invoice.totalGst || 0).toFixed(2)}
 
-TOTAL AMOUNT: ${companyCurrencyInfo.symbol}${(invoice.total || 0).toFixed(2)}
+TOTAL AMOUNT: ${companyCurrencyInfo.symbol}${(invoice.totalAmount || 0).toFixed(2)}
 
 Notes: ${invoice.notes || 'N/A'}
 Terms: ${invoice.terms || 'N/A'}

@@ -54,7 +54,7 @@ const PaymentSummaryCards = ({ payments }: PaymentSummaryCardsProps) => {
   // Calculate this month's revenue from payments (current month) - use originalPaymentAmount
   const thisMonthRevenue = payments.filter(payment => {
     if (!payment.paymentDate) return false;
-    const paymentDate = payment.paymentDate?.toDate ? payment.paymentDate.toDate() : new Date();
+    const paymentDate = new Date(payment.paymentDate);
     const currentDate = new Date();
     return paymentDate.getMonth() === currentDate.getMonth() && 
            paymentDate.getFullYear() === currentDate.getFullYear();

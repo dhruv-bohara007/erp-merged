@@ -80,7 +80,7 @@ const PaymentHistoryModal = ({
                     <TableCell>
                       <div className="flex items-center text-sm">
                         <Calendar className="w-3 h-3 mr-1 text-gray-400" />
-                        {payment.paymentDate?.toDate ? payment.paymentDate.toDate().toLocaleDateString() : 'N/A'}
+                        {payment.paymentDate.toLocaleDateString()}
                       </div>
                     </TableCell>
                     <TableCell>

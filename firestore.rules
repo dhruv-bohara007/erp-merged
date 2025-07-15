@@ -138,16 +138,5 @@ service cloud.firestore {
       
       allow read, write: if isSuperAdmin();
     }
-
-    // EMPLOYEES: only accessible by users from the same company
-    match /employees/{employeeId} {
-      allow read, write: if isCompanyAdmin() && 
-        (resource == null || resource.data.companyId == getUserData().companyId);
-      
-      allow create: if isCompanyAdmin() &&
-        request.resource.data.companyId == getUserData().companyId;
-      
-      allow read, write: if isSuperAdmin();
-    }
   }
 }
