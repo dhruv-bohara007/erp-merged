@@ -82,12 +82,12 @@ Address: ${companyData.streetAddress}, ${companyData.city}, ${companyData.countr
 Phone: ${companyData.phone}
 Email: ${companyData.email}` : `Company: ${invoice.companyName || 'N/A'}`;
 
-    const bankInfo = invoice.bankInfo || companyData?.bankInfo ? `
+    const bankInfo = invoice.companyBankDetails || companyData?.bankInfo ? `
 Bank Information:
-${invoice.bankInfo ? `
-Bank Name: ${(invoice.bankInfo as any).bankName || 'N/A'}
-Account Number: ${(invoice.bankInfo as any).accountNumber || 'N/A'}
-Routing Code: ${(invoice.bankInfo as any).routingCode || (invoice.bankInfo as any).ifscCode || 'N/A'}` : ''}
+${invoice.companyBankDetails ? `
+Bank Name: ${invoice.companyBankDetails.bankName || 'N/A'}
+Account Number: ${invoice.companyBankDetails.accountNumber || 'N/A'}
+Routing Code: ${invoice.companyBankDetails.ifscCode || 'N/A'}` : ''}
 ${companyData?.bankInfo ? `
 Bank Name: ${(companyData.bankInfo as any).bankName || 'N/A'}
 Account Number: ${(companyData.bankInfo as any).accountNumber || 'N/A'}
@@ -115,8 +115,8 @@ Address: ${invoice.clientAddress || clientData?.address || 'N/A'}
 ${clientData?.phone ? `Phone: ${clientData.phone}` : ''}
 
 Dates:
-Issue Date: ${invoice.issueDate?.toLocaleDateString() || 'N/A'}
-Due Date: ${invoice.dueDate?.toLocaleDateString() || 'N/A'}
+Issue Date: ${invoice.issueDate?.toDate ? invoice.issueDate.toDate().toLocaleDateString() : 'N/A'}
+Due Date: ${invoice.dueDate?.toDate ? invoice.dueDate.toDate().toLocaleDateString() : 'N/A'}
 
 ═══════════════════════════════════════
                 ITEMS
@@ -134,12 +134,12 @@ ${invoice.items?.map((item, index) =>
 ═══════════════════════════════════════
 
 Subtotal: ${(invoice.subtotal || 0).toLocaleString()}
-${(invoice.cgst || 0) > 0 ? `CGST: ${invoice.cgst?.toLocaleString()}` : ''}
-${(invoice.sgst || 0) > 0 ? `SGST: ${invoice.sgst?.toLocaleString()}` : ''}
-${(invoice.igst || 0) > 0 ? `IGST: ${invoice.igst?.toLocaleString()}` : ''}
-Total Tax: ${(invoice.totalGst || 0).toLocaleString()}
+${(invoice.cgstAmount || 0) > 0 ? `CGST: ${invoice.cgstAmount?.toLocaleString()}` : ''}
+${(invoice.sgstAmount || 0) > 0 ? `SGST: ${invoice.sgstAmount?.toLocaleString()}` : ''}
+${(invoice.igstAmount || 0) > 0 ? `IGST: ${invoice.igstAmount?.toLocaleString()}` : ''}
+Total Tax: ${(invoice.totalGST || 0).toLocaleString()}
 
-TOTAL AMOUNT: ${(invoice.totalAmount || 0).toLocaleString()}
+TOTAL AMOUNT: ${(invoice.total || 0).toLocaleString()}
 
 ${taxInfo}
 ${bankInfo}
@@ -219,7 +219,7 @@ Generated on: ${new Date().toLocaleString()}
                   {showDualCurrency ? (
                     <div className="bg-white p-6 rounded-xl border-2 border-gray-200 shadow-lg">
                       <p className="text-4xl font-bold text-green-600 mb-2">
-                        {formatCurrency(invoice.companyAmount || invoice.totalAmount || 0, companyCountry)}
+                        {formatCurrency(invoice.companyAmount || invoice.total || 0, companyCountry)}
                       </p>
                       <p className="text-2xl text-gray-600 mb-3">
                         {formatCurrency(invoice.clientAmount || 0, clientCountry)}
@@ -231,7 +231,7 @@ Generated on: ${new Date().toLocaleString()}
                   ) : (
                     <div className="bg-white p-6 rounded-xl border-2 border-gray-200 shadow-lg">
                       <p className="text-4xl font-bold text-green-600 mb-2">
-                        {formatCurrency(invoice.totalAmount || 0, companyCountry)}
+                        {formatCurrency(invoice.total || 0, companyCountry)}
                       </p>
                       <p className="text-sm text-gray-500 font-medium">Total Amount</p>
                     </div>
@@ -320,39 +320,39 @@ Generated on: ${new Date().toLocaleString()}
                         <div className="bg-white rounded-lg border-2 border-gray-200 shadow-sm overflow-hidden">
                           <table className="w-full">
                             <tbody>
-                              {(invoice.bankInfo as any)?.bankName && (
+                              {invoice.companyBankDetails?.bankName && (
                                 <tr className="border-b border-gray-100">
                                   <td className="px-4 py-3 font-semibold text-gray-700 bg-gray-50 w-1/3">Bank Name</td>
-                                  <td className="px-4 py-3 text-gray-900 font-medium">{(invoice.bankInfo as any).bankName}</td>
+                                  <td className="px-4 py-3 text-gray-900 font-medium">{invoice.companyBankDetails.bankName}</td>
                                 </tr>
                               )}
-                              {(invoice.bankInfo as any)?.accountNumber && (
+                              {invoice.companyBankDetails?.accountNumber && (
                                 <tr className="border-b border-gray-100">
                                   <td className="px-4 py-3 font-semibold text-gray-700 bg-gray-50">Account Number</td>
-                                  <td className="px-4 py-3 text-gray-900 font-mono text-lg">{(invoice.bankInfo as any).accountNumber}</td>
+                                  <td className="px-4 py-3 text-gray-900 font-mono text-lg">{invoice.companyBankDetails.accountNumber}</td>
                                 </tr>
                               )}
-                              {((invoice.bankInfo as any)?.routingCode || (invoice.bankInfo as any)?.ifscCode) && (
+                              {invoice.companyBankDetails?.ifscCode && (
                                 <tr>
                                   <td className="px-4 py-3 font-semibold text-gray-700 bg-gray-50">Routing Code</td>
                                   <td className="px-4 py-3 text-gray-900 font-mono text-lg">
-                                    {(invoice.bankInfo as any)?.routingCode || (invoice.bankInfo as any)?.ifscCode}
+                                    {invoice.companyBankDetails.ifscCode}
                                   </td>
                                 </tr>
                               )}
-                              {!(invoice.bankInfo as any)?.bankName && (companyData.bankInfo as any)?.bankName && (
+                              {!invoice.companyBankDetails?.bankName && (companyData.bankInfo as any)?.bankName && (
                                 <tr className="border-b border-gray-100">
                                   <td className="px-4 py-3 font-semibold text-gray-700 bg-gray-50">Bank Name</td>
                                   <td className="px-4 py-3 text-gray-900 font-medium">{(companyData.bankInfo as any).bankName}</td>
                                 </tr>
                               )}
-                              {!(invoice.bankInfo as any)?.accountNumber && (companyData.bankInfo as any)?.accountNumber && (
+                              {!invoice.companyBankDetails?.accountNumber && (companyData.bankInfo as any)?.accountNumber && (
                                 <tr className="border-b border-gray-100">
                                   <td className="px-4 py-3 font-semibold text-gray-700 bg-gray-50">Account Number</td>
                                   <td className="px-4 py-3 text-gray-900 font-mono text-lg">{(companyData.bankInfo as any).accountNumber}</td>
                                 </tr>
                               )}
-                              {!((invoice.bankInfo as any)?.routingCode || (invoice.bankInfo as any)?.ifscCode) && 
+                              {!invoice.companyBankDetails?.ifscCode && 
                                ((companyData.bankInfo as any)?.routingCode || (companyData.bankInfo as any)?.ifscCode) && (
                                 <tr>
                                   <td className="px-4 py-3 font-semibold text-gray-700 bg-gray-50">Routing Code</td>
@@ -472,7 +472,7 @@ Generated on: ${new Date().toLocaleString()}
                       Issue Date:
                     </span>
                     <span className="font-semibold text-gray-900 text-base">
-                      {invoice.issueDate?.toLocaleDateString() || 'N/A'}
+                      {invoice.issueDate?.toDate ? invoice.issueDate.toDate().toLocaleDateString() : 'N/A'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -481,7 +481,7 @@ Generated on: ${new Date().toLocaleString()}
                       Due Date:
                     </span>
                     <span className="font-semibold text-gray-900 text-base">
-                      {invoice.dueDate?.toLocaleDateString() || 'N/A'}
+                      {invoice.dueDate?.toDate ? invoice.dueDate.toDate().toLocaleDateString() : 'N/A'}
                     </span>
                   </div>
                 </div>

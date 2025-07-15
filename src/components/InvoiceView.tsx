@@ -416,10 +416,10 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
             <!-- Dates Section (First page only) - Same line display -->
             <div class="dates-section no-page-break invoice-meta" style="display: flex; justify-content: space-between; align-items: center;">
               <div class="date-item">
-                <strong>Issue Date:</strong> ${invoice.issueDate?.toLocaleDateString() || 'N/A'}
+                <strong>Issue Date:</strong> ${invoice.issueDate?.toDate ? invoice.issueDate.toDate().toLocaleDateString() : 'N/A'}
               </div>
               <div class="date-item">
-                <strong>Due Date:</strong> ${invoice.dueDate?.toLocaleDateString() || 'N/A'}
+                <strong>Due Date:</strong> ${invoice.dueDate?.toDate ? invoice.dueDate.toDate().toLocaleDateString() : 'N/A'}
               </div>
             </div>
 
@@ -456,7 +456,7 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                     </div>
                   ` : ''}
 
-                  ${invoice.bankInfo ? `
+                  ${invoice.companyBankDetails ? `
                     <div class="info-section">
                       <div class="section-title">🏦 Bank Information</div>
                       <table class="bank-table">
@@ -1031,7 +1031,7 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                       Issue Date:
                     </span>
                     <span className="font-semibold text-gray-900 text-base">
-                      {invoice.issueDate?.toLocaleDateString() || 'N/A'}
+                      {invoice.issueDate?.toDate ? invoice.issueDate.toDate().toLocaleDateString() : 'N/A'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -1040,7 +1040,7 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                       Due Date:
                     </span>
                     <span className="font-semibold text-gray-900 text-base">
-                      {invoice.dueDate?.toLocaleDateString() || 'N/A'}
+                      {invoice.dueDate?.toDate ? invoice.dueDate.toDate().toLocaleDateString() : 'N/A'}
                     </span>
                   </div>
                 </div>

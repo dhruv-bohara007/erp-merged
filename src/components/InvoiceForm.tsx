@@ -269,7 +269,8 @@ const InvoiceForm = () => {
 
     try {
       // Convert InvoiceFormItem[] to extended InvoiceItem[] with product details
-      const firestoreItems: InvoiceItem[] = items.map(item => ({
+      const firestoreItems: InvoiceItem[] = items.map((item, index) => ({
+        id: `item-${index}-${Date.now()}`, // Generate unique ID
         description: `${item.productCategory} - ${item.itemName} (${item.productVersion})`,
         quantity: item.quantity,
         rate: item.rate,

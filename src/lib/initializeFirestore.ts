@@ -89,16 +89,21 @@ export const initializeCollections = async () => {
       console.log('Client added with ID:', clientRef.id);
     }
 
-    // Sample Invoice Data - now includes ALL required fields including amountPaidByClient
+    // Sample Invoice Data - now includes ALL required fields
     const sampleInvoice: Omit<Invoice, 'id'> = {
       companyId: companyRef.id,
       invoiceNumber: 'INV-2024-001',
       clientId: clientRefs[0].id,
       clientName: 'ABC Corporation',
       clientEmail: 'contact@abccorp.com',
-      clientState: 'Delhi',
+      clientPhone: '+91 99887 76543',
+      clientGSTIN: '07AABCA1234N1Z9',
+      issueDate: Timestamp.now(),
+      dueDate: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
+      status: 'sent',
       items: [
         {
+          id: 'item-1',
           description: 'Software Development Services',
           quantity: 1,
           rate: 100000,
@@ -106,22 +111,27 @@ export const initializeCollections = async () => {
         }
       ],
       subtotal: 100000,
-      cgst: 9000,
-      sgst: 9000,
-      igst: 0,
-      totalGst: 18000,
-      totalAmount: 118000,
-      // Currency fields
+      discount: 0,
+      discountAmount: 0,
+      isInterState: false,
+      cgstRate: 9,
+      sgstRate: 9,
+      cgstAmount: 9000,
+      sgstAmount: 9000,
+      igstAmount: 0,
+      totalGST: 18000,
+      total: 118000,
+      currency: 'INR',
+      // Currency fields  
       totalAmountINR: 118000,
       companyCurrency: 'INR',
       companyAmount: 118000,
       clientCurrency: 'INR',
       clientAmount: 118000,
-      amountPaidByClient: 0,
       conversionRate: {
         companyToINR: 1,
         INRToClient: 1,
-        timestamp: new Date()
+        timestamp: Timestamp.now()
       },
       // Country fields
       companyCountry: 'IN',
@@ -130,9 +140,10 @@ export const initializeCollections = async () => {
       companyName: 'TechSolutions Pvt Ltd',
       companyLogoUrl: undefined,
       companyTaxInfo: {
+        gstin: '27AABCT1234M1Z5',
+        pan: 'AABCT1234M',
         primaryType: 'GSTIN',
-        primaryId: '27AABCT1234M1Z5',
-        gstin: '27AABCT1234M1Z5'
+        primaryId: '27AABCT1234M1Z5'
       },
       companyBankDetails: {
         accountNumber: '123456789012',
@@ -148,13 +159,10 @@ export const initializeCollections = async () => {
         id: '07AABCA1234N1Z9',
         type: 'GSTIN'
       },
-      status: 'sent',
-      issueDate: new Date(),
-      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
       notes: 'Payment due within 30 days',
       terms: 'Net 30 days payment terms',
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
     };
 
     // Add Invoice
@@ -169,7 +177,7 @@ export const initializeCollections = async () => {
       clientName: 'ABC Corporation',
       amount: 59000,
       paymentMethod: 'neft',
-      paymentDate: new Date(), // Changed from Timestamp.now() to new Date()
+      paymentDate: Timestamp.now(),
       status: 'completed',
       referenceNumber: 'UTR123456789',
       bankDetails: {
@@ -178,7 +186,7 @@ export const initializeCollections = async () => {
         ifscCode: 'HDFC0001234'
       },
       notes: 'Partial payment received',
-      amountPaidByClient: 59000,
+      updatedAt: Timestamp.now()
     };
 
     // Add Payment

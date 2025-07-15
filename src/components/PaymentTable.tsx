@@ -29,7 +29,7 @@ interface GroupedPayment {
   invoiceNumber: string;
   clientName: string;
   totalAmountPaid: number;
-  latestPaymentDate: Date;
+  latestPaymentDate: any; // Can be Date or Timestamp
   latestPaymentMethod: string;
   pendingAmountINR: number;
   status: string;
@@ -95,10 +95,12 @@ const PaymentTable = ({ payments, onDeletePayment }: PaymentTableProps) => {
       existingGroup.paymentIds.push(payment.id);
       
       // Update latest payment info if this payment is more recent
-      if (payment.paymentDate > existingGroup.latestPaymentDate) {
+      const paymentDate = payment.paymentDate?.toDate ? payment.paymentDate.toDate() : new Date(0);
+      const existingPaymentDate = existingGroup.latestPaymentDate?.toDate ? existingGroup.latestPaymentDate.toDate() : new Date(0);
+      if (paymentDate > existingPaymentDate) {
         existingGroup.latestPaymentDate = payment.paymentDate;
         existingGroup.latestPaymentMethod = payment.paymentMethod;
-        existingGroup.paymentTiming = getPaymentTiming(payment.paymentDate, payment.invoiceId, invoices.find(inv => inv.id === payment.invoiceId));
+        existingGroup.paymentTiming = getPaymentTiming(paymentDate, payment.invoiceId, invoices.find(inv => inv.id === payment.invoiceId));
       }
       
       // Recalculate pending amount based on total amount paid
@@ -146,7 +148,7 @@ const PaymentTable = ({ payments, onDeletePayment }: PaymentTableProps) => {
         latestPaymentMethod: payment.paymentMethod,
         pendingAmountINR: pendingAmount,
         status: status,
-        paymentTiming: getPaymentTiming(payment.paymentDate, payment.invoiceId, invoice),
+        paymentTiming: getPaymentTiming(payment.paymentDate?.toDate ? payment.paymentDate.toDate() : new Date(), payment.invoiceId, invoice),
         companyCountry: invoice?.companyCountry,
         paymentIds: [payment.id]
       });
@@ -257,7 +259,7 @@ const PaymentTable = ({ payments, onDeletePayment }: PaymentTableProps) => {
                   <TableCell>
                     <div className="flex items-center text-sm">
                       <Calendar className="w-3 h-3 mr-1 text-gray-400" />
-                      {group.latestPaymentDate.toLocaleDateString()}
+                      {group.latestPaymentDate?.toDate ? group.latestPaymentDate.toDate().toLocaleDateString() : 'N/A'}
                     </div>
                   </TableCell>
                   <TableCell>
