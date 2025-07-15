@@ -26,6 +26,18 @@ service cloud.firestore {
         getUserData().role == 'super_admin';
     }
 
+    // Helper function for company-scoped collections
+    function hasCompanyAccess() {
+      return isCompanyAdmin() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+    }
+
+    // Helper function for creating company-scoped documents
+    function canCreateForCompany() {
+      return isCompanyAdmin() &&
+        request.resource.data.companyId == getUserData().companyId;
+    }
+
     // USERS: each user can only access their own document
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
@@ -50,81 +62,57 @@ service cloud.firestore {
 
     // CLIENTS: only accessible by users from the same company
     match /clients/{clientId} {
-      // For existing documents, check if the document's companyId matches user's companyId
-      allow read, write: if isCompanyAdmin() && 
-        (resource == null || resource.data.companyId == getUserData().companyId);
-      
-      // For new documents, ensure the companyId is set to user's companyId
-      allow create: if isCompanyAdmin() &&
-        request.resource.data.companyId == getUserData().companyId;
-      
-      // Super admin has full access
+      allow read, write: if hasCompanyAccess();
+      allow create: if canCreateForCompany();
+      allow read, write: if isSuperAdmin();
+    }
+
+    // SUPPLIERS: only accessible by users from the same company
+    match /suppliers/{supplierId} {
+      allow read, write: if hasCompanyAccess();
+      allow create: if canCreateForCompany();
       allow read, write: if isSuperAdmin();
     }
 
     // INVOICES: only accessible by users from the same company
     match /invoices/{invoiceId} {
-      allow read, write: if isCompanyAdmin() && 
-        (resource == null || resource.data.companyId == getUserData().companyId);
-      
-      allow create: if isCompanyAdmin() &&
-        request.resource.data.companyId == getUserData().companyId;
-      
+      allow read, write: if hasCompanyAccess();
+      allow create: if canCreateForCompany();
       allow read, write: if isSuperAdmin();
     }
 
     // PAYMENTS: only accessible by users from the same company
     match /payments/{paymentId} {
-      allow read, write: if isCompanyAdmin() && 
-        (resource == null || resource.data.companyId == getUserData().companyId);
-      
-      allow create: if isCompanyAdmin() &&
-        request.resource.data.companyId == getUserData().companyId;
-      
+      allow read, write: if hasCompanyAccess();
+      allow create: if canCreateForCompany();
       allow read, write: if isSuperAdmin();
     }
 
     // EXPENSES: only accessible by users from the same company
     match /expenses/{expenseId} {
-      allow read, write: if isCompanyAdmin() && 
-        (resource == null || resource.data.companyId == getUserData().companyId);
-      
-      allow create: if isCompanyAdmin() &&
-        request.resource.data.companyId == getUserData().companyId;
-      
+      allow read, write: if hasCompanyAccess();
+      allow create: if canCreateForCompany();
       allow read, write: if isSuperAdmin();
     }
 
     // PURCHASES: only accessible by users from the same company
     match /purchases/{purchaseId} {
-      allow read, write: if isCompanyAdmin() && 
-        (resource == null || resource.data.companyId == getUserData().companyId);
-      
-      allow create: if isCompanyAdmin() &&
-        request.resource.data.companyId == getUserData().companyId;
-      
+      allow read, write: if hasCompanyAccess();
+      allow create: if canCreateForCompany();
       allow read, write: if isSuperAdmin();
     }
 
     // INVENTORY: only accessible by users from the same company
     match /inventory/{inventoryId} {
-      allow read, write: if isCompanyAdmin() && 
-        (resource == null || resource.data.companyId == getUserData().companyId);
-      
-      allow create: if isCompanyAdmin() &&
-        request.resource.data.companyId == getUserData().companyId;
-      
+      allow read, write: if hasCompanyAccess();
+      allow create: if canCreateForCompany();
       allow read, write: if isSuperAdmin();
     }
 
     // TDS RECORDS: only accessible by users from the same company
     match /tds_records/{tdsId} {
-      allow read, write: if isCompanyAdmin() && 
-        (resource == null || resource.data.companyId == getUserData().companyId);
-      
-      allow create: if isCompanyAdmin() &&
-        request.resource.data.companyId == getUserData().companyId;
-      
+      allow read, write: if hasCompanyAccess();
+      allow create: if canCreateForCompany();
       allow read, write: if isSuperAdmin();
     }
   }
