@@ -30,6 +30,30 @@ const InventoryManagement = () => {
   const { inventory, loading, deleteInventoryItem } = useInventory();
   const { companyData } = useCompanyData();
 
+  // Get currency symbol based on company currency
+  const getCurrencySymbol = (currency: string) => {
+    const symbols: { [key: string]: string } = {
+      'USD': '$',
+      'EUR': '€',
+      'GBP': '£',
+      'INR': '₹',
+      'JPY': '¥',
+      'CAD': 'C$',
+      'AUD': 'A$',
+      'CHF': 'CHF',
+      'CNY': '¥',
+      'SEK': 'kr',
+      'NZD': 'NZ$'
+    };
+    return symbols[currency] || currency;
+  };
+
+  const formatCurrency = (amount: number) => {
+    const currency = companyData?.companyCurrency || 'USD';
+    const symbol = getCurrencySymbol(currency);
+    return `${symbol}${amount.toLocaleString()}`;
+  };
+
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this inventory item?')) {
       try {
@@ -42,7 +66,7 @@ const InventoryManagement = () => {
 
   // Filter to only show active products (products with rates > 0 and status = 'active')
   const activeInventory = inventory.filter(item => 
-    item.status === 'active' && (item.rateInInr || 0) > 0
+    item.status === 'active' && (item.rate || 0) > 0
   );
 
   const filteredInventory = activeInventory.filter(item =>
@@ -65,15 +89,7 @@ const InventoryManagement = () => {
   });
 
   const totalItems = activeInventory.length;
-  const totalValueINR = activeInventory.reduce((sum, item) => sum + (item.rateInInr || 0), 0);
-
-  const formatINR = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0
-    }).format(amount);
-  };
+  const totalValue = activeInventory.reduce((sum, item) => sum + (item.rate || 0), 0);
 
   if (loading) {
     return (
@@ -119,11 +135,11 @@ const InventoryManagement = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Value (INR)</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Value</CardTitle>
             <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatINR(totalValueINR)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(totalValue)}</div>
             <p className="text-xs text-muted-foreground">Total inventory value</p>
           </CardContent>
         </Card>
@@ -169,7 +185,7 @@ const InventoryManagement = () => {
                   <TableHead>Item Name</TableHead>
                   <TableHead>Product Version</TableHead>
                   <TableHead>Product Category</TableHead>
-                  <TableHead>Rate (INR)</TableHead>
+                  <TableHead>Rate</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -188,7 +204,7 @@ const InventoryManagement = () => {
                       {item.productCategory || '-'}
                     </TableCell>
                     <TableCell className="font-medium">
-                      {formatINR(item.rateInInr || 0)}
+                      {formatCurrency(item.rate || 0)}
                     </TableCell>
                     <TableCell>
                       <Button

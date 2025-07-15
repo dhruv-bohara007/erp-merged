@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Payment } from '@/hooks/useFirestore';
 import { useInvoices } from '@/hooks/useFirestore';
+import { useCompanyData } from '@/hooks/useCompanyData';
 import PaymentHistoryModal from './PaymentHistoryModal';
 import { useToast } from '@/hooks/use-toast';
 
@@ -39,6 +40,7 @@ interface GroupedPayment {
 
 const PaymentTable = ({ payments, onDeletePayment }: PaymentTableProps) => {
   const { invoices } = useInvoices();
+  const { companyData } = useCompanyData();
   const { toast } = useToast();
   const [paymentHistoryModal, setPaymentHistoryModal] = useState({
     open: false,
@@ -46,6 +48,30 @@ const PaymentTable = ({ payments, onDeletePayment }: PaymentTableProps) => {
     invoiceNumber: '',
     companyCountry: ''
   });
+
+  // Get currency symbol based on company currency
+  const getCurrencySymbol = (currency: string) => {
+    const symbols: { [key: string]: string } = {
+      'USD': '$',
+      'EUR': '€',
+      'GBP': '£',
+      'INR': '₹',
+      'JPY': '¥',
+      'CAD': 'C$',
+      'AUD': 'A$',
+      'CHF': 'CHF',
+      'CNY': '¥',
+      'SEK': 'kr',
+      'NZD': 'NZ$'
+    };
+    return symbols[currency] || currency;
+  };
+
+  const formatCurrency = (amount: number) => {
+    const currency = companyData?.companyCurrency || 'USD';
+    const symbol = getCurrencySymbol(currency);
+    return `${symbol}${amount.toLocaleString()}`;
+  };
 
   // Calculate payment timing relative to due date - moved before usage
   const getPaymentTiming = (paymentDate: Date, invoiceId: string, invoice?: any) => {
@@ -64,23 +90,25 @@ const PaymentTable = ({ payments, onDeletePayment }: PaymentTableProps) => {
     const existingGroup = acc.find(group => group.invoiceId === payment.invoiceId);
     
     if (existingGroup) {
-      // Update existing group with accumulated data
-      existingGroup.totalAmountPaid += Math.round(payment.amount || 0);
+      // Update existing group with accumulated data - use originalPaymentAmount
+      existingGroup.totalAmountPaid += Math.round(payment.originalPaymentAmount || 0);
       existingGroup.paymentIds.push(payment.id);
       if (payment.paymentDate > existingGroup.latestPaymentDate) {
         existingGroup.latestPaymentDate = payment.paymentDate;
         existingGroup.latestPaymentMethod = payment.paymentMethod;
       }
     } else {
-      // Create new group
+      // Create new group - use originalPaymentAmount
       const invoice = invoices.find(inv => inv.id === payment.invoiceId);
-      const pendingAmount = Math.round(invoice?.pendingINR || 0);
+      const invoiceTotal = invoice?.totalAmount || 0;
+      const paidAmount = Math.round(payment.originalPaymentAmount || 0);
+      const pendingAmount = Math.max(0, invoiceTotal - paidAmount);
       
       acc.push({
         invoiceId: payment.invoiceId,
         invoiceNumber: payment.invoiceNumber,
         clientName: payment.clientName,
-        totalAmountPaid: Math.round(payment.amount || 0),
+        totalAmountPaid: paidAmount,
         latestPaymentDate: payment.paymentDate,
         latestPaymentMethod: payment.paymentMethod,
         pendingAmountINR: pendingAmount,
@@ -158,10 +186,10 @@ const PaymentTable = ({ payments, onDeletePayment }: PaymentTableProps) => {
             <TableRow>
               <TableHead>Invoice #</TableHead>
               <TableHead>Client</TableHead>
-              <TableHead>Amount Paid (INR)</TableHead>
+              <TableHead>Amount Paid</TableHead>
               <TableHead>Payment Method</TableHead>
               <TableHead>Date</TableHead>
-              <TableHead>Pending Payment (INR)</TableHead>
+              <TableHead>Pending Payment</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Notes</TableHead>
               <TableHead>Actions</TableHead>
@@ -184,7 +212,7 @@ const PaymentTable = ({ payments, onDeletePayment }: PaymentTableProps) => {
                     <div className="font-medium">{group.clientName}</div>
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium">₹{group.totalAmountPaid.toLocaleString()}</div>
+                    <div className="font-medium">{formatCurrency(group.totalAmountPaid)}</div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -199,7 +227,7 @@ const PaymentTable = ({ payments, onDeletePayment }: PaymentTableProps) => {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium">₹{group.pendingAmountINR.toLocaleString()}</div>
+                    <div className="font-medium">{formatCurrency(group.pendingAmountINR)}</div>
                   </TableCell>
                   <TableCell>
                     <Badge className={getStatusColor(group.status)}>
