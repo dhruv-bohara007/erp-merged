@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,6 +22,8 @@ import {
 } from 'lucide-react';
 import { useClients, useInvoices } from '@/hooks/useFirestore';
 import { useToast } from '@/hooks/use-toast';
+import { useCompanyData } from '@/hooks/useCompanyData';
+import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 import EditClientModal from './EditClientModal';
 import AddClientModal from './AddClientModal';
 import { countries } from '@/data/countries';
@@ -32,6 +33,7 @@ import type { Client } from '@/hooks/useFirestore';
 const ClientManagement = () => {
   const { clients, loading, error, addClient, updateClient, deleteClient } = useClients();
   const { invoices } = useInvoices();
+  const { companyData } = useCompanyData();
   const { toast } = useToast();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -116,10 +118,14 @@ const ClientManagement = () => {
     }
   };
 
-  const formatIndianCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
+  // Get company currency info
+  const companyCurrency = companyData?.country ? getCurrencyByCountry(companyData.country) : { code: 'USD', symbol: '$', name: 'US Dollar' };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'INR',
+      currency: companyCurrency.code,
+      minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(amount);
   };
@@ -212,7 +218,7 @@ const ClientManagement = () => {
         </Button>
       </div>
 
-      {/* Summary Cards with Dynamic Data */}
+      {/* Summary Cards with Company Currency */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-6">
@@ -247,10 +253,10 @@ const ClientManagement = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                <p className="text-2xl font-bold">{formatIndianCurrency(totalRevenue)}</p>
+                <p className="text-2xl font-bold">{formatCurrency(totalRevenue)}</p>
               </div>
               <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
-                <IndianRupee className="h-4 w-4 text-green-600" />
+                <span className="text-green-600 font-bold text-sm">{companyCurrency.symbol}</span>
               </div>
             </div>
           </CardContent>
@@ -261,10 +267,10 @@ const ClientManagement = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Outstanding</p>
-                <p className="text-2xl font-bold">{formatIndianCurrency(outstandingAmount)}</p>
+                <p className="text-2xl font-bold">{formatCurrency(outstandingAmount)}</p>
               </div>
               <div className="h-8 w-8 bg-orange-100 rounded-full flex items-center justify-center">
-                <IndianRupee className="h-4 w-4 text-orange-600" />
+                <span className="text-orange-600 font-bold text-sm">{companyCurrency.symbol}</span>
               </div>
             </div>
           </CardContent>
@@ -336,12 +342,12 @@ const ClientManagement = () => {
                     </TableCell>
                     <TableCell>
                       <div className="font-medium">
-                        {formatIndianCurrency(clientMetrics.totalAmount)}
+                        {formatCurrency(clientMetrics.totalAmount)}
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="font-medium text-orange-600">
-                        {formatIndianCurrency(clientMetrics.outstandingAmount)}
+                        {formatCurrency(clientMetrics.outstandingAmount)}
                       </div>
                     </TableCell>
                     <TableCell>
