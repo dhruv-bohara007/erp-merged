@@ -85,22 +85,40 @@ const PaymentTable = ({ payments, onDeletePayment }: PaymentTableProps) => {
     return `${Math.abs(diffDays)} days before due date`;
   };
 
-  // Group payments by invoice - Updated logic to properly handle accumulated payments
+  // Group payments by invoice - Each payment is now a separate document, so we need to sum them
   const groupedPayments: GroupedPayment[] = payments.reduce((acc, payment) => {
     const existingGroup = acc.find(group => group.invoiceId === payment.invoiceId);
     
     if (existingGroup) {
-      // Don't accumulate - the payment document already contains the total accumulated amount
-      // Just update the latest payment info if this payment is more recent
+      // Accumulate the payment amounts from multiple payment documents
+      existingGroup.totalAmountPaid += Math.round(payment.originalPaymentAmount || 0);
+      existingGroup.paymentIds.push(payment.id);
+      
+      // Update latest payment info if this payment is more recent
       if (payment.paymentDate > existingGroup.latestPaymentDate) {
         existingGroup.latestPaymentDate = payment.paymentDate;
         existingGroup.latestPaymentMethod = payment.paymentMethod;
-        existingGroup.totalAmountPaid = Math.round(payment.originalPaymentAmount || 0);
         existingGroup.paymentTiming = getPaymentTiming(payment.paymentDate, payment.invoiceId, invoices.find(inv => inv.id === payment.invoiceId));
       }
-      existingGroup.paymentIds.push(payment.id);
+      
+      // Recalculate status and pending amount based on total paid
+      const invoice = invoices.find(inv => inv.id === payment.invoiceId);
+      const companyAmount = invoice?.companyAmount || invoice?.totalAmount || 0;
+      const pendingAmount = Math.max(0, companyAmount - existingGroup.totalAmountPaid);
+      existingGroup.pendingAmountINR = pendingAmount;
+      
+      // Update status
+      if (pendingAmount <= 0) {
+        existingGroup.status = 'completed';
+      } else if (existingGroup.totalAmountPaid > 0) {
+        const dueDate = invoice?.dueDate || new Date();
+        const isOverdue = new Date() > dueDate;
+        existingGroup.status = isOverdue ? 'overdue' : 'pending';
+      } else {
+        existingGroup.status = 'pending';
+      }
     } else {
-      // Create new group with the payment amount (which is already accumulated in the document)
+      // Create new group with the payment amount
       const invoice = invoices.find(inv => inv.id === payment.invoiceId);
       const companyAmount = invoice?.companyAmount || invoice?.totalAmount || 0;
       const paidAmount = Math.round(payment.originalPaymentAmount || 0);

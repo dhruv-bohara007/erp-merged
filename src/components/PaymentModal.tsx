@@ -31,8 +31,6 @@ import { useInvoices } from '@/hooks/useFirestore';
 import { toast } from '@/hooks/use-toast';
 import { exchangeRateService } from '@/services/exchangeRateService';
 import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 
 const paymentSchema = z.object({
   invoiceId: z.string().min(1, 'Please select an invoice'),
@@ -164,125 +162,92 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
         console.log('Converted amount in client currency:', amountInClientCurrency);
       }
 
-      // Check if payment document already exists for this invoice
-      const existingPayment = payments.find(p => p.invoiceId === selectedInvoice.id);
+      // Always create a new payment document for each payment
+      // Calculate pending amount in INR after this payment
+      const existingPayments = payments.filter(p => p.invoiceId === selectedInvoice.id);
+      const totalPaidINRAfterPayment = existingPayments.reduce((sum, p) => sum + (p.amount || 0), 0) + convertedAmountINR;
+      const totalAmountINR = selectedInvoice.totalAmountINR || selectedInvoice.totalAmount || 0;
+      const pendingAmountINR = Math.max(0, totalAmountINR - totalPaidINRAfterPayment);
 
-      if (existingPayment) {
-        // Update existing payment document
-        const newTotalAmountINR = (existingPayment.amount || 0) + convertedAmountINR;
-        const newTotalOriginalAmount = (existingPayment.originalPaymentAmount || 0) + paymentAmount;
-        const newTotalClientAmount = (existingPayment.amountPaidByClient || 0) + amountInClientCurrency;
+      // Determine status based on pending amount
+      const paymentStatus = pendingAmountINR <= 0 ? 'completed' : 'pending';
 
-        // Calculate pending amount in INR
-        const totalAmountINR = selectedInvoice.totalAmountINR || selectedInvoice.totalAmount || 0;
-        const pendingAmountINR = Math.max(0, totalAmountINR - newTotalAmountINR);
+      // Prepare payment data with all invoice fields copied, filtering out undefined values
+      const paymentData = filterUndefinedValues({
+        // Payment specific fields
+        invoiceId: data.invoiceId,
+        invoiceNumber: selectedInvoice.invoiceNumber,
+        clientId: selectedInvoice.clientId,
+        clientName: selectedInvoice.clientName,
+        amount: convertedAmountINR, // Store converted INR amount
+        paymentMethod: data.paymentMethod,
+        paymentDate: new Date(data.paymentDate),
+        status: paymentStatus,
+        
+        // Copy all invoice fields - only if they are defined
+        clientEmail: selectedInvoice.clientEmail,
+        clientState: selectedInvoice.clientState,
+        clientPhone: selectedInvoice.clientPhone,
+        clientPincode: selectedInvoice.clientPincode,
+        items: selectedInvoice.items,
+        subtotal: selectedInvoice.subtotal,
+        cgst: selectedInvoice.cgst,
+        sgst: selectedInvoice.sgst,
+        igst: selectedInvoice.igst,
+        totalGst: selectedInvoice.totalGst,
+        totalAmount: selectedInvoice.totalAmount,
+        totalAmountINR: selectedInvoice.totalAmountINR,
+        companyCurrency: selectedInvoice.companyCurrency,
+        companyAmount: selectedInvoice.companyAmount,
+        clientCurrency: selectedInvoice.clientCurrency,
+        clientAmount: selectedInvoice.clientAmount,
+        conversionRate: selectedInvoice.conversionRate,
+        companyCountry: selectedInvoice.companyCountry,
+        clientCountry: selectedInvoice.clientCountry,
+        companyName: selectedInvoice.companyName,
+        companyLogoUrl: selectedInvoice.companyLogoUrl,
+        companyEmail: selectedInvoice.companyEmail,
+        companyWebsite: selectedInvoice.companyWebsite,
+        companyPhone: selectedInvoice.companyPhone,
+        companyCity: selectedInvoice.companyCity,
+        companyTaxInfo: selectedInvoice.companyTaxInfo,
+        companyBankDetails: selectedInvoice.companyBankDetails,
+        companyAddress: selectedInvoice.companyAddress,
+        ownerSignatureUrl: selectedInvoice.ownerSignatureUrl,
+        businessOwnerName: selectedInvoice.businessOwnerName,
+        businessOwnerPosition: selectedInvoice.businessOwnerPosition,
+        clientAddress: selectedInvoice.clientAddress,
+        clientTaxInfo: selectedInvoice.clientTaxInfo,
+        bankInfo: selectedInvoice.bankInfo,
+        logoUrl: selectedInvoice.logoUrl,
+        signatureUrl: selectedInvoice.signatureUrl,
+        issueDate: selectedInvoice.issueDate,
+        dueDate: selectedInvoice.dueDate,
+        notes: selectedInvoice.notes,
+        terms: selectedInvoice.terms,
+        
+        // Add pending amount calculation
+        pendingAmountINR: Math.max(0, pendingAmountINR),
+        
+        // Payment specific amounts in original currency
+        originalPaymentAmount: paymentAmount,
+        originalCurrency: companyCurrency,
+        
+        // New field: amount paid by client in client currency
+        amountPaidByClient: amountInClientCurrency,
+      });
 
-        // Determine status based on pending amount
-        const paymentStatus = pendingAmountINR <= 0 ? 'completed' : 'pending';
+      console.log('Creating new payment document:', paymentData);
 
-        const updateData = {
-          amount: newTotalAmountINR,
-          originalPaymentAmount: newTotalOriginalAmount,
-          amountPaidByClient: newTotalClientAmount,
-          paymentMethod: data.paymentMethod,
-          paymentDate: new Date(data.paymentDate),
-          status: paymentStatus,
-          pendingAmountINR: pendingAmountINR,
-        };
+      await addPayment(paymentData);
 
-        await updateDoc(doc(db, 'payments', existingPayment.id), updateData);
+      // Update the invoice's amountPaidByClient field with total paid amount
+      const totalPaidByClient = existingPayments.reduce((sum, p) => sum + (p.amountPaidByClient || 0), 0) + amountInClientCurrency;
+      await updateInvoice(selectedInvoice.id, {
+        amountPaidByClient: totalPaidByClient
+      });
 
-        // Update the invoice's amountPaidByClient field
-        await updateInvoice(selectedInvoice.id, {
-          amountPaidByClient: newTotalClientAmount
-        });
-
-        console.log('Updated existing payment document and invoice amountPaidByClient:', newTotalClientAmount);
-      } else {
-        // Create new payment document (first payment for this invoice)
-        // Calculate pending amount in INR
-        const totalAmountINR = selectedInvoice.totalAmountINR || selectedInvoice.totalAmount || 0;
-        const pendingAmountINR = Math.max(0, totalAmountINR - convertedAmountINR);
-
-        // Determine status based on pending amount
-        const paymentStatus = pendingAmountINR <= 0 ? 'completed' : 'pending';
-
-        // Prepare payment data with all invoice fields copied, filtering out undefined values
-        const paymentData = filterUndefinedValues({
-          // Payment specific fields
-          invoiceId: data.invoiceId,
-          invoiceNumber: selectedInvoice.invoiceNumber,
-          clientId: selectedInvoice.clientId,
-          clientName: selectedInvoice.clientName,
-          amount: convertedAmountINR, // Store converted INR amount
-          paymentMethod: data.paymentMethod,
-          paymentDate: new Date(data.paymentDate),
-          status: paymentStatus,
-          
-          // Copy all invoice fields - only if they are defined
-          clientEmail: selectedInvoice.clientEmail,
-          clientState: selectedInvoice.clientState,
-          clientPhone: selectedInvoice.clientPhone,
-          clientPincode: selectedInvoice.clientPincode,
-          items: selectedInvoice.items,
-          subtotal: selectedInvoice.subtotal,
-          cgst: selectedInvoice.cgst,
-          sgst: selectedInvoice.sgst,
-          igst: selectedInvoice.igst,
-          totalGst: selectedInvoice.totalGst,
-          totalAmount: selectedInvoice.totalAmount,
-          totalAmountINR: selectedInvoice.totalAmountINR,
-          companyCurrency: selectedInvoice.companyCurrency,
-          companyAmount: selectedInvoice.companyAmount,
-          clientCurrency: selectedInvoice.clientCurrency,
-          clientAmount: selectedInvoice.clientAmount,
-          conversionRate: selectedInvoice.conversionRate,
-          companyCountry: selectedInvoice.companyCountry,
-          clientCountry: selectedInvoice.clientCountry,
-          companyName: selectedInvoice.companyName,
-          companyLogoUrl: selectedInvoice.companyLogoUrl,
-          companyEmail: selectedInvoice.companyEmail,
-          companyWebsite: selectedInvoice.companyWebsite,
-          companyPhone: selectedInvoice.companyPhone,
-          companyCity: selectedInvoice.companyCity,
-          companyTaxInfo: selectedInvoice.companyTaxInfo,
-          companyBankDetails: selectedInvoice.companyBankDetails,
-          companyAddress: selectedInvoice.companyAddress,
-          ownerSignatureUrl: selectedInvoice.ownerSignatureUrl,
-          businessOwnerName: selectedInvoice.businessOwnerName,
-          businessOwnerPosition: selectedInvoice.businessOwnerPosition,
-          clientAddress: selectedInvoice.clientAddress,
-          clientTaxInfo: selectedInvoice.clientTaxInfo,
-          bankInfo: selectedInvoice.bankInfo,
-          logoUrl: selectedInvoice.logoUrl,
-          signatureUrl: selectedInvoice.signatureUrl,
-          issueDate: selectedInvoice.issueDate,
-          dueDate: selectedInvoice.dueDate,
-          notes: selectedInvoice.notes,
-          terms: selectedInvoice.terms,
-          
-          // Add pending amount calculation
-          pendingAmountINR: Math.max(0, pendingAmountINR),
-          
-          // Payment specific amounts in original currency
-          originalPaymentAmount: paymentAmount,
-          originalCurrency: companyCurrency,
-          
-          // New field: amount paid by client in client currency
-          amountPaidByClient: amountInClientCurrency,
-        });
-
-        console.log('Filtered payment data:', paymentData);
-
-        await addPayment(paymentData);
-
-        // Update the invoice's amountPaidByClient field
-        await updateInvoice(selectedInvoice.id, {
-          amountPaidByClient: amountInClientCurrency
-        });
-
-        console.log('Created new payment document and updated invoice amountPaidByClient:', amountInClientCurrency);
-      }
+      console.log('Created new payment document and updated invoice amountPaidByClient:', totalPaidByClient);
 
       toast({
         title: "Success",
