@@ -192,21 +192,12 @@ const AddEditEmployeeModal = ({ isOpen, onClose, employee, onEmployeeAdded }: Ad
 
       let userId = employee?.userId;
 
-      // Create Firebase Auth account for new employees
+      // For new employees, we'll create the Firestore document first
+      // The Firebase Auth account will be created when they first login with temporary password
       if (!employee) {
-        try {
-          const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.temporaryPassword);
-          userId = userCredential.user.uid;
-          console.log('Created Firebase Auth account for employee:', userId);
-        } catch (authError) {
-          console.error('Error creating Firebase Auth account:', authError);
-          toast({
-            title: 'Error',
-            description: 'Failed to create employee account. Please try again.',
-            variant: 'destructive',
-          });
-          return;
-        }
+        // Generate a unique userId for the employee document
+        userId = `emp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        console.log('Generated employee userId:', userId);
       }
 
       const employeeData = {

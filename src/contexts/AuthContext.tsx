@@ -112,9 +112,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const employeeData = employeeDoc.data();
           
           if (employeeData.temporaryPassword === password && employeeData.needsPasswordReset) {
-            // This is a valid temporary password login
-            // We need to sign in using the Firebase Auth account we created
-            throw new Error('TEMP_PASSWORD_LOGIN');
+            // Create Firebase Auth account for this employee with temporary password
+            try {
+              const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+              
+              // Update the employee document with the real Firebase Auth UID
+              await updateDoc(employeeDoc.ref, {
+                userId: userCredential.user.uid,
+                updatedAt: new Date().toISOString()
+              });
+              
+              // Create the user object for immediate login
+              const authUser: AuthUser = {
+                ...userCredential.user,
+                role: 'employee' as UserRole,
+                companyId: employeeData.companyId,
+                hasCompletedSetup: true,
+                needsPasswordReset: true
+              };
+              
+              setCurrentUser(authUser);
+              return; // Successfully logged in
+            } catch (createError: any) {
+              console.error('Error creating Firebase Auth account for employee:', createError);
+              if (createError.code === 'auth/email-already-in-use') {
+                // Account already exists, try to sign in again
+                try {
+                  const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                  const authUser = await fetchUserData(userCredential.user);
+                  setCurrentUser(authUser);
+                  return;
+                } catch (retryError) {
+                  throw new Error('Invalid email or password');
+                }
+              }
+              throw new Error('Failed to create employee account');
+            }
           }
         }
       }
