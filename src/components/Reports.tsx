@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { useInvoices, useClients, usePayments } from '@/hooks/useFirestore';
+import { useCompanyData } from '@/hooks/useCompanyData';
 import ReportsMetrics from './ReportsMetrics';
 
 const Reports = () => {
@@ -24,6 +26,41 @@ const Reports = () => {
   const { invoices, loading: invoicesLoading } = useInvoices();
   const { clients, loading: clientsLoading } = useClients();
   const { payments, loading: paymentsLoading } = usePayments();
+  const { companyData } = useCompanyData();
+
+  // Get currency symbol based on company currency
+  const getCurrencySymbol = (currency: string) => {
+    const symbols: { [key: string]: string } = {
+      'USD': '$',
+      'EUR': '€',
+      'GBP': '£',
+      'INR': '₹',
+      'JPY': '¥',
+      'CAD': 'C$',
+      'AUD': 'A$',
+      'CHF': 'CHF',
+      'CNY': '¥',
+      'SEK': 'kr',
+      'NZD': 'NZ$'
+    };
+    return symbols[currency] || currency;
+  };
+
+  const formatCurrency = (amount: number) => {
+    const currency = companyData?.companyCurrency || 'USD';
+    const symbol = getCurrencySymbol(currency);
+    return `${symbol}${amount.toFixed(2)}`;
+  };
+
+  const formatCompactCurrency = (amount: number) => {
+    const currency = companyData?.companyCurrency || 'USD';
+    const symbol = getCurrencySymbol(currency);
+    
+    if (amount >= 10000000) return `${symbol}${(amount / 10000000).toFixed(1)}Cr`;
+    if (amount >= 100000) return `${symbol}${(amount / 100000).toFixed(1)}L`;
+    if (amount >= 1000) return `${symbol}${(amount / 1000).toFixed(0)}K`;
+    return `${symbol}${amount.toLocaleString()}`;
+  };
 
   if (invoicesLoading || clientsLoading || paymentsLoading) {
     return (
@@ -149,21 +186,6 @@ const Reports = () => {
   const totalInvoices = monthlyRevenue.reduce((sum, month) => sum + month.invoices, 0);
   const averageInvoiceValue = totalInvoices > 0 ? totalRevenue / totalInvoices : 0;
 
-  const formatIndianCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0
-    }).format(amount);
-  };
-
-  const formatCompactCurrency = (amount: number) => {
-    if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(1)}Cr`;
-    if (amount >= 100000) return `₹${(amount / 100000).toFixed(1)}L`;
-    if (amount >= 1000) return `₹${(amount / 1000).toFixed(0)}K`;
-    return `₹${amount.toLocaleString()}`;
-  };
-
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -213,7 +235,7 @@ const Reports = () => {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
                     <YAxis tickFormatter={(value) => formatCompactCurrency(value)} />
-                    <Tooltip formatter={(value) => [formatIndianCurrency(Number(value)), 'Revenue']} />
+                    <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Revenue']} />
                     <Bar dataKey="revenue" fill="#3B82F6" />
                   </BarChart>
                 </ResponsiveContainer>
@@ -261,7 +283,7 @@ const Reports = () => {
                         <div className="text-sm text-gray-500">{client.invoices} invoices</div>
                       </div>
                       <div className="text-right">
-                        <div className="font-bold text-lg">{formatIndianCurrency(client.revenue)}</div>
+                        <div className="font-bold text-lg">{formatCurrency(client.revenue)}</div>
                         <div className="text-sm text-gray-500">
                           Avg. payment: {client.avgPaymentDays} days
                         </div>
@@ -306,7 +328,7 @@ const Reports = () => {
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
                         </Pie>
-                        <Tooltip formatter={(value) => [formatIndianCurrency(Number(value)), 'Amount']} />
+                        <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Amount']} />
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="flex flex-col gap-2 mt-4">
@@ -317,7 +339,7 @@ const Reports = () => {
                             <span className="text-sm">{item.range}</span>
                           </div>
                           <div className="text-sm font-medium">
-                            {formatIndianCurrency(item.amount)} ({item.count})
+                            {formatCurrency(item.amount)} ({item.count})
                           </div>
                         </div>
                       ))}
@@ -345,7 +367,7 @@ const Reports = () => {
                       <div key={index} className="p-4 border rounded-lg">
                         <div className="flex justify-between items-center mb-2">
                           <span className="font-medium">{item.range}</span>
-                          <span className="text-lg font-bold">{formatIndianCurrency(item.amount)}</span>
+                          <span className="text-lg font-bold">{formatCurrency(item.amount)}</span>
                         </div>
                         <div className="text-sm text-gray-500">{item.count} invoices</div>
                         <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
@@ -380,7 +402,7 @@ const Reports = () => {
                 {gstSummary.map((gst, index) => (
                   <div key={index} className="p-6 border rounded-lg">
                     <div className="text-sm text-gray-600">{gst.type}</div>
-                    <div className="text-2xl font-bold mt-1">{formatIndianCurrency(gst.amount)}</div>
+                    <div className="text-2xl font-bold mt-1">{formatCurrency(gst.amount)}</div>
                     <div className="text-sm text-blue-600 mt-1">Rate: {gst.rate}</div>
                   </div>
                 ))}
@@ -389,7 +411,7 @@ const Reports = () => {
                 <div className="flex justify-between items-center">
                   <span className="font-medium">Total GST & TDS</span>
                   <span className="text-xl font-bold">
-                    {formatIndianCurrency(gstSummary.reduce((sum, gst) => sum + gst.amount, 0))}
+                    {formatCurrency(gstSummary.reduce((sum, gst) => sum + gst.amount, 0))}
                   </span>
                 </div>
               </div>

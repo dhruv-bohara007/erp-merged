@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,6 +13,7 @@ import {
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart as RechartsPieChart, Cell, Pie } from 'recharts';
 import { useInvoices, useExpenses, useClients } from '@/hooks/useFirestore';
+import { useCompanyData } from '@/hooks/useCompanyData';
 
 const ProfitabilityReports = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('month');
@@ -20,13 +22,30 @@ const ProfitabilityReports = () => {
   const { invoices } = useInvoices();
   const { expenses } = useExpenses();
   const { clients } = useClients();
+  const { companyData } = useCompanyData();
+
+  // Get currency symbol based on company currency
+  const getCurrencySymbol = (currency: string) => {
+    const symbols: { [key: string]: string } = {
+      'USD': '$',
+      'EUR': '€',
+      'GBP': '£',
+      'INR': '₹',
+      'JPY': '¥',
+      'CAD': 'C$',
+      'AUD': 'A$',
+      'CHF': 'CHF',
+      'CNY': '¥',
+      'SEK': 'kr',
+      'NZD': 'NZ$'
+    };
+    return symbols[currency] || currency;
+  };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0
-    }).format(amount);
+    const currency = companyData?.companyCurrency || 'USD';
+    const symbol = getCurrencySymbol(currency);
+    return `${symbol}${amount.toFixed(2)}`;
   };
 
   // Calculate monthly P&L data using totalAmountINR consistently
@@ -217,7 +236,7 @@ const ProfitabilityReports = () => {
                   <BarChart data={monthlyPnL}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
-                    <YAxis tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`} />
+                    <YAxis tickFormatter={(value) => `${getCurrencySymbol(companyData?.companyCurrency || 'USD')}${(value / 1000).toFixed(0)}K`} />
                     <Tooltip formatter={(value) => [formatCurrency(Number(value)), '']} />
                     <Bar dataKey="revenue" fill="#10B981" name="Revenue" />
                     <Bar dataKey="expenses" fill="#EF4444" name="Expenses" />
@@ -238,7 +257,7 @@ const ProfitabilityReports = () => {
                   <LineChart data={monthlyPnL}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
-                    <YAxis tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`} />
+                    <YAxis tickFormatter={(value) => `${getCurrencySymbol(companyData?.companyCurrency || 'USD')}${(value / 1000).toFixed(0)}K`} />
                     <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Profit']} />
                     <Line 
                       type="monotone" 

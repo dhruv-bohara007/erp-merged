@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useInvoices, useClients, usePayments } from '@/hooks/useFirestore';
+import { useCompanyData } from '@/hooks/useCompanyData';
 import AddClientModal from '@/components/AddClientModal';
 import { useNavigate } from 'react-router-dom';
 
@@ -27,6 +28,31 @@ const Dashboard = () => {
   const { invoices, loading: invoicesLoading } = useInvoices();
   const { clients, loading: clientsLoading } = useClients();
   const { payments, loading: paymentsLoading } = usePayments();
+  const { companyData } = useCompanyData();
+
+  // Get currency symbol based on company currency
+  const getCurrencySymbol = (currency: string) => {
+    const symbols: { [key: string]: string } = {
+      'USD': '$',
+      'EUR': '€',
+      'GBP': '£',
+      'INR': '₹',
+      'JPY': '¥',
+      'CAD': 'C$',
+      'AUD': 'A$',
+      'CHF': 'CHF',
+      'CNY': '¥',
+      'SEK': 'kr',
+      'NZD': 'NZ$'
+    };
+    return symbols[currency] || currency;
+  };
+
+  const formatCurrency = (amount: number) => {
+    const currency = companyData?.companyCurrency || 'USD';
+    const symbol = getCurrencySymbol(currency);
+    return `${symbol}${amount.toFixed(2)}`;
+  };
 
   // Calculate dashboard metrics using totalAmountINR
   const totalInvoices = invoices.length;
@@ -101,7 +127,7 @@ const Dashboard = () => {
         id: `payment-${payment.id}`,
         type: 'payment',
         message: `Payment received from ${payment.clientName}`,
-        amount: `₹${payment.amount.toLocaleString()}`,
+        amount: `${getCurrencySymbol(companyData?.companyCurrency || 'USD')}${payment.amount.toLocaleString()}`,
         time: formatTimeAgo(payment.createdAt)
       });
     });
@@ -116,7 +142,7 @@ const Dashboard = () => {
         message: invoice.status === 'overdue' 
           ? `Invoice ${invoice.invoiceNumber} is overdue`
           : `Invoice ${invoice.invoiceNumber} sent to ${invoice.clientName || 'Client'}`,
-        amount: `₹${invoice.totalAmount.toLocaleString()}`,
+        amount: `${getCurrencySymbol(companyData?.companyCurrency || 'USD')}${invoice.totalAmount.toLocaleString()}`,
         time: formatTimeAgo(invoice.createdAt)
       });
     });
@@ -135,12 +161,6 @@ const Dashboard = () => {
     if (diffDays > 0) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
     if (diffHours > 0) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
     return 'Just now';
-  };
-
-  const formatIndianCurrency = (amount: number) => {
-    if (!amount) return '₹0.00';
-    
-    return `₹${amount.toFixed(2)}`;
   };
 
   // Get the data by calling the functions
@@ -204,7 +224,7 @@ const Dashboard = () => {
               <IndianRupee className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatIndianCurrency(totalPaidAmount)}</div>
+              <div className="text-2xl font-bold">{formatCurrency(totalPaidAmount)}</div>
               <p className="text-xs text-gray-500">{paidInvoices.length} invoices paid</p>
             </CardContent>
           </Card>
@@ -215,7 +235,7 @@ const Dashboard = () => {
               <Calendar className="h-4 w-4 text-orange-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatIndianCurrency(totalUnpaidAmount)}</div>
+              <div className="text-2xl font-bold">{formatCurrency(totalUnpaidAmount)}</div>
               <p className="text-xs text-gray-500">{unpaidInvoices.length} invoices pending</p>
             </CardContent>
           </Card>
@@ -226,7 +246,7 @@ const Dashboard = () => {
               <AlertCircle className="h-4 w-4 text-red-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatIndianCurrency(totalOverdueAmount)}</div>
+              <div className="text-2xl font-bold">{formatCurrency(totalOverdueAmount)}</div>
               <p className="text-xs text-gray-500">{overdueInvoices.length} invoices overdue</p>
             </CardContent>
           </Card>
@@ -247,8 +267,8 @@ const Dashboard = () => {
                 <BarChart data={revenueData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
-                  <YAxis tickFormatter={(value) => `₹${(value/100000).toFixed(0)}L`} />
-                  <Tooltip formatter={(value) => [formatIndianCurrency(Number(value)), 'Revenue']} />
+                  <YAxis tickFormatter={(value) => `${getCurrencySymbol(companyData?.companyCurrency || 'USD')}${(value/100000).toFixed(0)}L`} />
+                  <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Revenue']} />
                   <Bar dataKey="revenue" fill="#3B82F6" />
                 </BarChart>
               </ResponsiveContainer>
@@ -315,7 +335,7 @@ const Dashboard = () => {
                       </div>
                     </div>
                     <Badge variant="default">
-                      {formatIndianCurrency(client.total)}
+                      {formatCurrency(client.total)}
                     </Badge>
                   </div>
                 ))}
