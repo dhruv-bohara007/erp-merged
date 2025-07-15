@@ -1,4 +1,3 @@
-
 import { Timestamp } from 'firebase/firestore';
 
 export interface Company {
@@ -265,7 +264,6 @@ export interface Employee {
   temporaryPassword?: string;
   status: 'active' | 'inactive';
   role: 'employee';
-  userId: string; // Firebase Auth user ID
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
