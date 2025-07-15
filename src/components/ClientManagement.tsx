@@ -163,10 +163,10 @@ const ClientManagement = () => {
   // Calculate client-specific metrics from invoices
   const getClientMetrics = (clientId: string) => {
     const clientInvoices = invoices.filter(invoice => invoice.clientId === clientId);
-    const totalAmount = clientInvoices.reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
+    const totalAmount = clientInvoices.reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
     const outstandingAmount = clientInvoices
       .filter(invoice => invoice.status === 'sent' || invoice.status === 'draft' || invoice.status === 'overdue')
-      .reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
+      .reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
     
     return {
       invoiceCount: clientInvoices.length,
@@ -178,11 +178,11 @@ const ClientManagement = () => {
   // Calculate dynamic metrics from Firestore data
   const calculateClientMetrics = () => {
     const totalRevenue = invoices
-      .reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
+      .reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
 
     const outstandingAmount = invoices
       .filter(invoice => invoice.status === 'sent' || invoice.status === 'draft' || invoice.status === 'overdue')
-      .reduce((sum, invoice) => sum + (invoice.totalAmountINR || invoice.totalAmount || 0), 0);
+      .reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
 
     return { totalRevenue, outstandingAmount };
   };
