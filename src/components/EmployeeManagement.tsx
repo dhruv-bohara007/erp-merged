@@ -8,9 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { useEmployees } from '@/hooks/useEmployees';
 import { Users, Plus, Mail, Eye, EyeOff, UserPlus } from 'lucide-react';
-import { Timestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 interface Employee {
   id: string;
@@ -20,8 +20,8 @@ interface Employee {
   temporaryPassword: string;
   status: 'active' | 'inactive';
   role: 'employee';
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: any;
+  updatedAt: any;
 }
 
 const EmployeeManagement = () => {
@@ -36,7 +36,6 @@ const EmployeeManagement = () => {
   });
 
   const { currentUser } = useAuth();
-  const { addDocument, getDocuments } = useEmployees();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -48,10 +47,16 @@ const EmployeeManagement = () => {
     
     try {
       setLoading(true);
-      const employeesData = await getDocuments('employees', [
-        { field: 'companyId', operator: '==', value: currentUser.companyId }
-      ]);
-      setEmployees(employeesData as Employee[]);
+      const q = query(
+        collection(db, 'employees'),
+        where('companyId', '==', currentUser.companyId)
+      );
+      const querySnapshot = await getDocs(q);
+      const employeesData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Employee[];
+      setEmployees(employeesData);
     } catch (error) {
       console.error('Error fetching employees:', error);
       toast({
@@ -86,7 +91,7 @@ const EmployeeManagement = () => {
     try {
       setLoading(true);
       
-      const employeeData: Omit<Employee, 'id'> = {
+      const employeeData = {
         companyId: currentUser.companyId,
         name: newEmployee.name,
         email: newEmployee.email,
@@ -97,7 +102,7 @@ const EmployeeManagement = () => {
         updatedAt: Timestamp.now(),
       };
 
-      await addDocument('employees', employeeData);
+      await addDoc(collection(db, 'employees'), employeeData);
       
       toast({
         title: 'Success',
@@ -120,7 +125,6 @@ const EmployeeManagement = () => {
   };
 
   const handleSendEmail = (employeeEmail: string) => {
-    // Placeholder for send email functionality
     toast({
       title: 'Email Functionality',
       description: `Send email feature for ${employeeEmail} will be implemented later`,
@@ -137,7 +141,7 @@ const EmployeeManagement = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Employee Management</h1>
@@ -197,11 +201,7 @@ const EmployeeManagement = () => {
                       className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                       onClick={() => setShowPassword(!showPassword)}
                     >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </Button>
                   </div>
                   <Button type="button" variant="outline" onClick={generatePassword}>
@@ -222,7 +222,6 @@ const EmployeeManagement = () => {
         </Dialog>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -263,16 +262,20 @@ const EmployeeManagement = () => {
           <CardContent>
             <div className="text-2xl font-bold">
               {employees.filter(emp => {
-                const oneWeekAgo = new Date();
-                oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-                return emp.createdAt.toDate() > oneWeekAgo;
+                try {
+                  const oneWeekAgo = new Date();
+                  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+                  const createdDate = emp.createdAt?.toDate ? emp.createdAt.toDate() : new Date(emp.createdAt);
+                  return createdDate > oneWeekAgo;
+                } catch {
+                  return false;
+                }
               }).length}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Employees Table */}
       <Card>
         <CardHeader>
           <CardTitle>Employees</CardTitle>
@@ -315,7 +318,14 @@ const EmployeeManagement = () => {
                     </TableCell>
                     <TableCell className="capitalize">{employee.role}</TableCell>
                     <TableCell>
-                      {employee.createdAt.toDate().toLocaleDateString()}
+                      {(() => {
+                        try {
+                          const date = employee.createdAt?.toDate ? employee.createdAt.toDate() : new Date(employee.createdAt);
+                          return date.toLocaleDateString();
+                        } catch {
+                          return 'Unknown';
+                        }
+                      })()}
                     </TableCell>
                     <TableCell>
                       <Button

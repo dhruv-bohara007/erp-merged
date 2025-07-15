@@ -55,14 +55,17 @@ export interface InvoiceItem {
   quantity: number;
   rate: number;
   amount: number;
+  discount?: string; // Added missing discount property
 }
 
 export interface Invoice {
   id: string;
+  companyId: string; // Added missing companyId
   invoiceNumber: string;
   clientId: string;
   clientName: string; // denormalized
   clientEmail: string;
+  clientPhone?: string; // Added missing clientPhone
   clientGSTIN?: string;
   issueDate: Timestamp;
   dueDate: Timestamp;
@@ -78,8 +81,14 @@ export interface Invoice {
   cgstAmount?: number;
   sgstAmount?: number;
   igstAmount?: number;
+  // Added missing tax properties
+  cgst?: number;
+  sgst?: number;
+  igst?: number;
   totalGST: number;
+  totalGst?: number; // Alternative name used in components
   total: number;
+  totalAmount?: number; // Alternative name used in components
   currency: string; // 'INR'
   // New currency conversion fields
   totalAmountINR: number; // Final amount stored in INR
@@ -95,12 +104,20 @@ export interface Invoice {
   // New country fields for automatic population
   companyCountry: string; // Automatically fetched from company document
   clientCountry: string; // Automatically fetched from client document
+  // Company info properties
+  companyCity?: string;
+  companyPhone?: string;
+  companyEmail?: string;
+  companyWebsite?: string;
   // New company snapshot fields
   companyName: string;
   companyLogoUrl?: string;
+  logoUrl?: string; // Alternative name used in components
   companyTaxInfo?: {
     gstin: string;
     pan: string;
+    primaryType?: string; // Added missing properties
+    primaryId?: string;
   };
   companyBankDetails?: {
     accountNumber: string;
@@ -108,10 +125,21 @@ export interface Invoice {
     bankName: string;
     accountHolderName: string;
   };
+  bankInfo?: { // Alternative name used in components
+    accountNumber: string;
+    ifscCode: string;
+    bankName: string;
+    accountHolderName: string;
+  };
   companyAddress: string;
   ownerSignatureUrl?: string;
+  signatureUrl?: string; // Alternative name used in components
+  businessOwnerName?: string; // Added missing properties
+  businessOwnerPosition?: string;
   // New client snapshot fields
   clientAddress: string;
+  clientState?: string; // Added missing client properties
+  clientPincode?: string;
   clientTaxInfo?: {
     id: string;
     type: string;
@@ -126,11 +154,13 @@ export interface Invoice {
 
 export interface Payment {
   id: string;
+  companyId?: string; // Added missing companyId
   invoiceId: string;
   invoiceNumber: string; // denormalized
   clientId: string;
   clientName: string; // denormalized
   amount: number;
+  originalPaymentAmount?: number; // Added missing property
   paymentMethod: 'neft' | 'rtgs' | 'imps' | 'upi' | 'cash' | 'credit_card' | 'debit_card' | 'cheque';
   paymentDate: Timestamp;
   status: 'completed' | 'pending' | 'failed';
