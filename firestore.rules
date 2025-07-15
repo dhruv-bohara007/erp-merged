@@ -26,9 +26,24 @@ service cloud.firestore {
         getUserData().role == 'super_admin';
     }
 
-    // USERS: each user can only access their own document
+    // Helper function to check if user is an employee
+    function isEmployee() {
+      return request.auth != null &&
+        getUserData().role == 'employee' &&
+        getUserData().companyId != null;
+    }
+
+    // Helper function to check if user is company admin or employee from same company
+    function isCompanyMember() {
+      return isCompanyAdmin() || isEmployee();
+    }
+
+    // USERS: each user can access their own document, company admins can access employees in their company
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Company admin can read/update employees in their company
+      allow read, update: if isCompanyAdmin() && belongsToCompany(resource.data.companyId);
       
       // Super admin can read/update any user document
       allow read, update: if isSuperAdmin();
@@ -39,6 +54,9 @@ service cloud.firestore {
       // Company admin can read/write their own company
       allow read, write: if isCompanyAdmin() && belongsToCompany(companyId);
       
+      // Employees can read their company information
+      allow read: if isEmployee() && belongsToCompany(companyId);
+      
       // Super admin can access all companies
       allow read, write: if isSuperAdmin();
       
@@ -48,13 +66,16 @@ service cloud.firestore {
         companyId == request.auth.uid;
     }
 
-    // CLIENTS: only accessible by users from the same company
+    // CLIENTS: accessible by company members (admin and employees)
     match /clients/{clientId} {
       // For existing documents, check if the document's companyId matches user's companyId
-      allow read, write: if isCompanyAdmin() && 
+      allow read: if isCompanyMember() && 
         (resource == null || resource.data.companyId == getUserData().companyId);
       
-      // For new documents, ensure the companyId is set to user's companyId
+      // Only company admins can write/create clients
+      allow write: if isCompanyAdmin() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
       allow create: if isCompanyAdmin() &&
         request.resource.data.companyId == getUserData().companyId;
       
@@ -62,9 +83,13 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
     }
 
-    // INVOICES: only accessible by users from the same company
+    // INVOICES: accessible by company members (admin and employees)
     match /invoices/{invoiceId} {
-      allow read, write: if isCompanyAdmin() && 
+      allow read: if isCompanyMember() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      // Only company admins can write/create invoices
+      allow write: if isCompanyAdmin() && 
         (resource == null || resource.data.companyId == getUserData().companyId);
       
       allow create: if isCompanyAdmin() &&
@@ -73,9 +98,13 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
     }
 
-    // PAYMENTS: only accessible by users from the same company
+    // PAYMENTS: accessible by company members (admin and employees)
     match /payments/{paymentId} {
-      allow read, write: if isCompanyAdmin() && 
+      allow read: if isCompanyMember() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      // Only company admins can write/create payments
+      allow write: if isCompanyAdmin() && 
         (resource == null || resource.data.companyId == getUserData().companyId);
       
       allow create: if isCompanyAdmin() &&
@@ -84,9 +113,13 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
     }
 
-    // EXPENSES: only accessible by users from the same company
+    // EXPENSES: accessible by company members (admin and employees)
     match /expenses/{expenseId} {
-      allow read, write: if isCompanyAdmin() && 
+      allow read: if isCompanyMember() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      // Only company admins can write/create expenses
+      allow write: if isCompanyAdmin() && 
         (resource == null || resource.data.companyId == getUserData().companyId);
       
       allow create: if isCompanyAdmin() &&
@@ -95,9 +128,13 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
     }
 
-    // PURCHASES: only accessible by users from the same company
+    // PURCHASES: accessible by company members (admin and employees)
     match /purchases/{purchaseId} {
-      allow read, write: if isCompanyAdmin() && 
+      allow read: if isCompanyMember() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      // Only company admins can write/create purchases
+      allow write: if isCompanyAdmin() && 
         (resource == null || resource.data.companyId == getUserData().companyId);
       
       allow create: if isCompanyAdmin() &&
@@ -106,9 +143,13 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
     }
 
-    // INVENTORY: only accessible by users from the same company
+    // INVENTORY: accessible by company members (admin and employees)
     match /inventory/{inventoryId} {
-      allow read, write: if isCompanyAdmin() && 
+      allow read: if isCompanyMember() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      // Only company admins can write/create inventory
+      allow write: if isCompanyAdmin() && 
         (resource == null || resource.data.companyId == getUserData().companyId);
       
       allow create: if isCompanyAdmin() &&
@@ -117,9 +158,13 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
     }
 
-    // TDS RECORDS: only accessible by users from the same company
+    // TDS RECORDS: accessible by company members (admin and employees)
     match /tds_records/{tdsId} {
-      allow read, write: if isCompanyAdmin() && 
+      allow read: if isCompanyMember() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      // Only company admins can write/create TDS records
+      allow write: if isCompanyAdmin() && 
         (resource == null || resource.data.companyId == getUserData().companyId);
       
       allow create: if isCompanyAdmin() &&
@@ -128,9 +173,13 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
     }
 
-    // SUPPLIERS: only accessible by users from the same company
+    // SUPPLIERS: accessible by company members (admin and employees)
     match /suppliers/{supplierId} {
-      allow read, write: if isCompanyAdmin() && 
+      allow read: if isCompanyMember() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      // Only company admins can write/create suppliers
+      allow write: if isCompanyAdmin() && 
         (resource == null || resource.data.companyId == getUserData().companyId);
       
       allow create: if isCompanyAdmin() &&
@@ -139,10 +188,15 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
     }
 
-    // EMPLOYEES: only accessible by users from the same company
+    // EMPLOYEES: accessible by company admins and employees can read their own data
     match /employees/{employeeId} {
+      // Company admins can manage all employees in their company
       allow read, write: if isCompanyAdmin() && 
         (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      // Employees can read their own employee record
+      allow read: if isEmployee() && 
+        resource.data.userId == request.auth.uid;
       
       allow create: if isCompanyAdmin() &&
         request.resource.data.companyId == getUserData().companyId;

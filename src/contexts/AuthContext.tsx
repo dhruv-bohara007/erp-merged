@@ -1,29 +1,34 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { 
   User,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  updatePassword
 } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteField } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 
-export type UserRole = 'company_admin' | 'super_admin';
+export type UserRole = 'company_admin' | 'super_admin' | 'employee';
 
 export interface AuthUser extends User {
   role?: UserRole;
   companyId?: string;
   hasCompletedSetup?: boolean;
+  needsPasswordReset?: boolean;
 }
 
 interface AuthContextType {
   currentUser: AuthUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithTemporaryPassword: (email: string, tempPassword: string) => Promise<{ needsPasswordReset: boolean }>;
   register: (email: string, password: string, role?: UserRole) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateUserPassword: (newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -49,7 +54,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...user,
         role: userData?.role || 'company_admin',
         companyId: userData?.companyId,
-        hasCompletedSetup: userData?.hasCompletedSetup || false
+        hasCompletedSetup: userData?.hasCompletedSetup || false,
+        needsPasswordReset: userData?.needsPasswordReset || false
       };
     } catch (error) {
       console.log('Error fetching user data:', error);
@@ -57,7 +63,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return {
         ...user,
         role: 'company_admin' as UserRole,
-        hasCompletedSetup: false
+        hasCompletedSetup: false,
+        needsPasswordReset: false
       };
     }
   };
@@ -66,6 +73,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const authUser = await fetchUserData(userCredential.user);
     setCurrentUser(authUser);
+  };
+
+  const loginWithTemporaryPassword = async (email: string, tempPassword: string) => {
+    const userCredential = await signInWithEmailAndPassword(auth, email, tempPassword);
+    const authUser = await fetchUserData(userCredential.user);
+    setCurrentUser(authUser);
+    
+    return { needsPasswordReset: authUser.needsPasswordReset || false };
+  };
+
+  const updateUserPassword = async (newPassword: string) => {
+    if (!auth.currentUser) {
+      throw new Error('No authenticated user');
+    }
+
+    // Update password in Firebase Auth
+    await updatePassword(auth.currentUser, newPassword);
+
+    // Update user document in Firestore
+    await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+      needsPasswordReset: false,
+      temporaryPassword: deleteField(),
+      updatedAt: new Date().toISOString()
+    });
+
+    // Refresh user data
+    await refreshUser();
   };
 
   const register = async (email: string, password: string, role: UserRole = 'company_admin') => {
@@ -122,9 +156,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     currentUser,
     loading,
     login,
+    loginWithTemporaryPassword,
     register,
     logout,
-    refreshUser
+    refreshUser,
+    updateUserPassword
   };
 
   return (

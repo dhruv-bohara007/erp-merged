@@ -13,7 +13,7 @@ const LoginForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, currentUser } = useAuth();
+  const { login, loginWithTemporaryPassword, currentUser } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -22,25 +22,58 @@ const LoginForm = () => {
     setLoading(true);
 
     try {
-      await login(email, password);
-      
-      // Redirect based on role - removed client dashboard
-      const roleRedirects = {
-        company_admin: '/admin-dashboard',
-        super_admin: '/super-dashboard'
-      };
-      
-      const userRole = currentUser?.role || 'company_admin';
-      navigate(roleRedirects[userRole]);
-      
-      toast({
-        title: 'Login Successful',
-        description: 'Welcome back!',
-      });
-    } catch (error) {
+      // First try normal login
+      try {
+        await login(email, password);
+        
+        // Check if user needs password reset after successful login
+        if (currentUser?.needsPasswordReset) {
+          navigate('/reset-password');
+          return;
+        }
+        
+        // Redirect based on role
+        const roleRedirects = {
+          company_admin: '/admin-dashboard',
+          super_admin: '/super-dashboard',
+          employee: '/employee-dashboard'
+        };
+        
+        const userRole = currentUser?.role || 'company_admin';
+        navigate(roleRedirects[userRole] || '/admin-dashboard');
+        
+        toast({
+          title: 'Login Successful',
+          description: 'Welcome back!',
+        });
+      } catch (normalLoginError) {
+        // If normal login fails, try with temporary password
+        try {
+          const result = await loginWithTemporaryPassword(email, password);
+          
+          if (result.needsPasswordReset) {
+            navigate('/reset-password');
+            toast({
+              title: 'First Time Login',
+              description: 'Please set a new secure password',
+            });
+          } else {
+            // Normal redirect for employees
+            navigate('/employee-dashboard');
+            toast({
+              title: 'Login Successful',
+              description: 'Welcome back!',
+            });
+          }
+        } catch (tempLoginError) {
+          // Both login attempts failed
+          throw normalLoginError; // Throw the original error
+        }
+      }
+    } catch (error: any) {
       toast({
         title: 'Login Failed',
-        description: error instanceof Error ? error.message : 'An error occurred during login',
+        description: error.message || 'Invalid email or password',
         variant: 'destructive',
       });
     } finally {

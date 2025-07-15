@@ -8,7 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, getDocs, query, where, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, Timestamp, setDoc, doc } from 'firebase/firestore';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Employee } from '@/types/firestore';
 import { Plus, Users, UserCheck, UserX, Mail } from 'lucide-react';
@@ -86,6 +88,25 @@ const EmployeeManagement = () => {
         return;
       }
 
+      // Create Firebase Auth account with temporary password
+      const userCredential = await createUserWithEmailAndPassword(
+        auth, 
+        formData.email, 
+        formData.temporaryPassword
+      );
+
+      // Store user data in users collection
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
+        email: formData.email,
+        role: 'employee',
+        companyId: currentUser.companyId,
+        needsPasswordReset: true,
+        hasCompletedSetup: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      // Store employee data in employees collection
       const newEmployee: Omit<Employee, 'id'> = {
         companyId: currentUser.companyId,
         name: formData.name,
@@ -93,6 +114,7 @@ const EmployeeManagement = () => {
         temporaryPassword: formData.temporaryPassword,
         status: 'active',
         role: 'employee',
+        userId: userCredential.user.uid,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
@@ -101,17 +123,17 @@ const EmployeeManagement = () => {
       
       toast({
         title: 'Success',
-        description: 'Employee added successfully',
+        description: 'Employee account created successfully',
       });
       
       setFormData({ name: '', email: '', temporaryPassword: '' });
       setIsModalOpen(false);
       loadEmployees();
-    } catch (error) {
-      console.error('Error adding employee:', error);
+    } catch (error: any) {
+      console.error('Error creating employee:', error);
       toast({
         title: 'Error',
-        description: 'Failed to add employee',
+        description: error.message || 'Failed to create employee account',
         variant: 'destructive',
       });
     }
@@ -120,7 +142,7 @@ const EmployeeManagement = () => {
   const handleSendEmail = (employee: Employee) => {
     const subject = encodeURIComponent('Your Employee Account Details');
     const body = encodeURIComponent(
-      `Dear ${employee.name},\n\nYour employee account has been created:\n\nEmail: ${employee.email}\nTemporary Password: ${employee.temporaryPassword}\n\nPlease change your password after first login.\n\nBest regards,\nHR Team`
+      `Dear ${employee.name},\n\nYour employee account has been created:\n\nEmail: ${employee.email}\nTemporary Password: ${employee.temporaryPassword}\n\nPlease log in using these credentials. You will be prompted to set a new secure password on your first login.\n\nLogin here: ${window.location.origin}/login\n\nBest regards,\nHR Team`
     );
     window.open(`mailto:${employee.email}?subject=${subject}&body=${body}`);
   };

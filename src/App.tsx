@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import LoginForm from "@/components/LoginForm";
 import RegisterForm from "@/components/RegisterForm";
+import PasswordResetForm from "@/components/PasswordResetForm";
 import Index from "./pages/Index";
 import SuperDashboard from "./pages/SuperDashboard";
 import InvoiceForm from "./components/InvoiceForm";
@@ -37,6 +38,11 @@ const AuthenticatedApp = () => {
   const getDefaultRedirect = () => {
     if (!currentUser) return '/login';
     
+    // If user needs password reset, redirect to password reset
+    if (currentUser.needsPasswordReset) {
+      return '/reset-password';
+    }
+    
     // If company admin hasn't completed setup, redirect to company signup
     if (currentUser.role === 'company_admin' && !currentUser.hasCompletedSetup) {
       return '/company-setup';
@@ -44,7 +50,8 @@ const AuthenticatedApp = () => {
     
     const roleRedirects = {
       company_admin: '/admin-dashboard',
-      super_admin: '/super-dashboard'
+      super_admin: '/super-dashboard',
+      employee: '/employee-dashboard'
     };
     
     return roleRedirects[currentUser.role || 'company_admin'];
@@ -57,6 +64,13 @@ const AuthenticatedApp = () => {
         <Route path="/login" element={<LoginForm />} />
         <Route path="/register" element={<RegisterForm />} />
 
+        {/* Password Reset Route - For authenticated users who need to reset password */}
+        <Route path="/reset-password" element={
+          <ProtectedRoute allowedRoles={['company_admin', 'super_admin', 'employee']}>
+            <PasswordResetForm />
+          </ProtectedRoute>
+        } />
+
         {/* Company Setup Route - Only for authenticated company admins */}
         <Route path="/company-setup" element={
           <ProtectedRoute allowedRoles={['company_admin']}>
@@ -68,6 +82,18 @@ const AuthenticatedApp = () => {
         <Route path="/super-dashboard" element={
           <ProtectedRoute allowedRoles={['super_admin']}>
             <SuperDashboard />
+          </ProtectedRoute>
+        } />
+
+        {/* Employee Dashboard - Basic read-only access */}
+        <Route path="/employee-dashboard" element={
+          <ProtectedRoute allowedRoles={['employee']}>
+            <div>
+              <AdminNavigation />
+              <div className="lg:pl-64">
+                <Index />
+              </div>
+            </div>
           </ProtectedRoute>
         } />
 
