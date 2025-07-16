@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import SearchableDropdown from '@/components/SearchableDropdown';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import { usePurchases, useInventory } from '@/hooks/useFirestore';
@@ -28,6 +30,22 @@ interface PurchaseItem {
   discountRate: number;
   amount: number;
 }
+
+const UNIT_OPTIONS = [
+  'pcs',
+  'kg',
+  'lbs',
+  'grams',
+  'liters',
+  'gallons',
+  'meters',
+  'feet',
+  'boxes',
+  'bottles',
+  'packets',
+  'sets',
+  'units'
+];
 
 const PurchaseForm = () => {
   const navigate = useNavigate();
@@ -130,11 +148,13 @@ const PurchaseForm = () => {
         // Convert item price to INR with 2 decimal places
         const { amountInINR: itemAmountInINR } = await convertToINR(item.amount, companyCountry);
         const { amountInINR: priceInINR } = await convertToINR(item.pricePerUnit, companyCountry);
+        const { amountInINR: totalAmountAfterTaxINR } = await convertToINR(totalAmount, companyCountry);
         
         const itemAmountINRFormatted = Math.round(itemAmountInINR * 100) / 100;
         const priceInINRFormatted = Math.round(priceInINR * 100) / 100;
+        const totalAmountAfterTaxFormatted = Math.round(totalAmountAfterTaxINR * 100) / 100;
 
-        // Add purchase record for each item with product categorization fields
+        // Add purchase record for each item with product categorization fields and Total Amount After Tax
         await addPurchase({
           title: `${item.itemName} from ${supplierName}`,
           supplierName,
@@ -146,6 +166,7 @@ const PurchaseForm = () => {
           pricePerUnit: Math.round(item.pricePerUnit * 100) / 100, // Store with 2 decimal places
           discount: (Math.round(item.quantity * item.pricePerUnit * item.discountRate / 100 * 100) / 100).toString(),
           totalAmount: Math.round(item.amount * 100) / 100, // Store with 2 decimal places
+          totalAmountAfterTax: totalAmountAfterTaxFormatted, // Store Total Amount After Tax
           totalAmountINR: itemAmountINRFormatted,
           companyCurrency: companyCurrency.code,
           exchangeRateUsed: rate,
@@ -158,7 +179,7 @@ const PurchaseForm = () => {
           purchaseStatus: 'completed'
         });
 
-        // Update or add inventory item
+        // Update or add inventory item with Total Amount After Tax, Quantity, and Unit
         const existingItem = inventory.find(invItem => 
           invItem.itemName.toLowerCase() === item.itemName.toLowerCase() &&
           (!item.productCategory || invItem.productCategory === item.productCategory) &&
@@ -172,10 +193,13 @@ const PurchaseForm = () => {
             rate: priceInINRFormatted,
             rateInInr: priceInINRFormatted,
             exchangeRateUsed: rate,
+            totalAmountAfterTax: totalAmountAfterTaxFormatted,
+            quantity: item.quantity,
+            unit: item.unit,
             updatedAt: new Date()
           });
         } else {
-          // Add new inventory item with 2 decimal places
+          // Add new inventory item with 2 decimal places and new fields
           await addInventoryItem({
             itemName: item.itemName,
             productCategory: item.productCategory,
@@ -184,6 +208,9 @@ const PurchaseForm = () => {
             rate: priceInINRFormatted,
             rateInInr: priceInINRFormatted,
             exchangeRateUsed: rate,
+            totalAmountAfterTax: totalAmountAfterTaxFormatted,
+            quantity: item.quantity,
+            unit: item.unit,
             companyCurrency: companyCurrency.code,
             companyCountry: companyCountry,
             status: 'active'
@@ -352,10 +379,16 @@ const PurchaseForm = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>Unit</Label>
-                  <Input
-                    value={item.unit}
-                    onChange={(e) => updateItem(item.id, { unit: e.target.value })}
-                  />
+                  <Select value={item.unit} onValueChange={(value) => updateItem(item.id, { unit: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {UNIT_OPTIONS.map(unit => (
+                        <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Price per Unit ({companyCurrency.symbol})</Label>
@@ -413,15 +446,15 @@ const PurchaseForm = () => {
           <div className="space-y-2">
             <div className="flex justify-between">
               <span>Subtotal:</span>
-              <span>{companyCurrency.symbol}{Math.round(subtotal)}</span>
+              <span>{companyCurrency.symbol}{subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
               <span>Tax:</span>
-              <span>{companyCurrency.symbol}{Math.round(totalTaxAmount)}</span>
+              <span>{companyCurrency.symbol}{totalTaxAmount.toFixed(2)}</span>
             </div>
             <div className="flex justify-between font-bold text-lg">
               <span>Total Amount after Tax:</span>
-              <span>{companyCurrency.symbol}{Math.round(totalAmount)}</span>
+              <span>{companyCurrency.symbol}{totalAmount.toFixed(2)}</span>
             </div>
           </div>
         </CardContent>

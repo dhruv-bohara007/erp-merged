@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,12 +21,16 @@ import {
 } from 'lucide-react';
 import { usePurchases } from '@/hooks/useFirestore';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useCompanyData } from '@/hooks/useCompanyData';
+import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
 import EmployeePurchases from './EmployeePurchases';
 
 const PurchaseManagement = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { purchases, loading, error } = usePurchases();
+  const { companyData } = useCompanyData();
+  const { getCurrencyInfo } = useCurrencyConverter();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -33,6 +38,10 @@ const PurchaseManagement = () => {
   
   // Get active section from URL params, default to purchase-requests
   const activeSection = searchParams.get('section') || 'purchase-requests';
+
+  // Get company currency info
+  const companyCountry = companyData?.country || 'US';
+  const companyCurrency = getCurrencyInfo(companyCountry);
 
   const filteredPurchases = purchases.filter(purchase => {
     const matchesSearch = (purchase.supplierName || purchase.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -51,23 +60,23 @@ const PurchaseManagement = () => {
     }
   };
 
-  // Calculate totals using totalAmountINR and ensure 2 decimal places
+  // Calculate totals using totalAmountAfterTax (preferred) or fallback to totalAmountINR/amount
   const totalAmount = filteredPurchases.reduce((sum, purchase) => {
-    const amount = purchase.totalAmountINR || purchase.amount || 0;
+    const amount = purchase.totalAmountAfterTax || purchase.totalAmountINR || purchase.amount || 0;
     return sum + Math.round(amount * 100) / 100;
   }, 0);
   
   const completedAmount = filteredPurchases
     .filter(p => p.purchaseStatus === 'completed')
     .reduce((sum, purchase) => {
-      const amount = purchase.totalAmountINR || purchase.amount || 0;
+      const amount = purchase.totalAmountAfterTax || purchase.totalAmountINR || purchase.amount || 0;
       return sum + Math.round(amount * 100) / 100;
     }, 0);
   
   const pendingAmount = filteredPurchases
     .filter(p => p.purchaseStatus === 'pending')
     .reduce((sum, purchase) => {
-      const amount = purchase.totalAmountINR || purchase.amount || 0;
+      const amount = purchase.totalAmountAfterTax || purchase.totalAmountINR || purchase.amount || 0;
       return sum + Math.round(amount * 100) / 100;
     }, 0);
 
@@ -83,14 +92,15 @@ const PurchaseManagement = () => {
           productCategory: purchase.productCategory || 'Uncategorized',
           itemName: purchase.itemName || 'Unknown',
           productVersion: purchase.productVersion || 'N/A',
-          totalQuantity: 0,
+          currentStock: 0,
           totalValue: 0,
           lastPurchaseDate: purchase.purchaseDate || purchase.expenseDate,
           unit: purchase.unit || 'pcs'
         };
       }
-      acc[key].totalQuantity += purchase.quantity || 0;
-      acc[key].totalValue += Math.round((purchase.totalAmountINR || purchase.amount || 0) * 100) / 100;
+      acc[key].currentStock += purchase.quantity || 0;
+      // Use totalAmountAfterTax for Total Value calculation
+      acc[key].totalValue += Math.round((purchase.totalAmountAfterTax || purchase.totalAmountINR || purchase.amount || 0) * 100) / 100;
       
       const purchaseDate = purchase.purchaseDate || purchase.expenseDate;
       if (purchaseDate && purchaseDate > acc[key].lastPurchaseDate) {
@@ -100,9 +110,9 @@ const PurchaseManagement = () => {
     return acc;
   }, {} as Record<string, any>);
 
-  // Format currency as whole numbers for display
-  const formatINR = (amount: number) => {
-    return `₹${Math.round(amount).toLocaleString()}`;
+  // Format currency with company currency symbol and 2 decimal places
+  const formatCurrency = (amount: number) => {
+    return `${companyCurrency.symbol}${amount.toFixed(2)}`;
   };
 
   // Get page title and description based on active section
@@ -182,7 +192,7 @@ const PurchaseManagement = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Purchases</p>
-                <p className="text-2xl font-bold">{formatINR(totalAmount)}</p>
+                <p className="text-2xl font-bold">{formatCurrency(totalAmount)}</p>
               </div>
               <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
                 <IndianRupee className="h-4 w-4 text-blue-600" />
@@ -196,7 +206,7 @@ const PurchaseManagement = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Completed</p>
-                <p className="text-2xl font-bold text-green-600">{formatINR(completedAmount)}</p>
+                <p className="text-2xl font-bold text-green-600">{formatCurrency(completedAmount)}</p>
               </div>
               <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
                 <Package className="h-4 w-4 text-green-600" />
@@ -210,7 +220,7 @@ const PurchaseManagement = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Pending</p>
-                <p className="text-2xl font-bold text-yellow-600">{formatINR(pendingAmount)}</p>
+                <p className="text-2xl font-bold text-yellow-600">{formatCurrency(pendingAmount)}</p>
               </div>
               <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
                 <Truck className="h-4 w-4 text-yellow-600" />
@@ -290,8 +300,8 @@ const PurchaseManagement = () => {
                       <TableHead>Item Name</TableHead>
                       <TableHead>Quantity Bought</TableHead>
                       <TableHead>Unit</TableHead>
-                      <TableHead>Price per Unit (INR)</TableHead>
-                      <TableHead>Total Amount (INR)</TableHead>
+                      <TableHead>Price per Unit</TableHead>
+                      <TableHead>Total Amount</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
@@ -324,10 +334,10 @@ const PurchaseManagement = () => {
                               <div>{purchase.unit || 'N/A'}</div>
                             </TableCell>
                             <TableCell>
-                              <div className="font-medium">{formatINR(purchase.pricePerUnit || 0)}</div>
+                              <div className="font-medium">{formatCurrency(purchase.pricePerUnit || 0)}</div>
                             </TableCell>
                             <TableCell>
-                              <div className="font-medium">{formatINR(purchase.totalAmountINR || purchase.amount || 0)}</div>
+                              <div className="font-medium">{formatCurrency(purchase.totalAmountAfterTax || purchase.totalAmountINR || purchase.amount || 0)}</div>
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center text-sm">
@@ -357,8 +367,8 @@ const PurchaseManagement = () => {
                       <TableHead>Product Category</TableHead>
                       <TableHead>Item Name</TableHead>
                       <TableHead>Product Version</TableHead>
-                      <TableHead>Total Quantity</TableHead>
-                      <TableHead>Total Value (INR)</TableHead>
+                      <TableHead>Current Stock</TableHead>
+                      <TableHead>Total Value</TableHead>
                       <TableHead>Last Purchase</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -382,10 +392,10 @@ const PurchaseManagement = () => {
                             <div>{item.productVersion}</div>
                           </TableCell>
                           <TableCell>
-                            <div>{item.totalQuantity} {item.unit}</div>
+                            <div>{item.currentStock} {item.unit}</div>
                           </TableCell>
                           <TableCell>
-                            <div className="font-medium">{formatINR(item.totalValue)}</div>
+                            <div className="font-medium">{formatCurrency(item.totalValue)}</div>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center text-sm">

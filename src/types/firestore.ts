@@ -213,6 +213,7 @@ export interface Purchase {
   pricePerUnit?: number;
   discount?: string;
   totalAmount?: number;
+  totalAmountAfterTax?: number; // Added Total Amount After Tax field
   totalAmountINR?: number;
   companyCurrency?: string;
   exchangeRateUsed?: number;
@@ -249,6 +250,7 @@ export interface Expense {
   pricePerUnit?: number;
   discount?: string;
   totalAmount?: number;
+  totalAmountAfterTax?: number; // Added Total Amount After Tax field
   totalAmountINR?: number;
   companyCurrency?: string;
   exchangeRateUsed?: number;
