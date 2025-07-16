@@ -1,4 +1,5 @@
 
+
 import { Timestamp } from 'firebase/firestore';
 
 export interface Company {
@@ -276,7 +277,7 @@ export interface Employee {
   updatedAt: any;
 }
 
-// Add InventoryItem interface with all required fields
+// InventoryItem interface with all required fields
 export interface InventoryItem {
   id: string;
   companyId?: string;
@@ -296,3 +297,4 @@ export interface InventoryItem {
   createdAt?: Date;
   updatedAt?: Date;
 }
+
