@@ -15,7 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
-import type { Supplier, Purchase } from '@/types/firestore';
+import type { Supplier, Purchase, Expense, InventoryItem } from '@/types/firestore';
 
 export interface Invoice {
   id: string;
@@ -155,54 +155,7 @@ export interface Payment {
   createdAt: Date;
 }
 
-export interface Expense {
-  id: string;
-  companyId?: string;
-  title: string;
-  amount: number;
-  category: string;
-  clientId?: string;
-  clientName?: string;
-  projectName?: string;
-  description: string;
-  expenseDate: Date;
-  receipt?: string;
-  status: 'recorded' | 'approved' | 'reimbursed';
-  // Purchase-specific fields (for when used as Purchase)
-  supplierName?: string;
-  itemName?: string;
-  quantity?: number;
-  unit?: string;
-  pricePerUnit?: number;
-  discount?: string;
-  totalAmount?: number;
-  totalAmountINR?: number;
-  companyCurrency?: string;
-  exchangeRateUsed?: number;
-  purchaseDate?: Date;
-  purchaseStatus?: 'completed' | 'pending' | 'cancelled';
-  productCategory?: string;
-  productVersion?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface InventoryItem {
-  id: string;
-  companyId: string;
-  itemName: string;
-  productCategory?: string;
-  productVersion?: string;
-  unitPrice: number;
-  rate: number;
-  rateInInr: number;
-  exchangeRateUsed: number;
-  companyCurrency: string;
-  companyCountry: string;
-  status: 'active' | 'inactive' | 'discontinued';
-  createdAt: Date;
-  updatedAt: Date;
-}
+// Note: Using imported types from @/types/firestore for Expense and InventoryItem
 
 // Custom hooks for each collection
 export const useInvoices = () => {
