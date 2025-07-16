@@ -275,3 +275,24 @@ export interface Employee {
   createdAt: any;
   updatedAt: any;
 }
+
+// Add InventoryItem interface with all required fields
+export interface InventoryItem {
+  id: string;
+  companyId?: string;
+  itemName: string;
+  productCategory?: string;
+  productVersion?: string;
+  unitPrice?: number;
+  rate?: number;
+  rateInInr?: number;
+  exchangeRateUsed?: number;
+  quantity?: number; // Added quantity field
+  unit?: string; // Added unit field
+  totalAmountAfterTax?: number; // Added Total Amount After Tax field
+  companyCurrency?: string;
+  companyCountry?: string;
+  status?: 'active' | 'inactive';
+  createdAt?: Date;
+  updatedAt?: Date;
+}
