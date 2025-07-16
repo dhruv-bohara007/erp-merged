@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,18 @@ const RegisterForm = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Get URL parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const emailParam = urlParams.get('email');
+  const typeParam = urlParams.get('type');
+  const isEmployeeRegistration = typeParam === 'employee';
+
+  useEffect(() => {
+    if (emailParam) {
+      setEmail(emailParam);
+    }
+  }, [emailParam]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,14 +54,22 @@ const RegisterForm = () => {
     setLoading(true);
 
     try {
-      await register(email, password, 'company_admin');
+      const role = isEmployeeRegistration ? 'employee' : 'company_admin';
+      await register(email, password, role);
       
-      navigate('/company-setup');
-      
-      toast({
-        title: 'Registration Successful',
-        description: 'Welcome to InvoiceApp! Please complete your company setup.',
-      });
+      if (isEmployeeRegistration) {
+        navigate('/employee-dashboard');
+        toast({
+          title: 'Registration Successful',
+          description: 'Welcome! Your account has been created successfully.',
+        });
+      } else {
+        navigate('/company-setup');
+        toast({
+          title: 'Registration Successful',
+          description: 'Welcome to InvoiceApp! Please complete your company setup.',
+        });
+      }
     } catch (error) {
       toast({
         title: 'Registration Failed',
@@ -68,8 +88,7 @@ const RegisterForm = () => {
           <div className="flex justify-center mb-4">
             <Building className="h-12 w-12 text-blue-600" />
           </div>
-          <CardTitle className="text-2xl font-bold">Create Company Account</CardTitle>
-          <CardDescription>Sign up to start managing your invoices</CardDescription>
+          <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -84,6 +103,7 @@ const RegisterForm = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
+                  disabled={isEmployeeRegistration}
                   required
                 />
               </div>
@@ -121,20 +141,13 @@ const RegisterForm = () => {
               </div>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-              <p className="text-sm text-blue-700">
-                <strong>Account Type:</strong> Company Admin
-                <br />
-                You'll have full access to invoice and client management features.
-              </p>
-            </div>
 
             <Button 
               type="submit" 
               className="w-full" 
               disabled={loading}
             >
-              {loading ? 'Creating account...' : 'Create Company Account'}
+              {loading ? 'Creating account...' : 'Create Account'}
             </Button>
           </form>
 

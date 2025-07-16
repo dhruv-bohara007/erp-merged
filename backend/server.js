@@ -22,18 +22,17 @@ const createTransporter = () => {
   });
 };
 
-// Send welcome email to new employee
-app.post('/api/send-welcome-email', async (req, res) => {
+// Send registration invitation to new employee
+app.post('/api/send-registration-invite', async (req, res) => {
   try {
     const { 
       employeeName, 
       employeeEmail, 
-      temporaryPassword, 
       companyName,
-      loginUrl 
+      registrationUrl 
     } = req.body;
 
-    if (!employeeName || !employeeEmail || !temporaryPassword || !companyName || !loginUrl) {
+    if (!employeeName || !employeeEmail || !companyName || !registrationUrl) {
       return res.status(400).json({
         success: false,
         message: 'Missing required fields'
@@ -45,28 +44,25 @@ app.post('/api/send-welcome-email', async (req, res) => {
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: employeeEmail,
-      subject: `Welcome to ${companyName}`,
+      subject: `You've been invited to join ${companyName}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #333;">Hello ${employeeName},</h2>
           
-          <p>You've been added to the <strong>${companyName}</strong> system.</p>
+          <p>You've been invited to join <strong>${companyName}</strong>!</p>
           
-          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>Login Email:</strong> ${employeeEmail}</p>
-            <p><strong>Temporary Password:</strong> ${temporaryPassword}</p>
-          </div>
+          <p>To get started, please create your account by clicking the link below:</p>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${loginUrl}" 
+            <a href="${registrationUrl}" 
                style="background-color: #007bff; color: white; padding: 12px 24px; 
                       text-decoration: none; border-radius: 5px; display: inline-block;">
-              👉 Click here to login
+              Create Your Account
             </a>
           </div>
           
           <p style="color: #666; font-size: 14px;">
-            For security reasons, you'll be required to change your password upon first login.
+            You'll be able to set your own password during registration.
           </p>
           
           <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
@@ -81,7 +77,7 @@ app.post('/api/send-welcome-email', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Welcome email sent successfully'
+      message: 'Registration invitation sent successfully'
     });
 
   } catch (error) {

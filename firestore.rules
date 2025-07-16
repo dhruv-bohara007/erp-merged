@@ -193,15 +193,13 @@ service cloud.firestore {
       allow create: if isCompanyAdmin() &&
         request.resource.data.companyId == getUserData().companyId;
       
-      // Employees can read and update their own document (including password reset)
-      allow read, update: if request.auth != null && request.auth.uid == employeeId;
-      
-      // Allow employees to update their status to 'verified' and reset needsPasswordReset during password reset
-      allow update: if request.auth != null && 
-        request.auth.uid == employeeId &&
-        resource.data.needsPasswordReset == true &&
-        request.resource.data.needsPasswordReset == false &&
+      // Allow anyone to create an employee record during registration if they have the matching email
+      allow create: if request.auth != null &&
+        request.resource.data.email == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email &&
         request.resource.data.status == 'verified';
+      
+      // Employees can read and update their own document
+      allow read, update: if request.auth != null && request.auth.uid == employeeId;
       
       allow read, write: if isSuperAdmin();
     }
