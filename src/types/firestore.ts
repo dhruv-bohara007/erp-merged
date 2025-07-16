@@ -1,5 +1,3 @@
-
-
 import { Timestamp } from 'firebase/firestore';
 
 export interface Company {
@@ -297,4 +295,3 @@ export interface InventoryItem {
   createdAt?: Date;
   updatedAt?: Date;
 }
-
