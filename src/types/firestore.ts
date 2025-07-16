@@ -267,7 +267,7 @@ export interface Employee {
   country?: string;
   phoneCode?: string;
   phoneNumber?: string;
-  status: 'active' | 'inactive' | 'not_verified';
+  status: 'active' | 'inactive' | 'not_verified' | 'verified';
   role: 'employee';
   createdAt: any;
   updatedAt: any;

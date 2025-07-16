@@ -86,6 +86,7 @@ const PasswordResetForm = () => {
       const employeesRef = doc(db, 'employees', currentUser.uid);
       await updateDoc(employeesRef, {
         needsPasswordReset: false,
+        status: 'verified',
         temporaryPassword: deleteField(),
         updatedAt: new Date()
       });

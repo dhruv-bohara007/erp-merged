@@ -100,6 +100,8 @@ const EmployeeManagement = () => {
     switch (status) {
       case 'active':
         return 'default';
+      case 'verified':
+        return 'default';
       case 'not_verified':
         return 'secondary';
       case 'inactive':
@@ -113,6 +115,8 @@ const EmployeeManagement = () => {
     switch (status) {
       case 'not_verified':
         return 'Not Verified';
+      case 'verified':
+        return 'Verified';
       case 'active':
         return 'Active';
       case 'inactive':
@@ -122,7 +126,7 @@ const EmployeeManagement = () => {
     }
   };
 
-  const activeEmployees = employees.filter(emp => emp.status === 'active');
+  const activeEmployees = employees.filter(emp => emp.status === 'active' || emp.status === 'verified');
   const notVerifiedEmployees = employees.filter(emp => emp.status === 'not_verified');
   const inactiveEmployees = employees.filter(emp => emp.status === 'inactive');
 

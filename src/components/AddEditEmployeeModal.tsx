@@ -211,7 +211,7 @@ const AddEditEmployeeModal = ({ isOpen, onClose, employee, onEmployeeAdded }: Ad
         country: formData.country,
         phoneCode: formData.phoneCode,
         phoneNumber: formData.phoneNumber,
-        status: employee ? employee.status : 'active',
+        status: employee ? employee.status : 'not_verified',
         role: 'employee',
         updatedAt: Timestamp.now(),
       };
@@ -247,7 +247,7 @@ const AddEditEmployeeModal = ({ isOpen, onClose, employee, onEmployeeAdded }: Ad
           toast({
             title: 'Email Send Warning',
             description: 'Employee added, but failed to send welcome email. Please try sending manually.',
-            variant: 'warning',
+            variant: 'destructive',
           });
         }
 
@@ -355,22 +355,35 @@ const AddEditEmployeeModal = ({ isOpen, onClose, employee, onEmployeeAdded }: Ad
           )}
 
           <div className="flex space-x-2 pt-4">
-            <Button
-              type="submit"
-              className="flex-1"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Saving...' : (employee ? 'Update Employee' : 'Add Employee')}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleSendEmail}
-              disabled={!formData.name || !formData.email || !formData.temporaryPassword || isSendingEmail}
-            >
-              <Mail className="h-4 w-4 mr-2" />
-              {isSendingEmail ? 'Sending...' : 'Send Email'}
-            </Button>
+            {employee ? (
+              <>
+                <Button
+                  type="submit"
+                  className="flex-1"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'Updating...' : 'Update Employee'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleSendEmail}
+                  disabled={!formData.name || !formData.email || !formData.temporaryPassword || isSendingEmail}
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  {isSendingEmail ? 'Sending...' : 'Send Email'}
+                </Button>
+              </>
+            ) : (
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isSubmitting}
+              >
+                <Mail className="h-4 w-4 mr-2" />
+                {isSubmitting ? 'Adding...' : 'Send Email & Add Unverified Employee'}
+              </Button>
+            )}
           </div>
 
           <Button
