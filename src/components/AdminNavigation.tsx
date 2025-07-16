@@ -151,6 +151,25 @@ const AdminNavigation = () => {
                 )}
               </div>
 
+              {/* Stock Details */}
+              <NavLink
+                to="/stock-details"
+                className={({ isActive }) =>
+                  `group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
+                    isActive
+                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
+                  }`
+                }
+              >
+                <Package
+                  className={`mr-3 flex-shrink-0 h-5 w-5 ${
+                    isActive('/stock-details') ? 'text-blue-500 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-500 dark:group-hover:text-gray-400'
+                  }`}
+                />
+                Stock Details
+              </NavLink>
+
               {/* Render remaining items starting from Payments */}
               {navItems.slice(6).map((item) => (
                 <NavLink
@@ -308,6 +327,26 @@ const AdminNavigation = () => {
                   </div>
                 )}
               </div>
+
+              {/* Mobile Stock Details */}
+              <NavLink
+                to="/stock-details"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={({ isActive }) =>
+                  `group flex items-center px-4 py-2 text-base font-medium transition-colors ${
+                    isActive
+                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100 border-r-4 border-blue-500 dark:border-blue-400'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
+                  }`
+                }
+              >
+                <Package
+                  className={`mr-3 flex-shrink-0 h-5 w-5 ${
+                    isActive('/stock-details') ? 'text-blue-500 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-500 dark:group-hover:text-gray-400'
+                  }`}
+                />
+                Stock Details
+              </NavLink>
 
               {/* Render remaining items starting from Payments */}
               {navItems.slice(6).map((item) => (

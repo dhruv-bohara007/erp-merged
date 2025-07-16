@@ -33,6 +33,7 @@ import EmployeeDashboard from "./pages/EmployeeDashboard";
 import EmployeeNavigation from "./components/EmployeeNavigation";
 import EmployeeInventory from "./components/EmployeeInventory";
 import EmployeePurchases from "./components/EmployeePurchases";
+import StockDetails from "./components/StockDetails";
 
 const queryClient = new QueryClient();
 
@@ -282,6 +283,21 @@ const AuthenticatedApp = () => {
                 <AdminNavigation />
                 <div className="lg:pl-64">
                   <EmployeeManagement />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+
+        <Route path="/stock-details" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <StockDetails />
                 </div>
               </div>
             ) : (

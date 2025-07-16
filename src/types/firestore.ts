@@ -297,3 +297,19 @@ export interface InventoryItem {
   createdAt?: Date;
   updatedAt?: Date;
 }
+
+// StockDetails interface for the new stock_details collection
+export interface StockDetailsData {
+  id: string;
+  companyId: string;
+  productCategory: string;
+  itemName: string;
+  productVersion: string;
+  currentStock: number;
+  totalValue: number;
+  lastPurchaseDate?: Date;
+  unit: string;
+  averageRate: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
