@@ -224,6 +224,7 @@ export interface Purchase {
   updatedAt: Date;
 }
 
+// Note: This interface is used for the purchase_records collection (migrated from expenses)
 export interface Expense {
   id: string;
   companyId?: string;

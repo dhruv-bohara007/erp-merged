@@ -662,17 +662,17 @@ export const useExpenses = () => {
       return;
     }
 
-    console.log('Setting up expenses listener for company:', currentUser.companyId);
+    console.log('Setting up purchase records listener for company:', currentUser.companyId);
     
     const q = query(
-      collection(db, 'expenses'), 
+      collection(db, 'purchase_records'), 
       where('companyId', '==', currentUser.companyId),
       where('supplierName', '==', null)  // This excludes purchase records
     );
     
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
-        console.log('Expenses snapshot received:', snapshot.docs.length, 'documents');
+        console.log('Purchase records snapshot received:', snapshot.docs.length, 'documents');
         const expenseData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
@@ -689,7 +689,7 @@ export const useExpenses = () => {
         setError(null);
       },
       (err) => {
-        console.error('Error fetching expenses:', err);
+        console.error('Error fetching purchase records:', err);
         setError(err.message);
         setLoading(false);
       }
@@ -704,7 +704,7 @@ export const useExpenses = () => {
     }
 
     try {
-      const docRef = await addDoc(collection(db, 'expenses'), {
+      const docRef = await addDoc(collection(db, 'purchase_records'), {
         ...expense,
         companyId: currentUser.companyId,
         expenseDate: Timestamp.fromDate(expense.expenseDate),
@@ -720,7 +720,7 @@ export const useExpenses = () => {
 
   const updateExpense = async (id: string, updates: Partial<Expense>) => {
     try {
-      const docRef = doc(db, 'expenses', id);
+      const docRef = doc(db, 'purchase_records', id);
       await updateDoc(docRef, {
         ...updates,
         updatedAt: Timestamp.now(),
@@ -733,7 +733,7 @@ export const useExpenses = () => {
 
   const deleteExpense = async (id: string) => {
     try {
-      await deleteDoc(doc(db, 'expenses', id));
+      await deleteDoc(doc(db, 'purchase_records', id));
     } catch (err) {
       console.error('Error deleting expense:', err);
       throw new Error(err instanceof Error ? err.message : 'Failed to delete expense');
@@ -849,10 +849,10 @@ export const usePurchases = () => {
 
     console.log('Setting up purchases listener for company:', currentUser.companyId);
     
-    // Query expenses collection but filter for purchase-type entries
+    // Query purchase_records collection but filter for purchase-type entries
     // Remove the composite query to avoid index requirement
     const q = query(
-      collection(db, 'expenses'), 
+      collection(db, 'purchase_records'), 
       where('companyId', '==', currentUser.companyId)
     );
     
@@ -894,7 +894,7 @@ export const usePurchases = () => {
     }
 
     try {
-      const docRef = await addDoc(collection(db, 'expenses'), {
+      const docRef = await addDoc(collection(db, 'purchase_records'), {
         ...purchase,
         companyId: currentUser.companyId,
         // Ensure purchase-specific fields are set
@@ -913,7 +913,7 @@ export const usePurchases = () => {
 
   const updatePurchase = async (id: string, updates: Partial<Expense>) => {
     try {
-      const docRef = doc(db, 'expenses', id);
+      const docRef = doc(db, 'purchase_records', id);
       await updateDoc(docRef, {
         ...updates,
         updatedAt: Timestamp.now(),
@@ -926,7 +926,7 @@ export const usePurchases = () => {
 
   const deletePurchase = async (id: string) => {
     try {
-      await deleteDoc(doc(db, 'expenses', id));
+      await deleteDoc(doc(db, 'purchase_records', id));
     } catch (err) {
       console.error('Error deleting purchase:', err);
       throw new Error(err instanceof Error ? err.message : 'Failed to delete purchase');

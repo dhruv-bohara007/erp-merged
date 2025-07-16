@@ -105,15 +105,15 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
     }
 
-    // EXPENSES: only accessible by users from the same company
-    match /expenses/{expenseId} {
+    // PURCHASE_RECORDS: only accessible by users from the same company
+    match /purchase_records/{purchaseRecordId} {
       allow read, write: if isCompanyAdmin() && 
         (resource == null || resource.data.companyId == getUserData().companyId);
       
       allow create: if isCompanyAdmin() &&
         request.resource.data.companyId == getUserData().companyId;
       
-      // Employees can read expenses from their company
+      // Employees can read purchase records from their company
       allow read: if isEmployeeUser() && getUserData().companyId != null &&
         (resource == null || resource.data.companyId == getUserData().companyId);
       
