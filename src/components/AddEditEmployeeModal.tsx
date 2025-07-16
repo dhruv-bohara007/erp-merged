@@ -1,0 +1,390 @@
+import { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, updateDoc, doc, Timestamp, getDoc } from 'firebase/firestore';
+import { useAuth } from '@/contexts/AuthContext';
+import { Employee } from '@/types/firestore';
+import { countries } from '@/data/countries';
+import { countryPhoneCodes } from '@/data/countryPhoneCodes';
+import { Mail } from 'lucide-react';
+
+interface AddEditEmployeeModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  employee?: Employee | null;
+  onEmployeeAdded: () => void;
+}
+
+const AddEditEmployeeModal = ({ isOpen, onClose, employee, onEmployeeAdded }: AddEditEmployeeModalProps) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    temporaryPassword: '',
+    country: '',
+    phoneCode: '',
+    phoneNumber: ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const { currentUser } = useAuth();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (employee) {
+      setFormData({
+        name: employee.name || '',
+        email: employee.email || '',
+        temporaryPassword: employee.temporaryPassword || '',
+        country: employee.country || '',
+        phoneCode: employee.phoneCode || '',
+        phoneNumber: employee.phoneNumber || ''
+      });
+    } else {
+      setFormData({
+        name: '',
+        email: '',
+        temporaryPassword: '',
+        country: '',
+        phoneCode: '',
+        phoneNumber: ''
+      });
+    }
+  }, [employee, isOpen]);
+
+  const generatePassword = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let password = '';
+    for (let i = 0; i < 8; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setFormData(prev => ({ ...prev, temporaryPassword: password }));
+  };
+
+  const handleCountryChange = (countryCode: string) => {
+    const phoneCode = countryPhoneCodes[countryCode]?.code || '';
+    setFormData(prev => ({
+      ...prev,
+      country: countryCode,
+      phoneCode: phoneCode
+    }));
+  };
+
+  const sendWelcomeEmail = async (employeeData: any, companyName: string) => {
+    try {
+      setIsSendingEmail(true);
+
+      // Construct the payload and log it before sending
+      const payload = {
+        employeeName: employeeData.name,
+        employeeEmail: employeeData.email,
+        temporaryPassword: employeeData.temporaryPassword,
+        companyName: companyName,
+        loginUrl: `${window.location.origin}/login`
+      };
+      console.log('Frontend: Sending email payload:', payload); // IMPORTANT: Check this in your browser console
+
+      const response = await fetch('http://localhost:3001/api/send-welcome-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: 'Success',
+          description: 'Welcome email sent successfully',
+        });
+      } else {
+        // Log the full error response from the backend
+        console.error('Frontend: Backend error response:', result);
+        throw new Error(result.message || 'Failed to send email (backend reported error)');
+      }
+    } catch (error) {
+      console.error('Frontend: Error sending email:', error);
+      toast({
+        title: 'Email Error',
+        description: `Failed to send welcome email: ${error.message}. Please check if the backend server is running and data is valid.`,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
+  const handleSendEmail = async () => {
+    if (!formData.name || !formData.email || !formData.temporaryPassword) {
+      toast({
+        title: 'Error',
+        description: 'Please fill in Employee Name, Email, and Temporary Password before sending email.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      let companyName = 'Your Company'; // Default company name
+      if (currentUser?.companyId) {
+        const companyDoc = await getDoc(doc(db, 'companies', currentUser.companyId));
+        if (companyDoc.exists()) {
+          const data = companyDoc.data();
+          // Ensure company name exists and is not an empty string
+          if (data && typeof data.name === 'string' && data.name.trim() !== '') {
+            companyName = data.name;
+          }
+        }
+      }
+
+      const loginUrl = `${window.location.origin}/login`;
+
+      // Final validation before calling sendWelcomeEmail
+      if (!companyName.trim()) { // Check if companyName is truly empty or just whitespace
+        toast({
+          title: 'Error',
+          description: 'Company name could not be determined. Cannot send email.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      if (!loginUrl.trim()) { // Check if loginUrl is truly empty or just whitespace (highly unlikely)
+        toast({
+          title: 'Error',
+          description: 'Login URL could not be determined. Cannot send email.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      await sendWelcomeEmail(formData, companyName);
+    } catch (error) {
+      console.error('Frontend: Error in handleSendEmail:', error);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formData.name || !formData.email || !formData.temporaryPassword) {
+      toast({
+        title: 'Error',
+        description: 'Please fill in all required fields (Name, Email, Password).',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (formData.country && !formData.phoneNumber) {
+      toast({
+        title: 'Error',
+        description: 'Phone number is required when a country is selected.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      if (!currentUser?.companyId) {
+        toast({
+          title: 'Error',
+          description: 'Company information not found. Cannot save employee.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const employeeData = {
+        companyId: currentUser.companyId,
+        name: formData.name,
+        email: formData.email,
+        temporaryPassword: formData.temporaryPassword,
+        needsPasswordReset: true,
+        country: formData.country,
+        phoneCode: formData.phoneCode,
+        phoneNumber: formData.phoneNumber,
+        status: employee ? employee.status : 'active',
+        role: 'employee',
+        updatedAt: Timestamp.now(),
+      };
+
+      if (employee) {
+        await updateDoc(doc(db, 'employees', employee.id), employeeData);
+        toast({
+          title: 'Success',
+          description: 'Employee updated successfully.',
+        });
+      } else {
+        await addDoc(collection(db, 'employees'), {
+          ...employeeData,
+          createdAt: Timestamp.now(),
+        });
+
+        // Send welcome email for new employees
+        try {
+          let companyName = 'Your Company';
+          if (currentUser?.companyId) {
+            const companyDoc = await getDoc(doc(db, 'companies', currentUser.companyId));
+            if (companyDoc.exists()) {
+              const data = companyDoc.data();
+              if (data && typeof data.name === 'string' && data.name.trim() !== '') {
+                companyName = data.name;
+              }
+            }
+          }
+          await sendWelcomeEmail(employeeData, companyName);
+        } catch (emailError) {
+          console.error('Frontend: Email sending failed during employee creation:', emailError);
+          // Don't fail the employee creation if email fails, but log it
+          toast({
+            title: 'Email Send Warning',
+            description: 'Employee added, but failed to send welcome email. Please try sending manually.',
+            variant: 'warning',
+          });
+        }
+
+        toast({
+          title: 'Success',
+          description: 'Employee added successfully.',
+        });
+      }
+
+      onEmployeeAdded();
+      onClose();
+    } catch (error) {
+      console.error('Frontend: Error saving employee:', error);
+      toast({
+        title: 'Error',
+        description: `Failed to ${employee ? 'update' : 'add'} employee.`,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{employee ? 'Edit Employee' : 'Add New Employee'}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="name">Employee Name *</Label>
+            <Input
+              id="name"
+              value={formData.name}
+              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="Enter employee name"
+              required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="email">Email *</Label>
+            <Input
+              id="email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+              placeholder="Enter employee email"
+              required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="password">Temporary Password *</Label>
+            <div className="flex space-x-2">
+              <Input
+                id="password"
+                value={formData.temporaryPassword}
+                onChange={(e) => setFormData(prev => ({ ...prev, temporaryPassword: e.target.value }))}
+                placeholder="Enter temporary password"
+                required
+              />
+              <Button type="button" onClick={generatePassword} variant="outline" size="sm">
+                Generate
+              </Button>
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="country">Country</Label>
+            <Select value={formData.country} onValueChange={handleCountryChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select country" />
+              </SelectTrigger>
+              <SelectContent>
+                {countries.map((country) => (
+                  <SelectItem key={country.value} value={country.value}>
+                    {country.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {formData.country && (
+            <div>
+              <Label htmlFor="phone">Phone Number *</Label>
+              <div className="flex space-x-2">
+                <Input
+                  value={formData.phoneCode}
+                  readOnly
+                  className="w-20 bg-gray-100"
+                />
+                <Input
+                  id="phone"
+                  value={formData.phoneNumber}
+                  onChange={(e) => setFormData(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                  placeholder="Enter phone number"
+                  required={!!formData.country}
+                  className="flex-1"
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="flex space-x-2 pt-4">
+            <Button
+              type="submit"
+              className="flex-1"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Saving...' : (employee ? 'Update Employee' : 'Add Employee')}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleSendEmail}
+              disabled={!formData.name || !formData.email || !formData.temporaryPassword || isSendingEmail}
+            >
+              <Mail className="h-4 w-4 mr-2" />
+              {isSendingEmail ? 'Sending...' : 'Send Email'}
+            </Button>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={onClose}
+          >
+            Cancel
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default AddEditEmployeeModal;
