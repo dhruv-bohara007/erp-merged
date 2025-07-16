@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,17 +20,20 @@ import {
   XCircle
 } from 'lucide-react';
 import { usePurchases } from '@/hooks/useFirestore';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import EmployeePurchases from './EmployeePurchases';
 
 const PurchaseManagement = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { purchases, loading, error } = usePurchases();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [activeSection, setActiveSection] = useState('purchase-requests');
+  
+  // Get active section from URL params, default to purchase-requests
+  const activeSection = searchParams.get('section') || 'purchase-requests';
 
   const filteredPurchases = purchases.filter(purchase => {
     const matchesSearch = (purchase.supplierName || purchase.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -101,6 +104,20 @@ const PurchaseManagement = () => {
   // Format currency as whole numbers for display
   const formatINR = (amount: number) => {
     return `₹${Math.round(amount).toLocaleString()}`;
+  };
+
+  // Get page title based on active section
+  const getPageTitle = () => {
+    switch (activeSection) {
+      case 'purchase-requests':
+        return 'Purchase Requests';
+      case 'purchase-order':
+        return 'Purchase Order';
+      case 'purchase-record':
+        return 'Purchase Record';
+      default:
+        return 'Purchase Requests';
+    }
   };
 
   if (loading) {
@@ -359,30 +376,22 @@ const PurchaseManagement = () => {
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Purchase Management</h1>
-          <p className="text-gray-600 mt-2">Manage purchase requests, orders, and records</p>
+          <h1 className="text-3xl font-bold">{getPageTitle()}</h1>
+          <p className="text-gray-600 mt-2">
+            {activeSection === 'purchase-requests' && 'Manage employee purchase requests'}
+            {activeSection === 'purchase-order' && 'Manage purchase orders'}
+            {activeSection === 'purchase-record' && 'View and manage purchase records'}
+          </p>
         </div>
-        <div className="flex gap-3">
-          <Select value={activeSection} onValueChange={setActiveSection}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select section" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="purchase-requests">Purchase Requests</SelectItem>
-              <SelectItem value="purchase-order">Purchase Order</SelectItem>
-              <SelectItem value="purchase-record">Purchase Record</SelectItem>
-            </SelectContent>
-          </Select>
-          {activeSection === 'purchase-record' && (
-            <Button 
-              className="bg-blue-600 hover:bg-blue-700"
-              onClick={() => navigate('/add-purchase')}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Purchase
-            </Button>
-          )}
-        </div>
+        {activeSection === 'purchase-record' && (
+          <Button 
+            className="bg-blue-600 hover:bg-blue-700"
+            onClick={() => navigate('/add-purchase')}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Purchase
+          </Button>
+        )}
       </div>
 
       {activeSection === 'purchase-requests' && <EmployeePurchases />}

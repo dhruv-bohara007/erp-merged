@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -21,11 +22,14 @@ import {
   TrendingUp,
   Moon,
   Sun,
-  UserCheck
+  UserCheck,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 
 const AdminNavigation = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isPurchasesOpen, setIsPurchasesOpen] = useState(false);
   const location = useLocation();
   const { currentUser, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -38,15 +42,24 @@ const AdminNavigation = () => {
     { to: '/suppliers', icon: Building, label: 'Suppliers' },
     { to: '/employees', icon: UserCheck, label: 'Employees' },
     { to: '/payments', icon: DollarSign, label: 'Payments' },
-    { to: '/purchases', icon: ShoppingCart, label: 'Purchases' },
     { to: '/inventory', icon: Package, label: 'Products' },
     { to: '/reports', icon: BarChart3, label: 'Reports' },
     { to: '/profitability', icon: TrendingUp, label: 'Profitability' },
     { to: '/settings', icon: Building2, label: 'Company Profile' },
   ];
 
+  const purchaseItems = [
+    { to: '/purchases?section=purchase-requests', label: 'Purchase Requests' },
+    { to: '/purchases?section=purchase-order', label: 'Purchase Order' },
+    { to: '/purchases?section=purchase-record', label: 'Purchase Record' },
+  ];
+
   const isActive = (path: string) => {
     return location.pathname === path;
+  };
+
+  const isPurchaseActive = () => {
+    return location.pathname === '/purchases';
   };
 
   const handleLogout = async () => {
@@ -98,6 +111,44 @@ const AdminNavigation = () => {
                   {item.label}
                 </NavLink>
               ))}
+              
+              {/* Purchases Dropdown */}
+              <div>
+                <button
+                  onClick={() => setIsPurchasesOpen(!isPurchasesOpen)}
+                  className={`group flex items-center w-full px-2 py-2 text-sm font-medium rounded-md transition-colors ${
+                    isPurchaseActive()
+                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  <ShoppingCart
+                    className={`mr-3 flex-shrink-0 h-5 w-5 ${
+                      isPurchaseActive() ? 'text-blue-500 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-500 dark:group-hover:text-gray-400'
+                    }`}
+                  />
+                  Purchases
+                  {isPurchasesOpen ? (
+                    <ChevronDown className="ml-auto h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="ml-auto h-4 w-4" />
+                  )}
+                </button>
+                
+                {isPurchasesOpen && (
+                  <div className="ml-6 mt-1 space-y-1">
+                    {purchaseItems.map((item) => (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        className="group flex items-center px-2 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md transition-colors"
+                      >
+                        {item.label}
+                      </NavLink>
+                    ))}
+                  </div>
+                )}
+              </div>
             </nav>
             
             {/* Fixed Theme Toggle */}
@@ -120,7 +171,6 @@ const AdminNavigation = () => {
               </div>
             </div>
             
-            {/* Fixed User Info and Logout */}
             <div className="flex-shrink-0 px-2 pb-4">
               <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 mb-3">
                 <p className="text-xs text-gray-500 dark:text-gray-400">Logged in as:</p>
@@ -195,6 +245,45 @@ const AdminNavigation = () => {
                   {item.label}
                 </NavLink>
               ))}
+              
+              {/* Mobile Purchases Dropdown */}
+              <div>
+                <button
+                  onClick={() => setIsPurchasesOpen(!isPurchasesOpen)}
+                  className={`group flex items-center w-full px-4 py-2 text-base font-medium transition-colors ${
+                    isPurchaseActive()
+                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100 border-r-4 border-blue-500 dark:border-blue-400'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  <ShoppingCart
+                    className={`mr-3 flex-shrink-0 h-5 w-5 ${
+                      isPurchaseActive() ? 'text-blue-500 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-500 dark:group-hover:text-gray-400'
+                    }`}
+                  />
+                  Purchases
+                  {isPurchasesOpen ? (
+                    <ChevronDown className="ml-auto h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="ml-auto h-4 w-4" />
+                  )}
+                </button>
+                
+                {isPurchasesOpen && (
+                  <div className="ml-8 mt-1 space-y-1">
+                    {purchaseItems.map((item) => (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="group flex items-center px-4 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md transition-colors"
+                      >
+                        {item.label}
+                      </NavLink>
+                    ))}
+                  </div>
+                )}
+              </div>
               
               {/* Fixed Mobile Theme Toggle */}
               <div className="px-4 pt-4 border-t border-gray-200 dark:border-gray-700 sticky bottom-0 bg-white dark:bg-gray-900">
