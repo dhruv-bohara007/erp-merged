@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { 
   User,
@@ -6,7 +7,7 @@ import {
   signOut,
   onAuthStateChanged
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 
 export type UserRole = 'company_admin' | 'super_admin' | 'employee';
@@ -94,9 +95,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const employeeData = employeeDoc.data();
           
           // Update employee status to active
-          await setDoc(doc(db, 'employees', employeeDoc.id), {
-            ...employeeData,
+          await updateDoc(doc(db, 'employees', employeeDoc.id), {
             status: 'active',
+            userId: userCredential.user.uid,
             updatedAt: new Date()
           });
 

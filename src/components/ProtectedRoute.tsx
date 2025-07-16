@@ -24,7 +24,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     // Redirect to appropriate dashboard based on role
     const roleRedirects = {
       company_admin: '/admin-dashboard',
-      super_admin: '/super-dashboard'
+      super_admin: '/super-dashboard',
+      employee: '/employee-dashboard'
     };
     
     return <Navigate to={roleRedirects[currentUser.role || 'company_admin']} replace />;
