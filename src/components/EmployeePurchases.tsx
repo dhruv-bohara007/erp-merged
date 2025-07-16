@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -128,209 +129,203 @@ const EmployeePurchases = () => {
   };
 
   return (
-    <div className="p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Purchase Requests</h1>
-            <p className="text-gray-600 mt-2">Manage your purchase requests and track their status</p>
-          </div>
-          <Dialog open={isNewRequestOpen} onOpenChange={setIsNewRequestOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-blue-600 hover:bg-blue-700">
-                <Plus className="w-4 h-4 mr-2" />
-                New Request
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Submit Purchase Request</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <Dialog open={isNewRequestOpen} onOpenChange={setIsNewRequestOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-blue-600 hover:bg-blue-700 ml-auto">
+              <Plus className="w-4 h-4 mr-2" />
+              New Request
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Submit Purchase Request</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="itemName">Item Name</Label>
+                <Input
+                  id="itemName"
+                  value={formData.itemName}
+                  onChange={(e) => handleInputChange('itemName', e.target.value)}
+                  placeholder="Enter item name"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="itemName">Item Name</Label>
+                  <Label htmlFor="quantity">Quantity</Label>
                   <Input
-                    id="itemName"
-                    value={formData.itemName}
-                    onChange={(e) => handleInputChange('itemName', e.target.value)}
-                    placeholder="Enter item name"
+                    id="quantity"
+                    type="number"
+                    value={formData.quantity}
+                    onChange={(e) => handleInputChange('quantity', e.target.value)}
+                    placeholder="0"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="quantity">Quantity</Label>
-                    <Input
-                      id="quantity"
-                      type="number"
-                      value={formData.quantity}
-                      onChange={(e) => handleInputChange('quantity', e.target.value)}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="estimatedCost">Estimated Cost (₹)</Label>
-                    <Input
-                      id="estimatedCost"
-                      type="number"
-                      value={formData.estimatedCost}
-                      onChange={(e) => handleInputChange('estimatedCost', e.target.value)}
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
                 <div>
-                  <Label htmlFor="priority">Priority</Label>
-                  <select
-                    id="priority"
-                    value={formData.priority}
-                    onChange={(e) => handleInputChange('priority', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                  </select>
-                </div>
-                <div>
-                  <Label htmlFor="reason">Reason for Request</Label>
-                  <Textarea
-                    id="reason"
-                    value={formData.reason}
-                    onChange={(e) => handleInputChange('reason', e.target.value)}
-                    placeholder="Explain why this purchase is needed..."
-                    rows={3}
+                  <Label htmlFor="estimatedCost">Estimated Cost (₹)</Label>
+                  <Input
+                    id="estimatedCost"
+                    type="number"
+                    value={formData.estimatedCost}
+                    onChange={(e) => handleInputChange('estimatedCost', e.target.value)}
+                    placeholder="0"
                   />
                 </div>
-                <Button onClick={handleSubmitRequest} className="w-full">
-                  Submit Request
-                </Button>
               </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Requests</CardTitle>
-              <ShoppingCart className="h-4 w-4 text-blue-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{mockPurchaseRequests.length}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Pending</CardTitle>
-              <Clock className="h-4 w-4 text-yellow-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">
-                {mockPurchaseRequests.filter(req => req.status === 'pending').length}
+              <div>
+                <Label htmlFor="priority">Priority</Label>
+                <select
+                  id="priority"
+                  value={formData.priority}
+                  onChange={(e) => handleInputChange('priority', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Approved</CardTitle>
-              <CheckCircle className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {mockPurchaseRequests.filter(req => req.status === 'approved').length}
+              <div>
+                <Label htmlFor="reason">Reason for Request</Label>
+                <Textarea
+                  id="reason"
+                  value={formData.reason}
+                  onChange={(e) => handleInputChange('reason', e.target.value)}
+                  placeholder="Explain why this purchase is needed..."
+                  rows={3}
+                />
               </div>
-            </CardContent>
-          </Card>
+              <Button onClick={handleSubmitRequest} className="w-full">
+                Submit Request
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Rejected</CardTitle>
-              <XCircle className="h-4 w-4 text-red-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">
-                {mockPurchaseRequests.filter(req => req.status === 'rejected').length}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Total Requests</CardTitle>
+            <ShoppingCart className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{mockPurchaseRequests.length}</div>
+          </CardContent>
+        </Card>
 
-        {/* Purchase Requests and History */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Active Requests */}
-          <Card>
-            <CardHeader>
-              <CardTitle>My Purchase Requests</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {mockPurchaseRequests.map((request) => (
-                  <div key={request.id} className="border rounded-lg p-4 hover:bg-gray-50">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <h4 className="font-medium text-gray-900">{request.itemName}</h4>
-                        <p className="text-sm text-gray-500">Qty: {request.quantity} | ₹{request.estimatedCost.toLocaleString()}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs font-medium ${getPriorityColor(request.priority)}`}>
-                          {request.priority.toUpperCase()}
-                        </span>
-                        <Badge variant={getStatusBadgeVariant(request.status)}>
-                          {getStatusIcon(request.status)}
-                          <span className="ml-1">{request.status}</span>
-                        </Badge>
-                      </div>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Pending</CardTitle>
+            <Clock className="h-4 w-4 text-yellow-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-600">
+              {mockPurchaseRequests.filter(req => req.status === 'pending').length}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Approved</CardTitle>
+            <CheckCircle className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              {mockPurchaseRequests.filter(req => req.status === 'approved').length}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Rejected</CardTitle>
+            <XCircle className="h-4 w-4 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">
+              {mockPurchaseRequests.filter(req => req.status === 'rejected').length}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Purchase Requests and History */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Active Requests */}
+        <Card>
+          <CardHeader>
+            <CardTitle>My Purchase Requests</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {mockPurchaseRequests.map((request) => (
+                <div key={request.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <h4 className="font-medium text-gray-900">{request.itemName}</h4>
+                      <p className="text-sm text-gray-500">Qty: {request.quantity} | ₹{request.estimatedCost.toLocaleString()}</p>
                     </div>
-                    <p className="text-sm text-gray-600 mb-2">{request.reason}</p>
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <span>Requested: {request.requestDate}</span>
-                      <Button size="sm" variant="outline">
-                        <Eye className="w-3 h-3 mr-1" />
-                        Details
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Purchase History */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Purchase History</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {mockPurchaseHistory.map((purchase) => (
-                  <div key={purchase.id} className="border rounded-lg p-4 hover:bg-gray-50">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <h4 className="font-medium text-gray-900">{purchase.itemName}</h4>
-                        <p className="text-sm text-gray-500">Qty: {purchase.quantity} | ₹{purchase.cost.toLocaleString()}</p>
-                      </div>
-                      <Badge variant="default">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        {purchase.status}
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-medium ${getPriorityColor(request.priority)}`}>
+                        {request.priority.toUpperCase()}
+                      </span>
+                      <Badge variant={getStatusBadgeVariant(request.status)}>
+                        {getStatusIcon(request.status)}
+                        <span className="ml-1">{request.status}</span>
                       </Badge>
                     </div>
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <span>Delivered: {purchase.purchaseDate}</span>
-                      <Button size="sm" variant="outline">
-                        <Eye className="w-3 h-3 mr-1" />
-                        View
-                      </Button>
-                    </div>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                  <p className="text-sm text-gray-600 mb-2">{request.reason}</p>
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>Requested: {request.requestDate}</span>
+                    <Button size="sm" variant="outline">
+                      <Eye className="w-3 h-3 mr-1" />
+                      Details
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Purchase History */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Purchase History</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {mockPurchaseHistory.map((purchase) => (
+                <div key={purchase.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <h4 className="font-medium text-gray-900">{purchase.itemName}</h4>
+                      <p className="text-sm text-gray-500">Qty: {purchase.quantity} | ₹{purchase.cost.toLocaleString()}</p>
+                    </div>
+                    <Badge variant="default">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      {purchase.status}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>Delivered: {purchase.purchaseDate}</span>
+                    <Button size="sm" variant="outline">
+                      <Eye className="w-3 h-3 mr-1" />
+                      View
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
