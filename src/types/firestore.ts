@@ -249,7 +249,8 @@ export interface Expense {
   pricePerUnit?: number;
   discount?: string;
   totalAmount?: number;
-  totalAmountAfterTax?: number; // Added Total Amount After Tax field
+  totalAmountAfterTax?: number; // Total Amount After Tax in company currency
+  totalAmountAfterTaxINR?: number; // Total Amount After Tax in INR
   totalAmountINR?: number;
   companyCurrency?: string;
   exchangeRateUsed?: number;
@@ -288,7 +289,8 @@ export interface InventoryItem {
   exchangeRateUsed?: number;
   quantity?: number; // Added quantity field
   unit?: string; // Added unit field
-  totalAmountAfterTax?: number; // Added Total Amount After Tax field
+  totalAmountAfterTax?: number; // Total Amount After Tax in company currency
+  totalAmountAfterTaxINR?: number; // Total Amount After Tax in INR
   companyCurrency?: string;
   companyCountry?: string;
   status?: 'active' | 'inactive';

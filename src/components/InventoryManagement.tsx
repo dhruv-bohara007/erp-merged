@@ -185,7 +185,9 @@ const InventoryManagement = () => {
                   <TableHead>Item Name</TableHead>
                   <TableHead>Product Version</TableHead>
                   <TableHead>Product Category</TableHead>
-                  <TableHead>Rate</TableHead>
+                  <TableHead>Quantity</TableHead>
+                  <TableHead>Unit</TableHead>
+                  <TableHead>Rate per Unit</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -203,8 +205,14 @@ const InventoryManagement = () => {
                     <TableCell>
                       {item.productCategory || '-'}
                     </TableCell>
+                    <TableCell>
+                      {item.quantity || '-'}
+                    </TableCell>
+                    <TableCell>
+                      {item.unit || '-'}
+                    </TableCell>
                     <TableCell className="font-medium">
-                      {formatCurrency(item.rate || 0)}
+                      {formatCurrency(item.unitPrice || item.rate || 0)}
                     </TableCell>
                     <TableCell>
                       <Button

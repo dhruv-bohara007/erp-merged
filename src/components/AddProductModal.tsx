@@ -29,7 +29,9 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
     category: '',
     name: '',
     version: '',
-    rate: ''
+    rate: '',
+    quantity: '',
+    unit: 'pcs'
   });
 
   const companyCurrency = getCurrencyInfo(companyData?.country || 'US');
@@ -61,7 +63,7 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.category || !formData.name || !formData.version || !formData.rate) {
+    if (!formData.category || !formData.name || !formData.version || !formData.rate || !formData.quantity) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -71,10 +73,19 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
     }
 
     const rateValue = parseFloat(formData.rate);
+    const quantityValue = parseFloat(formData.quantity);
     if (isNaN(rateValue) || rateValue <= 0) {
       toast({
         title: "Error",
         description: "Please enter a valid rate",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (isNaN(quantityValue) || quantityValue <= 0) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid quantity",
         variant: "destructive",
       });
       return;
@@ -94,6 +105,8 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
         rate: rateValue,
         rateInInr: amountInINR,
         exchangeRateUsed: exchangeRate,
+        quantity: quantityValue,
+        unit: formData.unit,
         companyCurrency: companyCurrency.code,
         companyCountry: companyData?.country || 'US',
         status: 'active'
@@ -103,7 +116,9 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
         category: '',
         name: '',
         version: '',
-        rate: ''
+        rate: '',
+        quantity: '',
+        unit: 'pcs'
       });
       
       toast({
@@ -129,7 +144,9 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
       category: '',
       name: '',
       version: '',
-      rate: ''
+      rate: '',
+      quantity: '',
+      unit: 'pcs'
     });
     onClose();
   };
@@ -198,7 +215,7 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
           </div>
           
           <div>
-            <Label htmlFor="rate">Rate ({companyCurrency.symbol})</Label>
+            <Label htmlFor="rate">Rate per Unit ({companyCurrency.symbol})</Label>
             <Input
               id="rate"
               type="text"
@@ -213,6 +230,38 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
               placeholder="0.00"
               required
             />
+          </div>
+
+          <div>
+            <Label htmlFor="quantity">Quantity</Label>
+            <Input
+              id="quantity"
+              type="text"
+              inputMode="decimal"
+              value={formData.quantity}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                  setFormData({...formData, quantity: value});
+                }
+              }}
+              placeholder="1"
+              required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="unit">Unit</Label>
+            <Select value={formData.unit} onValueChange={(value) => setFormData({...formData, unit: value})}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select unit" />
+              </SelectTrigger>
+              <SelectContent>
+                {['pcs', 'kg', 'lbs', 'grams', 'liters', 'gallons', 'meters', 'feet', 'boxes', 'bottles', 'packets', 'sets', 'units'].map(unit => (
+                  <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex justify-end space-x-2">

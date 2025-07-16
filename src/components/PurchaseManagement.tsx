@@ -23,18 +23,24 @@ import { usePurchases } from '@/hooks/useFirestore';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCompanyData } from '@/hooks/useCompanyData';
 import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import EmployeePurchases from './EmployeePurchases';
 
 const PurchaseManagement = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { purchases, loading, error } = usePurchases();
+  const { purchases, loading, error, updatePurchase, deletePurchase } = usePurchases();
   const { companyData } = useCompanyData();
   const { getCurrencyInfo } = useCurrencyConverter();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingPurchase, setEditingPurchase] = useState<any>(null);
+  const [editQuantity, setEditQuantity] = useState('');
+  const [editUnit, setEditUnit] = useState('');
   
   // Get active section from URL params, default to purchase-requests
   const activeSection = searchParams.get('section') || 'purchase-requests';
@@ -113,6 +119,47 @@ const PurchaseManagement = () => {
   // Format currency with company currency symbol and 2 decimal places
   const formatCurrency = (amount: number) => {
     return `${companyCurrency.symbol}${amount.toFixed(2)}`;
+  };
+
+  // Handle edit purchase
+  const handleEditPurchase = (purchase: any) => {
+    setEditingPurchase(purchase);
+    setEditQuantity(purchase.quantity?.toString() || '');
+    setEditUnit(purchase.unit || '');
+    setEditModalOpen(true);
+  };
+
+  // Handle save edit
+  const handleSaveEdit = async () => {
+    if (!editingPurchase || !editQuantity || !editUnit) {
+      alert('Please fill in all fields');
+      return;
+    }
+
+    try {
+      await updatePurchase(editingPurchase.id, {
+        quantity: parseFloat(editQuantity),
+        unit: editUnit,
+        updatedAt: new Date()
+      });
+      setEditModalOpen(false);
+      setEditingPurchase(null);
+    } catch (error) {
+      console.error('Error updating purchase:', error);
+      alert('Failed to update purchase. Please try again.');
+    }
+  };
+
+  // Handle delete purchase
+  const handleDeletePurchase = async (purchaseId: string) => {
+    if (window.confirm('Are you sure you want to delete this purchase?')) {
+      try {
+        await deletePurchase(purchaseId);
+      } catch (error) {
+        console.error('Error deleting purchase:', error);
+        alert('Failed to delete purchase. Please try again.');
+      }
+    }
   };
 
   // Get page title and description based on active section
@@ -337,7 +384,7 @@ const PurchaseManagement = () => {
                               <div className="font-medium">{formatCurrency(purchase.pricePerUnit || 0)}</div>
                             </TableCell>
                             <TableCell>
-                              <div className="font-medium">{formatCurrency(purchase.totalAmountAfterTax || purchase.totalAmountINR || purchase.amount || 0)}</div>
+                              <div className="font-medium">{formatCurrency(purchase.totalAmountAfterTax || purchase.amount || 0)}</div>
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center text-sm">
@@ -346,9 +393,23 @@ const PurchaseManagement = () => {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <Badge className={getStatusColor(purchase.purchaseStatus)}>
-                                {(purchase.purchaseStatus || 'completed').charAt(0).toUpperCase() + (purchase.purchaseStatus || 'completed').slice(1)}
-                              </Badge>
+                              <div className="flex space-x-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEditPurchase(purchase)}
+                                >
+                                  Edit
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDeletePurchase(purchase.id)}
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  Delete
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         );
@@ -439,6 +500,48 @@ const PurchaseManagement = () => {
       {activeSection === 'purchase-requests' && renderPurchaseRequests()}
       {activeSection === 'purchase-order' && renderPurchaseOrder()}
       {activeSection === 'purchase-record' && renderPurchaseRecord()}
+
+      {/* Edit Purchase Modal */}
+      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Purchase</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="editQuantity">Quantity</Label>
+              <Input
+                id="editQuantity"
+                type="number"
+                value={editQuantity}
+                onChange={(e) => setEditQuantity(e.target.value)}
+                placeholder="Enter quantity"
+              />
+            </div>
+            <div>
+              <Label htmlFor="editUnit">Unit</Label>
+              <Select value={editUnit} onValueChange={setEditUnit}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select unit" />
+                </SelectTrigger>
+                <SelectContent>
+                  {['pcs', 'kg', 'lbs', 'grams', 'liters', 'gallons', 'meters', 'feet', 'boxes', 'bottles', 'packets', 'sets', 'units'].map(unit => (
+                    <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setEditModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveEdit}>
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

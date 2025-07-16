@@ -166,7 +166,8 @@ const PurchaseForm = () => {
           pricePerUnit: Math.round(item.pricePerUnit * 100) / 100, // Store with 2 decimal places
           discount: (Math.round(item.quantity * item.pricePerUnit * item.discountRate / 100 * 100) / 100).toString(),
           totalAmount: Math.round(item.amount * 100) / 100, // Store with 2 decimal places
-          totalAmountAfterTax: totalAmountAfterTaxFormatted, // Store Total Amount After Tax
+          totalAmountAfterTax: Math.round(totalAmount * 100) / 100, // Total Amount After Tax in company currency
+          totalAmountAfterTaxINR: totalAmountAfterTaxFormatted, // Total Amount After Tax in INR
           totalAmountINR: itemAmountINRFormatted,
           companyCurrency: companyCurrency.code,
           exchangeRateUsed: rate,
@@ -189,11 +190,12 @@ const PurchaseForm = () => {
         if (existingItem) {
           // Update existing inventory item with 2 decimal places
           await updateInventoryItem(existingItem.id, {
-            unitPrice: priceInINRFormatted,
+            unitPrice: Math.round(item.pricePerUnit * 100) / 100, // Copy pricePerUnit to unitPrice
             rate: priceInINRFormatted,
             rateInInr: priceInINRFormatted,
             exchangeRateUsed: rate,
-            totalAmountAfterTax: totalAmountAfterTaxFormatted,
+            totalAmountAfterTax: Math.round(totalAmount * 100) / 100, // Total Amount After Tax in company currency
+            totalAmountAfterTaxINR: totalAmountAfterTaxFormatted, // Total Amount After Tax in INR
             quantity: item.quantity,
             unit: item.unit,
             updatedAt: new Date()
@@ -204,11 +206,12 @@ const PurchaseForm = () => {
             itemName: item.itemName,
             productCategory: item.productCategory,
             productVersion: item.productVersion,
-            unitPrice: priceInINRFormatted,
+            unitPrice: Math.round(item.pricePerUnit * 100) / 100, // Copy pricePerUnit to unitPrice
             rate: priceInINRFormatted,
             rateInInr: priceInINRFormatted,
             exchangeRateUsed: rate,
-            totalAmountAfterTax: totalAmountAfterTaxFormatted,
+            totalAmountAfterTax: Math.round(totalAmount * 100) / 100, // Total Amount After Tax in company currency
+            totalAmountAfterTaxINR: totalAmountAfterTaxFormatted, // Total Amount After Tax in INR
             quantity: item.quantity,
             unit: item.unit,
             companyCurrency: companyCurrency.code,
