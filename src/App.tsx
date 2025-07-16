@@ -29,6 +29,10 @@ import PurchaseManagement from "./components/PurchaseManagement";
 import PurchaseForm from "./components/PurchaseForm";
 import PaymentSyncProvider from "./components/PaymentSyncProvider";
 import EmployeeManagement from "./components/EmployeeManagement";
+import EmployeeDashboard from "./pages/EmployeeDashboard";
+import EmployeeNavigation from "./components/EmployeeNavigation";
+import EmployeeInventory from "./components/EmployeeInventory";
+import EmployeePurchases from "./components/EmployeePurchases";
 
 const queryClient = new QueryClient();
 
@@ -46,7 +50,8 @@ const AuthenticatedApp = () => {
     
     const roleRedirects = {
       company_admin: '/admin-dashboard',
-      super_admin: '/super-dashboard'
+      super_admin: '/super-dashboard',
+      employee: '/employee-dashboard'
     };
     
     return roleRedirects[currentUser.role || 'company_admin'];
@@ -282,6 +287,51 @@ const AuthenticatedApp = () => {
             ) : (
               <Navigate to="/company-setup" replace />
             )}
+          </ProtectedRoute>
+        } />
+
+        {/* Employee routes */}
+        <Route path="/employee-dashboard" element={
+          <ProtectedRoute allowedRoles={['employee']}>
+            <div>
+              <EmployeeNavigation />
+              <div className="lg:pl-64">
+                <EmployeeDashboard />
+              </div>
+            </div>
+          </ProtectedRoute>
+        } />
+
+        <Route path="/employee-inventory" element={
+          <ProtectedRoute allowedRoles={['employee']}>
+            <div>
+              <EmployeeNavigation />
+              <div className="lg:pl-64">
+                <EmployeeInventory />
+              </div>
+            </div>
+          </ProtectedRoute>
+        } />
+
+        <Route path="/employee-purchases" element={
+          <ProtectedRoute allowedRoles={['employee']}>
+            <div>
+              <EmployeeNavigation />
+              <div className="lg:pl-64">
+                <EmployeePurchases />
+              </div>
+            </div>
+          </ProtectedRoute>
+        } />
+
+        <Route path="/employee-alerts" element={
+          <ProtectedRoute allowedRoles={['employee']}>
+            <div>
+              <EmployeeNavigation />
+              <div className="lg:pl-64">
+                <EmployeeDashboard />
+              </div>
+            </div>
           </ProtectedRoute>
         } />
 

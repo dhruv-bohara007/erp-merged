@@ -6,7 +6,7 @@ import {
   signOut,
   onAuthStateChanged
 } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 
 export type UserRole = 'company_admin' | 'super_admin' | 'employee';
@@ -72,13 +72,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     
     try {
+      // For employees, automatically complete setup and update employee status
+      const hasCompletedSetup = role === 'employee';
+      
       // Store user role in Firestore
       await setDoc(doc(db, 'users', userCredential.user.uid), {
         email: userCredential.user.email,
         role: role,
-        hasCompletedSetup: false,
+        hasCompletedSetup: hasCompletedSetup,
         createdAt: new Date().toISOString(),
       });
+
+      // If employee registration, update employee status to active and set user companyId
+      if (role === 'employee') {
+        const employeesRef = collection(db, 'employees');
+        const q = query(employeesRef, where('email', '==', userCredential.user.email));
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) {
+          const employeeDoc = querySnapshot.docs[0];
+          const employeeData = employeeDoc.data();
+          
+          // Update employee status to active
+          await setDoc(doc(db, 'employees', employeeDoc.id), {
+            ...employeeData,
+            status: 'active',
+            updatedAt: new Date()
+          });
+
+          // Update user document with companyId from employee record
+          await setDoc(doc(db, 'users', userCredential.user.uid), {
+            email: userCredential.user.email,
+            role: role,
+            hasCompletedSetup: hasCompletedSetup,
+            companyId: employeeData.companyId,
+            createdAt: new Date().toISOString(),
+          });
+        }
+      }
     } catch (error) {
       console.log('Error storing user data:', error);
     }
@@ -86,7 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const authUser: AuthUser = {
       ...userCredential.user,
       role: role,
-      hasCompletedSetup: false
+      hasCompletedSetup: role === 'employee'
     };
     
     setCurrentUser(authUser);

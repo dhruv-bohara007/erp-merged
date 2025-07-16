@@ -52,9 +52,10 @@ const EmployeeManagement = () => {
   };
 
   const handleSendEmail = (employee: Employee) => {
-    const subject = encodeURIComponent('Your Employee Account Details');
+    const registrationLink = `${window.location.origin}/register?email=${encodeURIComponent(employee.email)}&type=employee`;
+    const subject = encodeURIComponent('Your Employee Account Registration Link');
     const body = encodeURIComponent(
-      `Dear ${employee.name},\n\nYour employee account has been created:\n\nEmail: ${employee.email}\nTemporary Password: ${employee.temporaryPassword}\n\nPlease change your password after first login.\n\nBest regards,\nHR Team`
+      `Dear ${employee.name},\n\nYour employee account has been created. Please complete your registration using the link below:\n\n${registrationLink}\n\nOnce registered, you'll have access to:\n- View inventory (read-only)\n- Submit purchase requests\n- Track request status\n- Receive low stock alerts\n\nBest regards,\nHR Team`
     );
     window.open(`mailto:${employee.email}?subject=${subject}&body=${body}`);
   };
