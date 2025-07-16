@@ -14,10 +14,14 @@ import {
   Package,
   Truck,
   TrendingUp,
-  IndianRupee
+  IndianRupee,
+  Clock,
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 import { usePurchases } from '@/hooks/useFirestore';
 import { useNavigate } from 'react-router-dom';
+import EmployeePurchases from './EmployeePurchases';
 
 const PurchaseManagement = () => {
   const navigate = useNavigate();
@@ -26,6 +30,7 @@ const PurchaseManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [activeSection, setActiveSection] = useState('purchase-requests');
 
   const filteredPurchases = purchases.filter(purchase => {
     const matchesSearch = (purchase.supplierName || purchase.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -117,21 +122,10 @@ const PurchaseManagement = () => {
     );
   }
 
-  return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Purchase Management</h1>
-        <Button 
-          className="bg-blue-600 hover:bg-blue-700"
-          onClick={() => navigate('/add-purchase')}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Purchase
-        </Button>
-      </div>
-
+  const renderPurchaseRecord = () => (
+    <>
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -358,6 +352,50 @@ const PurchaseManagement = () => {
           </Tabs>
         </CardContent>
       </Card>
+    </>
+  );
+
+  return (
+    <div className="max-w-7xl mx-auto p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Purchase Management</h1>
+          <p className="text-gray-600 mt-2">Manage purchase requests, orders, and records</p>
+        </div>
+        <div className="flex gap-3">
+          <Select value={activeSection} onValueChange={setActiveSection}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Select section" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="purchase-requests">Purchase Requests</SelectItem>
+              <SelectItem value="purchase-order">Purchase Order</SelectItem>
+              <SelectItem value="purchase-record">Purchase Record</SelectItem>
+            </SelectContent>
+          </Select>
+          {activeSection === 'purchase-record' && (
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={() => navigate('/add-purchase')}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Purchase
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {activeSection === 'purchase-requests' && <EmployeePurchases />}
+      {activeSection === 'purchase-order' && (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <Package className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Purchase Order</h3>
+            <p className="text-gray-600">Purchase order functionality will be implemented soon.</p>
+          </CardContent>
+        </Card>
+      )}
+      {activeSection === 'purchase-record' && renderPurchaseRecord()}
     </div>
   );
 };
