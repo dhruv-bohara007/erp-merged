@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -106,17 +105,29 @@ const PurchaseManagement = () => {
     return `₹${Math.round(amount).toLocaleString()}`;
   };
 
-  // Get page title based on active section
-  const getPageTitle = () => {
+  // Get page title and description based on active section
+  const getPageContent = () => {
     switch (activeSection) {
       case 'purchase-requests':
-        return 'Purchase Requests';
+        return {
+          title: 'Purchase Requests',
+          description: 'Manage employee purchase requests and track their status'
+        };
       case 'purchase-order':
-        return 'Purchase Order';
+        return {
+          title: 'Purchase Order',
+          description: 'Manage and track purchase orders from suppliers'
+        };
       case 'purchase-record':
-        return 'Purchase Record';
+        return {
+          title: 'Purchase Record',
+          description: 'View and manage complete purchase history and records'
+        };
       default:
-        return 'Purchase Requests';
+        return {
+          title: 'Purchase Requests',
+          description: 'Manage employee purchase requests and track their status'
+        };
     }
   };
 
@@ -139,6 +150,29 @@ const PurchaseManagement = () => {
     );
   }
 
+  const pageContent = getPageContent();
+
+  // Purchase Requests Content
+  const renderPurchaseRequests = () => (
+    <EmployeePurchases />
+  );
+
+  // Purchase Order Content
+  const renderPurchaseOrder = () => (
+    <Card>
+      <CardContent className="p-8 text-center">
+        <Package className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Purchase Order Management</h3>
+        <p className="text-gray-600 mb-4">Create and manage purchase orders with suppliers.</p>
+        <Button className="bg-blue-600 hover:bg-blue-700">
+          <Plus className="w-4 h-4 mr-2" />
+          Create Purchase Order
+        </Button>
+      </CardContent>
+    </Card>
+  );
+
+  // Purchase Record Content
   const renderPurchaseRecord = () => (
     <>
       {/* Summary Cards */}
@@ -374,14 +408,11 @@ const PurchaseManagement = () => {
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
+      {/* Header Section */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">{getPageTitle()}</h1>
-          <p className="text-gray-600 mt-2">
-            {activeSection === 'purchase-requests' && 'Manage employee purchase requests'}
-            {activeSection === 'purchase-order' && 'Manage purchase orders'}
-            {activeSection === 'purchase-record' && 'View and manage purchase records'}
-          </p>
+          <h1 className="text-3xl font-bold">{pageContent.title}</h1>
+          <p className="text-gray-600 mt-2">{pageContent.description}</p>
         </div>
         {activeSection === 'purchase-record' && (
           <Button 
@@ -394,16 +425,9 @@ const PurchaseManagement = () => {
         )}
       </div>
 
-      {activeSection === 'purchase-requests' && <EmployeePurchases />}
-      {activeSection === 'purchase-order' && (
-        <Card>
-          <CardContent className="p-8 text-center">
-            <Package className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Purchase Order</h3>
-            <p className="text-gray-600">Purchase order functionality will be implemented soon.</p>
-          </CardContent>
-        </Card>
-      )}
+      {/* Content Section */}
+      {activeSection === 'purchase-requests' && renderPurchaseRequests()}
+      {activeSection === 'purchase-order' && renderPurchaseOrder()}
       {activeSection === 'purchase-record' && renderPurchaseRecord()}
     </div>
   );
