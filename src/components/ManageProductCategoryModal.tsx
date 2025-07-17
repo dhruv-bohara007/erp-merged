@@ -24,7 +24,8 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
     loading, 
     addProductDefinition, 
     updateProductDefinition, 
-    deleteProductDefinition 
+    deleteProductDefinition,
+    refreshDefinitions 
   } = useProductDefinitions();
 
   const [currentStep, setCurrentStep] = useState<Step>('category');
@@ -244,6 +245,7 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
       <div>
         <Label htmlFor="categorySelect">Select Category</Label>
         <SearchableDropdown
+          key={`categories-${productDefinitions.length}`}
           items={categories}
           value={selectedCategory}
           onValueChange={setSelectedCategory}
@@ -315,6 +317,7 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
       <div>
         <Label htmlFor="nameSelect">Select Product Name</Label>
         <SearchableDropdown
+          key={`names-${selectedCategory}-${uniqueNamesInCategory.length}`}
           items={uniqueNamesInCategory}
           value={selectedName}
           onValueChange={setSelectedName}
@@ -390,6 +393,7 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
       <div>
         <Label>Select Version</Label>
         <SearchableDropdown
+          key={`versions-${selectedCategory}-${selectedName}-${versionsForName.length}`}
           items={versionsForName}
           value=""
           onValueChange={() => {}}
