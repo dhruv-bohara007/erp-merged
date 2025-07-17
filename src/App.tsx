@@ -34,6 +34,7 @@ import EmployeeNavigation from "./components/EmployeeNavigation";
 import EmployeeInventory from "./components/EmployeeInventory";
 import EmployeePurchases from "./components/EmployeePurchases";
 import StockDetails from "./components/StockDetails";
+import PurchaseRequests from "./components/PurchaseRequests";
 
 const queryClient = new QueryClient();
 
@@ -222,7 +223,14 @@ const AuthenticatedApp = () => {
               <div>
                 <AdminNavigation />
                 <div className="lg:pl-64">
-                  <PurchaseManagement />
+                  {(() => {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const section = urlParams.get('section');
+                    if (section === 'purchase-requests') {
+                      return <PurchaseRequests />;
+                    }
+                    return <PurchaseManagement />;
+                  })()}
                 </div>
               </div>
             ) : (

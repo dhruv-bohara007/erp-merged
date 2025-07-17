@@ -240,5 +240,23 @@ service cloud.firestore {
       
       allow read, write: if isSuperAdmin();
     }
+
+    // PURCHASE_REQUESTS: employees can create, admins can read and update
+    match /purchase_requests/{requestId} {
+      // Company admins can read and update purchase requests from their company
+      allow read, update: if isCompanyAdmin() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      // Employees can create purchase requests for their company
+      allow create: if isEmployeeUser() && getUserData().companyId != null &&
+        request.resource.data.companyId == getUserData().companyId;
+      
+      // Employees can read their own purchase requests
+      allow read: if isEmployeeUser() && getUserData().companyId != null &&
+        (resource == null || (resource.data.companyId == getUserData().companyId && 
+         resource.data.employeeEmail == getUserData().email));
+      
+      allow read, write: if isSuperAdmin();
+    }
   }
 }
