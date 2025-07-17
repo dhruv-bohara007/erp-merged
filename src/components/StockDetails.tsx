@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -19,6 +18,7 @@ import { useCompanyData } from '@/hooks/useCompanyData';
 import { collection, doc, setDoc, getDocs, query, where, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface StockDetailsData {
   id: string;
@@ -42,11 +42,12 @@ const StockDetails = () => {
   const [sortBy, setSortBy] = useState<'category' | 'name' | 'version' | 'stock' | 'none'>('none');
   const [stockDetails, setStockDetails] = useState<StockDetailsData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingFields, setEditingFields] = useState<{[key: string]: {minRequired?: number, safeQuantityLimit?: number}}>({});
+  const [editingFields, setEditingFields] = useState<{[key: string]: {minRequired?: string, safeQuantityLimit?: string}}>({});
   
   const { inventory } = useInventory();
   const { companyData } = useCompanyData();
   const { currentUser } = useAuth();
+  const { toast } = useToast();
 
   // Generate stock details from inventory collection
   const generateStockDetails = async () => {
@@ -68,8 +69,8 @@ const StockDetails = () => {
             productVersion: item.productVersion || 'N/A',
             currentStock: 0,
             unit: item.unit || 'pcs',
-            minRequired: undefined,
-            safeQuantityLimit: undefined,
+            minRequired: 0,
+            safeQuantityLimit: 0,
             displayStatus: 'displayed',
             createdAt: new Date(),
             updatedAt: new Date()
@@ -86,7 +87,7 @@ const StockDetails = () => {
     
     for (const stockItem of Object.values(stockData)) {
       try {
-        await setDoc(doc(stockDetailsCollection, stockItem.id), stockItem);
+        await setDoc(doc(stockDetailsCollection, stockItem.id), stockItem, { merge: true });
       } catch (error) {
         console.error('Error saving stock details:', error);
       }
@@ -109,7 +110,9 @@ const StockDetails = () => {
         id: doc.id,
         createdAt: doc.data().createdAt?.toDate() || new Date(),
         updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-        lastPurchaseDate: doc.data().lastPurchaseDate?.toDate()
+        lastPurchaseDate: doc.data().lastPurchaseDate?.toDate(),
+        minRequired: doc.data().minRequired ?? 0,
+        safeQuantityLimit: doc.data().safeQuantityLimit ?? 0
       })) as StockDetailsData[];
     } catch (error) {
       console.error('Error fetching stock details:', error);
@@ -128,7 +131,7 @@ const StockDetails = () => {
       if (existingStockDetails.length === 0 || inventory.length > 0) {
         const newStockDetails = await generateStockDetails();
         if (newStockDetails) {
-          existingStockDetails = newStockDetails;
+          existingStockDetails = await fetchStockDetails(); // Refetch to get persisted data
         }
       }
       
@@ -139,15 +142,28 @@ const StockDetails = () => {
     loadStockDetails();
   }, [inventory, currentUser?.companyId]);
 
-  // Save field changes
+  // Save field changes with validation
   const saveFieldChanges = async (itemId: string) => {
     if (!editingFields[itemId]) return;
+
+    const minRequired = editingFields[itemId].minRequired ? Number(editingFields[itemId].minRequired) : 0;
+    const safeQuantityLimit = editingFields[itemId].safeQuantityLimit ? Number(editingFields[itemId].safeQuantityLimit) : 0;
+
+    // Validation: Safe Quantity Limit should be less than or equal to Min Required
+    if (safeQuantityLimit > minRequired) {
+      toast({
+        title: "Validation Error",
+        description: "Safe Quantity Limit should be less than or equal to Min Required.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     try {
       const docRef = doc(db, 'stock_details', itemId);
       await updateDoc(docRef, {
-        minRequired: editingFields[itemId].minRequired || null,
-        safeQuantityLimit: editingFields[itemId].safeQuantityLimit || null,
+        minRequired: minRequired,
+        safeQuantityLimit: safeQuantityLimit,
         updatedAt: new Date()
       });
 
@@ -156,8 +172,8 @@ const StockDetails = () => {
         item.id === itemId 
           ? { 
               ...item, 
-              minRequired: editingFields[itemId].minRequired,
-              safeQuantityLimit: editingFields[itemId].safeQuantityLimit,
+              minRequired: minRequired,
+              safeQuantityLimit: safeQuantityLimit,
               updatedAt: new Date()
             }
           : item
@@ -170,9 +186,17 @@ const StockDetails = () => {
         return newState;
       });
 
-      console.log('Stock details updated successfully');
+      toast({
+        title: "Success",
+        description: "Stock details updated successfully"
+      });
     } catch (error) {
       console.error('Error updating stock details:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update stock details",
+        variant: "destructive"
+      });
     }
   };
 
@@ -197,16 +221,24 @@ const StockDetails = () => {
           : stockItem
       ));
 
-      console.log(`Stock ${newStatus} successfully`);
+      toast({
+        title: "Success",
+        description: `Stock ${newStatus} successfully`
+      });
     } catch (error) {
       console.error('Error updating display status:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update display status",
+        variant: "destructive"
+      });
     }
   };
 
   // Check if Display/Suspend button should be enabled
   const isDisplayButtonEnabled = (item: StockDetailsData) => {
-    return (item.minRequired !== undefined && item.minRequired !== null) && 
-           (item.safeQuantityLimit !== undefined && item.safeQuantityLimit !== null);
+    return (item.minRequired !== undefined && item.minRequired !== null && item.minRequired > 0) && 
+           (item.safeQuantityLimit !== undefined && item.safeQuantityLimit !== null && item.safeQuantityLimit >= 0);
   };
 
   // Filter and sort stock details
@@ -373,15 +405,15 @@ const StockDetails = () => {
                       <TableCell>
                         <div className="flex gap-2 items-center">
                           <Input
-                            type="number"
-                            placeholder="Min"
+                            type="text"
+                            placeholder="0"
                             className="w-20"
-                            value={editingFields[item.id]?.minRequired ?? item.minRequired ?? ''}
+                            value={editingFields[item.id]?.minRequired ?? (item.minRequired !== undefined ? item.minRequired.toString() : '0')}
                             onChange={(e) => setEditingFields(prev => ({
                               ...prev,
                               [item.id]: {
                                 ...prev[item.id],
-                                minRequired: e.target.value ? Number(e.target.value) : undefined
+                                minRequired: e.target.value
                               }
                             }))}
                           />
@@ -400,15 +432,15 @@ const StockDetails = () => {
                       <TableCell>
                         <div className="flex gap-2 items-center">
                           <Input
-                            type="number"
-                            placeholder="Safe"
+                            type="text"
+                            placeholder="0"
                             className="w-20"
-                            value={editingFields[item.id]?.safeQuantityLimit ?? item.safeQuantityLimit ?? ''}
+                            value={editingFields[item.id]?.safeQuantityLimit ?? (item.safeQuantityLimit !== undefined ? item.safeQuantityLimit.toString() : '0')}
                             onChange={(e) => setEditingFields(prev => ({
                               ...prev,
                               [item.id]: {
                                 ...prev[item.id],
-                                safeQuantityLimit: e.target.value ? Number(e.target.value) : undefined
+                                safeQuantityLimit: e.target.value
                               }
                             }))}
                           />
