@@ -24,7 +24,8 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
     loading, 
     addProductDefinition, 
     updateProductDefinition, 
-    deleteProductDefinition 
+    deleteProductDefinition,
+    refreshDefinitions 
   } = useProductDefinitions();
 
   const [currentStep, setCurrentStep] = useState<Step>('category');
@@ -36,14 +37,14 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
 
-  const categories = [...new Set(productDefinitions.map(p => p.category))];
+  const categories = [...new Set(productDefinitions.map(p => p.productCategory))];
   const namesInCategory = productDefinitions
-    .filter(p => p.category === selectedCategory)
-    .map(p => p.name);
+    .filter(p => p.productCategory === selectedCategory)
+    .map(p => p.itemName);
   const uniqueNamesInCategory = [...new Set(namesInCategory)];
   const versionsForName = productDefinitions
-    .filter(p => p.category === selectedCategory && p.name === selectedName)
-    .map(p => p.version);
+    .filter(p => p.productCategory === selectedCategory && p.itemName === selectedName)
+    .map(p => p.productVersion);
 
   // Reset dependent fields when parent selection changes
   useEffect(() => {
@@ -75,9 +76,9 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
     
     try {
       await addProductDefinition({
-        category: newCategory.trim(),
-        name: 'Default Product',
-        version: '1.0'
+        productCategory: newCategory.trim(),
+        itemName: 'Default Product',
+        productVersion: '1.0'
       });
       
       setNewCategory('');
@@ -100,9 +101,9 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
     
     try {
       await addProductDefinition({
-        category: selectedCategory,
-        name: newName.trim(),
-        version: '1.0'
+        productCategory: selectedCategory,
+        itemName: newName.trim(),
+        productVersion: '1.0'
       });
       
       setNewName('');
@@ -125,9 +126,9 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
     
     try {
       await addProductDefinition({
-        category: selectedCategory,
-        name: selectedName,
-        version: newVersion.trim()
+        productCategory: selectedCategory,
+        itemName: selectedName,
+        productVersion: newVersion.trim()
       });
       
       setNewVersion('');
@@ -145,7 +146,7 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
     }
   };
 
-  const handleEdit = async (id: string, field: 'category' | 'name' | 'version', newValue: string) => {
+  const handleEdit = async (id: string, field: 'productCategory' | 'itemName' | 'productVersion', newValue: string) => {
     if (!newValue.trim()) return;
     
     try {
@@ -191,7 +192,7 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
   };
 
   const handleEditCategory = (category: string) => {
-    const categoryItem = productDefinitions.find(p => p.category === category);
+    const categoryItem = productDefinitions.find(p => p.productCategory === category);
     if (categoryItem) {
       setEditingItem(categoryItem.id);
       setEditValue(category);
@@ -199,14 +200,14 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
   };
 
   const handleDeleteCategory = (category: string) => {
-    const categoryItem = productDefinitions.find(p => p.category === category);
+    const categoryItem = productDefinitions.find(p => p.productCategory === category);
     if (categoryItem) {
       handleDelete(categoryItem.id);
     }
   };
 
   const handleEditName = (name: string) => {
-    const nameItem = productDefinitions.find(p => p.category === selectedCategory && p.name === name);
+    const nameItem = productDefinitions.find(p => p.productCategory === selectedCategory && p.itemName === name);
     if (nameItem) {
       setEditingItem(nameItem.id);
       setEditValue(name);
@@ -214,7 +215,7 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
   };
 
   const handleDeleteName = (name: string) => {
-    const nameItem = productDefinitions.find(p => p.category === selectedCategory && p.name === name);
+    const nameItem = productDefinitions.find(p => p.productCategory === selectedCategory && p.itemName === name);
     if (nameItem) {
       handleDelete(nameItem.id);
     }
@@ -222,7 +223,7 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
 
   const handleEditVersion = (version: string) => {
     const versionItem = productDefinitions.find(p => 
-      p.category === selectedCategory && p.name === selectedName && p.version === version
+      p.productCategory === selectedCategory && p.itemName === selectedName && p.productVersion === version
     );
     if (versionItem) {
       setEditingItem(versionItem.id);
@@ -232,7 +233,7 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
 
   const handleDeleteVersion = (version: string) => {
     const versionItem = productDefinitions.find(p => 
-      p.category === selectedCategory && p.name === selectedName && p.version === version
+      p.productCategory === selectedCategory && p.itemName === selectedName && p.productVersion === version
     );
     if (versionItem) {
       handleDelete(versionItem.id);
@@ -244,6 +245,7 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
       <div>
         <Label htmlFor="categorySelect">Select Category</Label>
         <SearchableDropdown
+          key={`categories-${productDefinitions.length}`}
           items={categories}
           value={selectedCategory}
           onValueChange={setSelectedCategory}
@@ -278,7 +280,7 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
               onChange={(e) => setEditValue(e.target.value)}
               placeholder="Edit category name"
             />
-            <Button size="sm" onClick={() => handleEdit(editingItem, 'category', editValue)}>
+            <Button size="sm" onClick={() => handleEdit(editingItem, 'productCategory', editValue)}>
               Save
             </Button>
             <Button size="sm" variant="outline" onClick={() => {
@@ -315,6 +317,7 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
       <div>
         <Label htmlFor="nameSelect">Select Product Name</Label>
         <SearchableDropdown
+          key={`names-${selectedCategory}-${uniqueNamesInCategory.length}`}
           items={uniqueNamesInCategory}
           value={selectedName}
           onValueChange={setSelectedName}
@@ -349,7 +352,7 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
               onChange={(e) => setEditValue(e.target.value)}
               placeholder="Edit product name"
             />
-            <Button size="sm" onClick={() => handleEdit(editingItem, 'name', editValue)}>
+            <Button size="sm" onClick={() => handleEdit(editingItem, 'itemName', editValue)}>
               Save
             </Button>
             <Button size="sm" variant="outline" onClick={() => {
@@ -390,6 +393,7 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
       <div>
         <Label>Select Version</Label>
         <SearchableDropdown
+          key={`versions-${selectedCategory}-${selectedName}-${versionsForName.length}`}
           items={versionsForName}
           value=""
           onValueChange={() => {}}
@@ -424,7 +428,7 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
               onChange={(e) => setEditValue(e.target.value)}
               placeholder="Edit version"
             />
-            <Button size="sm" onClick={() => handleEdit(editingItem, 'version', editValue)}>
+            <Button size="sm" onClick={() => handleEdit(editingItem, 'productVersion', editValue)}>
               Save
             </Button>
             <Button size="sm" variant="outline" onClick={() => {
