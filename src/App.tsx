@@ -1,141 +1,382 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate, useLocation } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import LoginPage from './pages/LoginPage';
-import SignupPage from './pages/SignupPage';
-import ForgotPasswordPage from './pages/ForgotPasswordPage';
-import UpdateProfilePage from './pages/UpdateProfilePage';
-import Dashboard from './pages/Dashboard';
-import SuperDashboard from './pages/SuperDashboard';
-import CompanyDashboard from './pages/CompanyDashboard';
-import EmployeeDashboard from './pages/EmployeeDashboard';
-import Clients from './pages/Clients';
-import Invoices from './pages/Invoices';
-import Payments from './pages/Payments';
-import Reports from './pages/Reports';
-import Inventory from './pages/Inventory';
-import StockDetails from './pages/StockDetails';
-import Purchases from './pages/Purchases';
-import Suppliers from './pages/Suppliers';
-import Employees from './pages/Employees';
-import CompanyProfile from './pages/CompanyProfile';
-import Settings from './pages/Settings';
-import AdminNavigation from './components/AdminNavigation';
-import EmployeeInventory from './components/EmployeeInventory';
-import PurchaseRequests from './components/PurchaseRequests';
 
-function App() {
-  return (
-    <AuthProvider>
-      <Router>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/update-profile" element={<PrivateRoute><UpdateProfilePage /></PrivateRoute>} />
-          <Route path="/super-dashboard" element={<PrivateRoute role="super_admin"><SuperDashboard /></PrivateRoute>} />
-          <Route path="/employee-dashboard" element={<PrivateRoute role="employee"><EmployeeDashboard /></PrivateRoute>} />
-          <Route path="/" element={<PrivateRoute><DashboardLayout /></PrivateRoute>} />
-        </Routes>
-      </Router>
-    </AuthProvider>
-  );
-}
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import LoginForm from "@/components/LoginForm";
+import RegisterForm from "@/components/RegisterForm";
+import PasswordResetForm from "@/components/PasswordResetForm";
+import Index from "./pages/Index";
+import SuperDashboard from "./pages/SuperDashboard";
+import InvoiceForm from "./components/InvoiceForm";
+import InvoiceList from "./components/InvoiceList";
+import ClientManagement from "./components/ClientManagement";
+import SupplierManagement from "./components/SupplierManagement";
+import Payments from "./components/Payments";
+import Reports from "./components/Reports";
+import Settings from "./components/Settings";
+import AdminNavigation from "./components/AdminNavigation";
+import NotFound from "./pages/NotFound";
+import ExpenseManagement from "./components/ExpenseManagement";
+import InventoryManagement from "./components/InventoryManagement";
+import ProfitabilityReports from "./components/ProfitabilityReports";
+import CompanySignupForm from "./components/CompanySignupForm";
+import PurchaseManagement from "./components/PurchaseManagement";
+import PurchaseForm from "./components/PurchaseForm";
+import PaymentSyncProvider from "./components/PaymentSyncProvider";
+import EmployeeManagement from "./components/EmployeeManagement";
+import EmployeeDashboard from "./pages/EmployeeDashboard";
+import EmployeeNavigation from "./components/EmployeeNavigation";
+import EmployeeInventory from "./components/EmployeeInventory";
+import EmployeePurchases from "./components/EmployeePurchases";
+import StockDetails from "./components/StockDetails";
 
-function DashboardLayout() {
+const queryClient = new QueryClient();
+
+const AuthenticatedApp = () => {
   const { currentUser } = useAuth();
-  const location = useLocation();
 
-  // Determine the base path for the dashboard based on user role
-  let basePath = "/dashboard";
-  if (currentUser?.role === 'super_admin') {
-    basePath = "/super-dashboard";
-  } else if (currentUser?.role === 'employee') {
-    basePath = "/employee-dashboard";
-  }
-
-  // Redirect to the appropriate dashboard if at the root path
-  if (location.pathname === "/") {
-    if (currentUser?.role === 'super_admin') {
-      return <Navigate to="/super-dashboard" replace />;
-    } else if (currentUser?.role === 'employee') {
-      return <Navigate to="/employee-dashboard" replace />;
-    } else {
-      return <Navigate to="/dashboard" replace />;
+  // Always redirect to login if not authenticated
+  const getDefaultRedirect = () => {
+    if (!currentUser) return '/login';
+    
+    // If company admin hasn't completed setup, redirect to company signup
+    if (currentUser.role === 'company_admin' && !currentUser.hasCompletedSetup) {
+      return '/company-setup';
     }
-  }
+    
+    const roleRedirects = {
+      company_admin: '/admin-dashboard',
+      super_admin: '/super-dashboard',
+      employee: '/employee-dashboard'
+    };
+    
+    return roleRedirects[currentUser.role || 'company_admin'];
+  };
 
-  if (currentUser?.role === 'company_admin') {
-    return (
-      <div className="min-h-screen bg-gray-100">
-        <div className="flex h-screen">
-          <div className="w-64 bg-white border-r border-gray-200">
-            <AdminNavigation />
-          </div>
-          <div className="flex-1 overflow-x-hidden overflow-y-auto p-4">
-            <Routes>
-              <Route path="/dashboard" element={<PrivateRoute role="company_admin"><CompanyDashboard /></PrivateRoute>} />
-              <Route path="/dashboard/clients" element={<PrivateRoute role="company_admin"><Clients /></PrivateRoute>} />
-              <Route path="/dashboard/invoices" element={<PrivateRoute role="company_admin"><Invoices /></PrivateRoute>} />
-              <Route path="/dashboard/payments" element={<PrivateRoute role="company_admin"><Payments /></PrivateRoute>} />
-              <Route path="/dashboard/reports" element={<PrivateRoute role="company_admin"><Reports /></PrivateRoute>} />
-              <Route path="/dashboard/inventory" element={<PrivateRoute role="company_admin"><Inventory /></PrivateRoute>} />
-              <Route path="/dashboard/stock-details" element={<PrivateRoute role="company_admin"><StockDetails /></PrivateRoute>} />
-              <Route path="/dashboard/purchases" element={<PrivateRoute role="company_admin"><Purchases /></PrivateRoute>} />
-              <Route path="/dashboard/suppliers" element={<PrivateRoute role="company_admin"><Suppliers /></PrivateRoute>} />
-              <Route path="/dashboard/employees" element={<PrivateRoute role="company_admin"><Employees /></PrivateRoute>} />
-              <Route path="/dashboard/company" element={<PrivateRoute role="company_admin"><CompanyProfile /></PrivateRoute>} />
-              <Route path="/dashboard/settings" element={<PrivateRoute role="company_admin"><Settings /></PrivateRoute>} />
-              <Route path="/dashboard/purchase-requests" element={<PurchaseRequests />} />
-            </Routes>
-          </div>
-        </div>
-      </div>
-    );
-  } else if (currentUser?.role === 'employee') {
-    return (
-      <div className="min-h-screen bg-gray-100">
-        <div className="flex h-screen">
-          <div className="flex-1 overflow-x-hidden overflow-y-auto p-4">
-            <Routes>
-              <Route path="/employee-dashboard" element={<PrivateRoute role="employee"><EmployeeDashboard /></PrivateRoute>} />
-              <Route path="/employee-inventory" element={<PrivateRoute role="employee"><EmployeeInventory /></PrivateRoute>} />
-            </Routes>
-          </div>
-        </div>
-      </div>
-    );
-  } else {
-    // Super Admin Layout (or default)
-    return (
-      <div className="min-h-screen bg-gray-100">
-        <div className="flex h-screen">
-          <div className="w-64 bg-white border-r border-gray-200">
-            <AdminNavigation />
-          </div>
-          <div className="flex-1 overflow-x-hidden overflow-y-auto p-4">
-            <Routes>
-              <Route path="/super-dashboard" element={<PrivateRoute role="super_admin"><SuperDashboard /></PrivateRoute>} />
-            </Routes>
-          </div>
-        </div>
-      </div>
-    );
-  }
-}
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <Routes>
+        {/* Public routes - Always accessible */}
+        <Route path="/login" element={<LoginForm />} />
+        <Route path="/register" element={<RegisterForm />} />
+        <Route path="/password-reset" element={<PasswordResetForm />} />
 
-function PrivateRoute({ children, role }: { children: React.ReactNode, role?: string }) {
-  const { currentUser } = useAuth();
+        {/* Company Setup Route - Only for authenticated company admins */}
+        <Route path="/company-setup" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            <CompanySignupForm />
+          </ProtectedRoute>
+        } />
 
-  if (!currentUser) {
-    return <Navigate to="/login" />;
-  }
+        {/* Super Admin Dashboard */}
+        <Route path="/super-dashboard" element={
+          <ProtectedRoute allowedRoles={['super_admin']}>
+            <SuperDashboard />
+          </ProtectedRoute>
+        } />
 
-  if (role && currentUser.role !== role) {
-    return <Navigate to="/login" />;
-  }
+        {/* Company Admin routes - redirect to setup if not completed */}
+        <Route path="/admin-dashboard" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <Index />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/invoices" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <InvoiceList />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/invoices/new" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <InvoiceForm />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
 
-  return children;
-}
+        <Route path="/invoices/edit/:id" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <InvoiceForm />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/clients" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <ClientManagement />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/suppliers" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <SupplierManagement />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/payments" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <Payments />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/reports" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <Reports />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/settings" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <Settings />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+
+        <Route path="/purchases" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <PurchaseManagement />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+
+        <Route path="/add-purchase" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <PurchaseForm />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+
+        <Route path="/inventory" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <InventoryManagement />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+
+        <Route path="/profitability" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <ProfitabilityReports />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+
+        <Route path="/employees" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <EmployeeManagement />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+
+        <Route path="/stock-details" element={
+          <ProtectedRoute allowedRoles={['company_admin']}>
+            {currentUser?.hasCompletedSetup ? (
+              <div>
+                <AdminNavigation />
+                <div className="lg:pl-64">
+                  <StockDetails />
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/company-setup" replace />
+            )}
+          </ProtectedRoute>
+        } />
+
+        {/* Employee routes */}
+        <Route path="/employee-dashboard" element={
+          <ProtectedRoute allowedRoles={['employee']}>
+            <div>
+              <EmployeeNavigation />
+              <div className="lg:pl-64">
+                <EmployeeDashboard />
+              </div>
+            </div>
+          </ProtectedRoute>
+        } />
+
+        <Route path="/employee-inventory" element={
+          <ProtectedRoute allowedRoles={['employee']}>
+            <div>
+              <EmployeeNavigation />
+              <div className="lg:pl-64">
+                <EmployeeInventory />
+              </div>
+            </div>
+          </ProtectedRoute>
+        } />
+
+        <Route path="/employee-purchases" element={
+          <ProtectedRoute allowedRoles={['employee']}>
+            <div>
+              <EmployeeNavigation />
+              <div className="lg:pl-64">
+                <EmployeePurchases />
+              </div>
+            </div>
+          </ProtectedRoute>
+        } />
+
+        <Route path="/employee-alerts" element={
+          <ProtectedRoute allowedRoles={['employee']}>
+            <div>
+              <EmployeeNavigation />
+              <div className="lg:pl-64">
+                <EmployeeDashboard />
+              </div>
+            </div>
+          </ProtectedRoute>
+        } />
+
+        {/* Root redirect - Always go to login first */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+
+        {/* 404 page */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </div>
+  );
+};
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <ThemeProvider>
+          <AuthProvider>
+            <PaymentSyncProvider>
+              <AuthenticatedApp />
+            </PaymentSyncProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
 
 export default App;

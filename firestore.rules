@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -234,25 +235,6 @@ service cloud.firestore {
         request.resource.data.companyId == getUserData().companyId;
       
       // Employees can read product definitions from their company
-      allow read: if isEmployeeUser() && getUserData().companyId != null &&
-        (resource == null || resource.data.companyId == getUserData().companyId);
-      
-      allow read, write: if isSuperAdmin();
-    }
-
-    // PURCHASE_REQUESTS: only accessible by users from the same company
-    match /purchase_requests/{requestId} {
-      allow read, write: if isCompanyAdmin() && 
-        (resource == null || resource.data.companyId == getUserData().companyId);
-      
-      allow create: if isCompanyAdmin() &&
-        request.resource.data.companyId == getUserData().companyId;
-      
-      // Employees can create purchase requests for their company
-      allow create: if isEmployeeUser() && getUserData().companyId != null &&
-        request.resource.data.companyId == getUserData().companyId;
-      
-      // Employees can read purchase requests from their company (their own requests)
       allow read: if isEmployeeUser() && getUserData().companyId != null &&
         (resource == null || resource.data.companyId == getUserData().companyId);
       
