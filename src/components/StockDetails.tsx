@@ -1,152 +1,40 @@
-
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  Search, 
-  Package,
-  TrendingUp,
-  Calendar,
-  Save,
-  Eye,
-  EyeOff,
-  Edit
-} from 'lucide-react';
-import { useInventory } from '@/hooks/useFirestore';
-import { useCompanyData } from '@/hooks/useCompanyData';
-import { collection, doc, setDoc, getDocs, query, where, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
-
-interface StockDetailsData {
-  id: string;
-  companyId: string;
-  productCategory: string;
-  itemName: string;
-  productVersion: string;
-  currentStock: number;
-  lastPurchaseDate?: Date;
-  unit: string;
-  minRequired?: number;
-  safeQuantityLimit?: number;
-  displayStatus: 'displayed' | 'suspended';
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { useStockAggregation } from '../hooks/useStockAggregation';
+import { useCompanyData } from '../hooks/useCompanyData';
+import { StockDetailsData } from '../types/firestore';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from './ui/use-toast';
+import { db } from '../lib/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
+import { useState } from 'react';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Badge } from './ui/badge';
+import { Trash2, Edit2, Eye, EyeOff, RefreshCw, Save, Package, TrendingUp, Calendar, Search } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 
 const StockDetails = () => {
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('all');
   const [sortBy, setSortBy] = useState<'category' | 'name' | 'version' | 'stock' | 'none'>('none');
-  const [stockDetails, setStockDetails] = useState<StockDetailsData[]>([]);
-  const [loading, setLoading] = useState(true);
   const [editingFields, setEditingFields] = useState<{[key: string]: {minRequired?: string, safeQuantityLimit?: string}}>({});
   
-  const { inventory } = useInventory();
+  const { stockDetails, loading, error, manualRefresh } = useStockAggregation();
   const { companyData } = useCompanyData();
   const { currentUser } = useAuth();
   const { toast } = useToast();
 
-  // Generate stock details from inventory collection
-  const generateStockDetails = async () => {
-    if (!inventory.length || !currentUser?.companyId) return;
-
-    const stockData: Record<string, StockDetailsData> = {};
-
-    // Group inventory items by product
-    inventory.forEach(item => {
-      if (item.status === 'active' && item.quantity && item.quantity > 0) {
-        const key = `${item.productCategory || 'Uncategorized'}-${item.itemName || 'Unknown'}-${item.productVersion || 'N/A'}`;
-        
-        if (!stockData[key]) {
-          stockData[key] = {
-            id: key,
-            companyId: currentUser.companyId,
-            productCategory: item.productCategory || 'Uncategorized',
-            itemName: item.itemName || 'Unknown',
-            productVersion: item.productVersion || 'N/A',
-            currentStock: 0,
-            unit: item.unit || 'pcs',
-            minRequired: 0, // Default to 0 for new items
-            safeQuantityLimit: 0, // Default to 0 for new items
-            displayStatus: 'displayed',
-            createdAt: new Date(),
-            updatedAt: new Date()
-          };
-        }
-
-        stockData[key].currentStock += item.quantity || 0;
-        stockData[key].updatedAt = new Date();
-      }
+  // Function to trigger manual refresh of stock aggregation
+  const handleRefreshStock = async () => {
+    await manualRefresh();
+    toast({
+      title: "Stock Updated",
+      description: "Stock details have been refreshed with latest data from inventory and purchase records.",
     });
-
-    // Save to stock_details collection with merge to preserve existing min_required and safe_quantity_limit values
-    const stockDetailsCollection = collection(db, 'stock_details');
-    
-    for (const stockItem of Object.values(stockData)) {
-      try {
-        await setDoc(doc(stockDetailsCollection, stockItem.id), stockItem, { merge: true });
-      } catch (error) {
-        console.error('Error saving stock details:', error);
-      }
-    }
-
-    return Object.values(stockData);
   };
-
-  // Fetch stock details from Firestore
-  const fetchStockDetails = async () => {
-    if (!currentUser?.companyId) return [];
-
-    try {
-      const stockDetailsCollection = collection(db, 'stock_details');
-      const q = query(stockDetailsCollection, where('companyId', '==', currentUser.companyId));
-      const snapshot = await getDocs(q);
-      
-      return snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          ...data,
-          id: doc.id,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
-          lastPurchaseDate: data.lastPurchaseDate?.toDate(),
-          // Use actual values from Firestore, fallback to 0 only if undefined
-          minRequired: data.minRequired !== undefined ? data.minRequired : 0,
-          safeQuantityLimit: data.safeQuantityLimit !== undefined ? data.safeQuantityLimit : 0
-        };
-      }) as StockDetailsData[];
-    } catch (error) {
-      console.error('Error fetching stock details:', error);
-      return [];
-    }
-  };
-
-  useEffect(() => {
-    const loadStockDetails = async () => {
-      setLoading(true);
-      
-      // First try to fetch existing stock details
-      let existingStockDetails = await fetchStockDetails();
-      
-      // If no stock details exist or inventory has been updated, regenerate
-      if (existingStockDetails.length === 0 || inventory.length > 0) {
-        const newStockDetails = await generateStockDetails();
-        if (newStockDetails) {
-          existingStockDetails = await fetchStockDetails(); // Refetch to get persisted data with actual values
-        }
-      }
-      
-      setStockDetails(existingStockDetails);
-      setLoading(false);
-    };
-
-    loadStockDetails();
-  }, [inventory, currentUser?.companyId]);
 
   // Save field changes with enhanced validation
   const saveFieldChanges = async (itemId: string, fieldType: 'minRequired' | 'safeQuantityLimit') => {
@@ -197,17 +85,6 @@ const StockDetails = () => {
 
       await updateDoc(docRef, updateData);
 
-      // Update local state with the actual saved values
-      setStockDetails(prev => prev.map(stockItem => 
-        stockItem.id === itemId 
-          ? { 
-              ...stockItem, 
-              ...(fieldType === 'minRequired' ? { minRequired: minRequiredValue } : { safeQuantityLimit: safeQuantityLimitValue }),
-              updatedAt: new Date()
-            }
-          : stockItem
-      ));
-
       // Clear editing state for this field
       setEditingFields(prev => {
         const newState = { ...prev };
@@ -253,13 +130,6 @@ const StockDetails = () => {
         updatedAt: new Date()
       });
 
-      // Update local state
-      setStockDetails(prev => prev.map(stockItem => 
-        stockItem.id === itemId 
-          ? { ...stockItem, displayStatus: newStatus, updatedAt: new Date() }
-          : stockItem
-      ));
-
       toast({
         title: "Success",
         description: `Stock ${newStatus} successfully`
@@ -296,8 +166,9 @@ const StockDetails = () => {
     const matchesSearch = (item.productCategory || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (item.itemName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (item.productVersion || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = categoryFilter === 'all' || item.productCategory === categoryFilter;
-    return matchesSearch && matchesCategory;
+    const matchesCategory = filterCategory === 'all' || item.productCategory === filterCategory;
+    const matchesStatus = filterStatus === 'all' || item.displayStatus === filterStatus;
+    return matchesSearch && matchesCategory && matchesStatus;
   });
 
   const sortedStockDetails = [...filteredStockDetails].sort((a, b) => {
@@ -326,9 +197,25 @@ const StockDetails = () => {
     return (
       <div className="max-w-7xl mx-auto p-6 flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading stock details...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading stock details...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto p-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Error Loading Stock Details</CardTitle>
+            <CardDescription>{error}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={handleRefreshStock}>Try Again</Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -339,8 +226,16 @@ const StockDetails = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Stock Details</h1>
-          <p className="text-gray-600 mt-2">Track and manage your inventory stock levels</p>
+          <p className="text-muted-foreground mt-2">Combined inventory and purchase records stock levels</p>
         </div>
+        <Button
+          onClick={handleRefreshStock}
+          disabled={loading}
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Refresh Stock
+        </Button>
       </div>
 
       {/* Summary Cards */}
@@ -349,7 +244,7 @@ const StockDetails = () => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Items</p>
+                <p className="text-sm font-medium text-muted-foreground">Total Items</p>
                 <p className="text-2xl font-bold">{totalItems}</p>
               </div>
               <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
@@ -363,7 +258,7 @@ const StockDetails = () => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Stock</p>
+                <p className="text-sm font-medium text-muted-foreground">Total Stock</p>
                 <p className="text-2xl font-bold">{totalStock}</p>
               </div>
               <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
@@ -381,7 +276,7 @@ const StockDetails = () => {
             <CardTitle>Stock Details ({sortedStockDetails.length})</CardTitle>
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
                   placeholder="Search stock..."
                   value={searchTerm}
@@ -389,7 +284,7 @@ const StockDetails = () => {
                   className="pl-10 w-full sm:w-64"
                 />
               </div>
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
                 <SelectTrigger className="w-full sm:w-40">
                   <SelectValue placeholder="Category" />
                 </SelectTrigger>
@@ -398,6 +293,16 @@ const StockDetails = () => {
                   {categories.map(category => (
                     <SelectItem key={category} value={category}>{category}</SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="w-full sm:w-32">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="displayed">Displayed</SelectItem>
+                  <SelectItem value="suspended">Suspended</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
@@ -426,6 +331,7 @@ const StockDetails = () => {
                   <TableHead>Current Stock</TableHead>
                   <TableHead>Min Required</TableHead>
                   <TableHead>Safe Quantity Limit</TableHead>
+                  <TableHead>Last Purchase</TableHead>
                   <TableHead>Last Updated</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -433,7 +339,7 @@ const StockDetails = () => {
               <TableBody>
                 {sortedStockDetails.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                       No stock items found
                     </TableCell>
                   </TableRow>
@@ -455,7 +361,7 @@ const StockDetails = () => {
                       <TableCell>
                         <div className="flex gap-2 items-center">
                           <Input
-                            type="text"
+                            type="number"
                             placeholder="0"
                             className="w-20"
                             value={getDisplayValue(item, 'minRequired')}
@@ -467,7 +373,7 @@ const StockDetails = () => {
                               }
                             }))}
                           />
-                          <span className="text-sm text-gray-500">{item.unit}</span>
+                          <span className="text-sm text-muted-foreground">{item.unit}</span>
                           {editingFields[item.id]?.minRequired !== undefined ? (
                             <Button
                               size="sm"
@@ -488,7 +394,7 @@ const StockDetails = () => {
                                 }
                               }))}
                             >
-                              <Edit className="h-3 w-3" />
+                              <Edit2 className="h-3 w-3" />
                             </Button>
                           )}
                         </div>
@@ -496,7 +402,7 @@ const StockDetails = () => {
                       <TableCell>
                         <div className="flex gap-2 items-center">
                           <Input
-                            type="text"
+                            type="number"
                             placeholder="0"
                             className="w-20"
                             value={getDisplayValue(item, 'safeQuantityLimit')}
@@ -508,7 +414,7 @@ const StockDetails = () => {
                               }
                             }))}
                           />
-                          <span className="text-sm text-gray-500">{item.unit}</span>
+                          <span className="text-sm text-muted-foreground">{item.unit}</span>
                           {editingFields[item.id]?.safeQuantityLimit !== undefined ? (
                             <Button
                               size="sm"
@@ -529,14 +435,20 @@ const StockDetails = () => {
                                 }
                               }))}
                             >
-                              <Edit className="h-3 w-3" />
+                              <Edit2 className="h-3 w-3" />
                             </Button>
                           )}
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center text-sm">
-                          <Calendar className="w-3 h-3 mr-1 text-gray-400" />
+                          <Calendar className="w-3 h-3 mr-1 text-muted-foreground" />
+                          {item.lastPurchaseDate?.toLocaleDateString() || 'N/A'}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center text-sm">
+                          <Calendar className="w-3 h-3 mr-1 text-muted-foreground" />
                           {item.updatedAt?.toLocaleDateString() || 'N/A'}
                         </div>
                       </TableCell>
@@ -551,12 +463,12 @@ const StockDetails = () => {
                           {item.displayStatus === 'displayed' ? (
                             <>
                               <EyeOff className="h-3 w-3" />
-                              Suspend Stock
+                              Suspend
                             </>
                           ) : (
                             <>
                               <Eye className="h-3 w-3" />
-                              Display Stock
+                              Display
                             </>
                           )}
                         </Button>
