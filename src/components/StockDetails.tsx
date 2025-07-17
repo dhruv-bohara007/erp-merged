@@ -1,20 +1,22 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Search, 
   Package,
   TrendingUp,
-  IndianRupee,
   Calendar,
-  ArrowUpDown
+  Save,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { useInventory } from '@/hooks/useFirestore';
 import { useCompanyData } from '@/hooks/useCompanyData';
-import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
-import { collection, doc, setDoc, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, query, where, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -25,10 +27,11 @@ interface StockDetailsData {
   itemName: string;
   productVersion: string;
   currentStock: number;
-  totalValue: number;
   lastPurchaseDate?: Date;
   unit: string;
-  averageRate: number;
+  minRequired?: number;
+  safeQuantityLimit?: number;
+  displayStatus: 'displayed' | 'suspended';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -36,18 +39,14 @@ interface StockDetailsData {
 const StockDetails = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [sortBy, setSortBy] = useState<'category' | 'name' | 'version' | 'stock' | 'value' | 'none'>('none');
+  const [sortBy, setSortBy] = useState<'category' | 'name' | 'version' | 'stock' | 'none'>('none');
   const [stockDetails, setStockDetails] = useState<StockDetailsData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingFields, setEditingFields] = useState<{[key: string]: {minRequired?: number, safeQuantityLimit?: number}}>({});
   
   const { inventory } = useInventory();
   const { companyData } = useCompanyData();
-  const { getCurrencyInfo } = useCurrencyConverter();
   const { currentUser } = useAuth();
-
-  // Get company currency info
-  const companyCountry = companyData?.country || 'US';
-  const companyCurrency = getCurrencyInfo(companyCountry);
 
   // Generate stock details from inventory collection
   const generateStockDetails = async () => {
@@ -68,17 +67,16 @@ const StockDetails = () => {
             itemName: item.itemName || 'Unknown',
             productVersion: item.productVersion || 'N/A',
             currentStock: 0,
-            totalValue: 0,
             unit: item.unit || 'pcs',
-            averageRate: 0,
+            minRequired: undefined,
+            safeQuantityLimit: undefined,
+            displayStatus: 'displayed',
             createdAt: new Date(),
             updatedAt: new Date()
           };
         }
 
         stockData[key].currentStock += item.quantity || 0;
-        stockData[key].totalValue += (item.rateInInr || item.rate || 0) * (item.quantity || 0);
-        stockData[key].averageRate = stockData[key].totalValue / stockData[key].currentStock;
         stockData[key].updatedAt = new Date();
       }
     });
@@ -141,6 +139,76 @@ const StockDetails = () => {
     loadStockDetails();
   }, [inventory, currentUser?.companyId]);
 
+  // Save field changes
+  const saveFieldChanges = async (itemId: string) => {
+    if (!editingFields[itemId]) return;
+
+    try {
+      const docRef = doc(db, 'stock_details', itemId);
+      await updateDoc(docRef, {
+        minRequired: editingFields[itemId].minRequired || null,
+        safeQuantityLimit: editingFields[itemId].safeQuantityLimit || null,
+        updatedAt: new Date()
+      });
+
+      // Update local state
+      setStockDetails(prev => prev.map(item => 
+        item.id === itemId 
+          ? { 
+              ...item, 
+              minRequired: editingFields[itemId].minRequired,
+              safeQuantityLimit: editingFields[itemId].safeQuantityLimit,
+              updatedAt: new Date()
+            }
+          : item
+      ));
+
+      // Clear editing state
+      setEditingFields(prev => {
+        const newState = { ...prev };
+        delete newState[itemId];
+        return newState;
+      });
+
+      console.log('Stock details updated successfully');
+    } catch (error) {
+      console.error('Error updating stock details:', error);
+    }
+  };
+
+  // Toggle display status
+  const toggleDisplayStatus = async (itemId: string) => {
+    const item = stockDetails.find(s => s.id === itemId);
+    if (!item) return;
+
+    const newStatus = item.displayStatus === 'displayed' ? 'suspended' : 'displayed';
+
+    try {
+      const docRef = doc(db, 'stock_details', itemId);
+      await updateDoc(docRef, {
+        displayStatus: newStatus,
+        updatedAt: new Date()
+      });
+
+      // Update local state
+      setStockDetails(prev => prev.map(stockItem => 
+        stockItem.id === itemId 
+          ? { ...stockItem, displayStatus: newStatus, updatedAt: new Date() }
+          : stockItem
+      ));
+
+      console.log(`Stock ${newStatus} successfully`);
+    } catch (error) {
+      console.error('Error updating display status:', error);
+    }
+  };
+
+  // Check if Display/Suspend button should be enabled
+  const isDisplayButtonEnabled = (item: StockDetailsData) => {
+    return (item.minRequired !== undefined && item.minRequired !== null) && 
+           (item.safeQuantityLimit !== undefined && item.safeQuantityLimit !== null);
+  };
+
   // Filter and sort stock details
   const filteredStockDetails = stockDetails.filter(item => {
     const matchesSearch = (item.productCategory || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -160,8 +228,6 @@ const StockDetails = () => {
         return (a.productVersion || '').localeCompare(b.productVersion || '');
       case 'stock':
         return b.currentStock - a.currentStock;
-      case 'value':
-        return b.totalValue - a.totalValue;
       default:
         return 0;
     }
@@ -172,13 +238,7 @@ const StockDetails = () => {
 
   // Calculate totals
   const totalItems = filteredStockDetails.length;
-  const totalValue = filteredStockDetails.reduce((sum, item) => sum + item.totalValue, 0);
   const totalStock = filteredStockDetails.reduce((sum, item) => sum + item.currentStock, 0);
-
-  // Format currency with company currency symbol and 2 decimal places
-  const formatCurrency = (amount: number) => {
-    return `${companyCurrency.symbol}${amount.toFixed(2)}`;
-  };
 
   if (loading) {
     return (
@@ -197,12 +257,12 @@ const StockDetails = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Stock Details</h1>
-          <p className="text-gray-600 mt-2">Track and manage your inventory stock levels and values</p>
+          <p className="text-gray-600 mt-2">Track and manage your inventory stock levels</p>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -226,20 +286,6 @@ const StockDetails = () => {
               </div>
               <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
                 <TrendingUp className="h-4 w-4 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Value</p>
-                <p className="text-2xl font-bold">{formatCurrency(totalValue)}</p>
-              </div>
-              <div className="h-8 w-8 bg-purple-100 rounded-full flex items-center justify-center">
-                <IndianRupee className="h-4 w-4 text-purple-600" />
               </div>
             </div>
           </CardContent>
@@ -282,7 +328,6 @@ const StockDetails = () => {
                   <SelectItem value="name">Name</SelectItem>
                   <SelectItem value="version">Version</SelectItem>
                   <SelectItem value="stock">Stock</SelectItem>
-                  <SelectItem value="value">Value</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -297,15 +342,16 @@ const StockDetails = () => {
                   <TableHead>Item Name</TableHead>
                   <TableHead>Product Version</TableHead>
                   <TableHead>Current Stock</TableHead>
-                  <TableHead>Average Rate</TableHead>
-                  <TableHead>Total Value</TableHead>
+                  <TableHead>Min Required</TableHead>
+                  <TableHead>Safe Quantity Limit</TableHead>
                   <TableHead>Last Updated</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sortedStockDetails.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                       No stock items found
                     </TableCell>
                   </TableRow>
@@ -325,16 +371,85 @@ const StockDetails = () => {
                         <div>{item.currentStock} {item.unit}</div>
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium">{formatCurrency(item.averageRate)}</div>
+                        <div className="flex gap-2 items-center">
+                          <Input
+                            type="number"
+                            placeholder="Min"
+                            className="w-20"
+                            value={editingFields[item.id]?.minRequired ?? item.minRequired ?? ''}
+                            onChange={(e) => setEditingFields(prev => ({
+                              ...prev,
+                              [item.id]: {
+                                ...prev[item.id],
+                                minRequired: e.target.value ? Number(e.target.value) : undefined
+                              }
+                            }))}
+                          />
+                          <span className="text-sm text-gray-500">{item.unit}</span>
+                          {editingFields[item.id]?.minRequired !== undefined && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => saveFieldChanges(item.id)}
+                            >
+                              <Save className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium">{formatCurrency(item.totalValue)}</div>
+                        <div className="flex gap-2 items-center">
+                          <Input
+                            type="number"
+                            placeholder="Safe"
+                            className="w-20"
+                            value={editingFields[item.id]?.safeQuantityLimit ?? item.safeQuantityLimit ?? ''}
+                            onChange={(e) => setEditingFields(prev => ({
+                              ...prev,
+                              [item.id]: {
+                                ...prev[item.id],
+                                safeQuantityLimit: e.target.value ? Number(e.target.value) : undefined
+                              }
+                            }))}
+                          />
+                          <span className="text-sm text-gray-500">{item.unit}</span>
+                          {editingFields[item.id]?.safeQuantityLimit !== undefined && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => saveFieldChanges(item.id)}
+                            >
+                              <Save className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center text-sm">
                           <Calendar className="w-3 h-3 mr-1 text-gray-400" />
                           {item.updatedAt?.toLocaleDateString() || 'N/A'}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          size="sm"
+                          variant={item.displayStatus === 'displayed' ? 'default' : 'secondary'}
+                          disabled={!isDisplayButtonEnabled(item)}
+                          onClick={() => toggleDisplayStatus(item.id)}
+                          className="flex items-center gap-2"
+                        >
+                          {item.displayStatus === 'displayed' ? (
+                            <>
+                              <EyeOff className="h-3 w-3" />
+                              Suspend Stock
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="h-3 w-3" />
+                              Display Stock
+                            </>
+                          )}
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))

@@ -306,10 +306,11 @@ export interface StockDetailsData {
   itemName: string;
   productVersion: string;
   currentStock: number;
-  totalValue: number;
   lastPurchaseDate?: Date;
   unit: string;
-  averageRate: number;
+  minRequired?: number;
+  safeQuantityLimit?: number;
+  displayStatus: 'displayed' | 'suspended';
   createdAt: Date;
   updatedAt: Date;
 }
