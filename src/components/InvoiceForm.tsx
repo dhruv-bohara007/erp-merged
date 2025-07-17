@@ -80,11 +80,11 @@ const InvoiceForm = () => {
   const activeInventory = inventory.filter(item => item.status === 'active');
   
   // Get categories, names, and versions from product_definitions
-  const availableCategories = [...new Set(productDefinitions.map(p => p.category))];
+  const availableCategories = [...new Set(productDefinitions.map(p => p.productCategory))];
   const getAvailableNames = (category: string) => 
-    [...new Set(productDefinitions.filter(p => p.category === category).map(p => p.name))];
+    [...new Set(productDefinitions.filter(p => p.productCategory === category).map(p => p.itemName))];
   const getAvailableVersions = (category: string, name: string) =>
-    [...new Set(productDefinitions.filter(p => p.category === category && p.name === name).map(p => p.version))];
+    [...new Set(productDefinitions.filter(p => p.productCategory === category && p.itemName === name).map(p => p.productVersion))];
 
   // Calculate totals first
   const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
@@ -276,9 +276,9 @@ const InvoiceForm = () => {
       for (const item of items) {
         if (item.sourceType === 'manual' && item.productCategory && item.itemName && item.productVersion) {
           await addProductDefinition({
-            category: item.productCategory,
-            name: item.itemName,
-            version: item.productVersion
+            productCategory: item.productCategory,
+            itemName: item.itemName,
+            productVersion: item.productVersion
           });
         }
       }
