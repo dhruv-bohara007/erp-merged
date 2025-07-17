@@ -1,14 +1,18 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   Package, 
   Search,
   AlertTriangle,
   Eye,
-  Flag
+  Flag,
+  MessageCircle,
+  X
 } from 'lucide-react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -31,11 +35,31 @@ interface StockDetailsData {
   updatedAt: Date;
 }
 
+interface FlagRequestData {
+  productCategory: string;
+  itemName: string;
+  productVersion: string;
+  status: string;
+  unit: string;
+  quantity: string;
+  reason: string;
+}
+
 const EmployeeInventory = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [stockDetails, setStockDetails] = useState<StockDetailsData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showFlagForm, setShowFlagForm] = useState(false);
+  const [flagRequestData, setFlagRequestData] = useState<FlagRequestData>({
+    productCategory: '',
+    itemName: '',
+    productVersion: '',
+    status: '',
+    unit: '',
+    quantity: '',
+    reason: ''
+  });
   
   const { currentUser } = useAuth();
   const { toast } = useToast();
@@ -122,13 +146,54 @@ const EmployeeInventory = () => {
     }
   };
 
-  const handleFlagLowStock = (itemId: string, itemName: string) => {
-    toast({
-      title: "Alert Sent",
-      description: `Low stock alert sent to admin for: ${itemName}`
+  const handleFlagLowStock = (item: StockDetailsData) => {
+    const status = getItemStatus(item);
+    setFlagRequestData({
+      productCategory: item.productCategory,
+      itemName: item.itemName,
+      productVersion: item.productVersion,
+      status: status,
+      unit: item.unit,
+      quantity: '',
+      reason: ''
     });
-    // TODO: Implement actual alert functionality
+    setShowFlagForm(true);
   };
+
+  const handleSendRequest = () => {
+    toast({
+      title: "Request Sent",
+      description: `Low stock request sent to admin for: ${flagRequestData.itemName}`
+    });
+    setShowFlagForm(false);
+    setFlagRequestData({
+      productCategory: '',
+      itemName: '',
+      productVersion: '',
+      status: '',
+      unit: '',
+      quantity: '',
+      reason: ''
+    });
+  };
+
+  const handleCancelRequest = () => {
+    setShowFlagForm(false);
+    setFlagRequestData({
+      productCategory: '',
+      itemName: '',
+      productVersion: '',
+      status: '',
+      unit: '',
+      quantity: '',
+      reason: ''
+    });
+  };
+
+  // Calculate summary stats
+  const totalItems = stockDetails.length;
+  const lowStockItems = stockDetails.filter(item => getItemStatus(item) === 'low').length;
+  const criticalStockItems = stockDetails.filter(item => getItemStatus(item) === 'critical').length;
 
   if (loading) {
     return (
@@ -150,6 +215,42 @@ const EmployeeInventory = () => {
             <h1 className="text-3xl font-bold text-gray-900">Inventory Overview</h1>
             <p className="text-gray-600 mt-2">View current stock levels and flag low stock items</p>
           </div>
+        </div>
+
+        {/* Summary Stats - Moved to top */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">Total Items</CardTitle>
+              <Package className="h-4 w-4 text-blue-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalItems}</div>
+              <p className="text-xs text-gray-500">Displayed items</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">Low Stock</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-yellow-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-600">{lowStockItems}</div>
+              <p className="text-xs text-gray-500">Items need restocking</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">Critical Stock</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-red-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">{criticalStockItems}</div>
+              <p className="text-xs text-gray-500">Immediate attention needed</p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Search and Filter */}
@@ -222,14 +323,14 @@ const EmployeeInventory = () => {
                     
                     <div className="flex gap-2 pt-2">
                       <Button size="sm" variant="outline" className="flex-1">
-                        <Eye className="w-3 h-3 mr-1" />
-                        Details
+                        <MessageCircle className="w-3 h-3 mr-1" />
+                        Chat History
                       </Button>
                       {(status === 'low' || status === 'critical') && (
                         <Button 
                           size="sm" 
                           variant="outline"
-                          onClick={() => handleFlagLowStock(item.id, item.itemName)}
+                          onClick={() => handleFlagLowStock(item)}
                           className="flex-1"
                         >
                           <Flag className="w-3 h-3 mr-1" />
@@ -254,45 +355,117 @@ const EmployeeInventory = () => {
           </Card>
         )}
 
-        {/* Summary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Items</CardTitle>
-              <Package className="h-4 w-4 text-blue-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stockDetails.length}</div>
-              <p className="text-xs text-gray-500">Displayed items</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Low Stock</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-yellow-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">
-                {stockDetails.filter(item => getItemStatus(item) === 'low').length}
+        {/* Flag Low Stock Form Modal */}
+        {showFlagForm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Flag Low Stock Request</h3>
+                <Button variant="ghost" size="sm" onClick={handleCancelRequest}>
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
-              <p className="text-xs text-gray-500">Items need restocking</p>
-            </CardContent>
-          </Card>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Product Category
+                  </label>
+                  <Input
+                    value={flagRequestData.productCategory}
+                    readOnly
+                    className="bg-gray-50"
+                  />
+                </div>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Critical Stock</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-red-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">
-                {stockDetails.filter(item => getItemStatus(item) === 'critical').length}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Item Name
+                  </label>
+                  <Input
+                    value={flagRequestData.itemName}
+                    readOnly
+                    className="bg-gray-50"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Product Version
+                  </label>
+                  <Input
+                    value={flagRequestData.productVersion}
+                    readOnly
+                    className="bg-gray-50"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Status
+                  </label>
+                  <Input
+                    value={flagRequestData.status}
+                    readOnly
+                    className="bg-gray-50"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Quantity
+                  </label>
+                  <Input
+                    type="text"
+                    value={flagRequestData.quantity}
+                    onChange={(e) => setFlagRequestData(prev => ({ ...prev, quantity: e.target.value }))}
+                    placeholder="Enter quantity needed"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Unit
+                  </label>
+                  <Input
+                    value={flagRequestData.unit}
+                    readOnly
+                    className="bg-gray-50"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Reason for Request
+                  </label>
+                  <Textarea
+                    value={flagRequestData.reason}
+                    onChange={(e) => setFlagRequestData(prev => ({ ...prev, reason: e.target.value }))}
+                    placeholder="Enter reason for this request"
+                    className="min-h-[80px]"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <Button 
+                    onClick={handleSendRequest}
+                    className="flex-1"
+                    disabled={!flagRequestData.quantity || !flagRequestData.reason}
+                  >
+                    Send Request to Admin
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={handleCancelRequest}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                </div>
               </div>
-              <p className="text-xs text-gray-500">Immediate attention needed</p>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
