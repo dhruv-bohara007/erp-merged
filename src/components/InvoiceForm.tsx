@@ -15,7 +15,6 @@ import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useInventory } from '@/hooks/useFirestore';
-import { useProductDefinitions } from '@/hooks/useProductDefinitions';
 import SearchableDropdown from './SearchableDropdown';
 
 interface InvoiceFormItem {
@@ -36,7 +35,6 @@ const InvoiceForm = () => {
   const { addInvoice } = useInvoices();
   const { clients } = useClients();
   const { inventory } = useInventory();
-  const { productDefinitions, addProductDefinition } = useProductDefinitions();
   const { companyData } = useCompanyData();
   const { calculateTaxes, getTaxDisplayName } = useTaxCalculations();
   const { convertToINR, convertFromINR, formatCurrency, getCurrencyInfo, loading: currencyLoading } = useCurrencyConverter();
@@ -79,12 +77,10 @@ const InvoiceForm = () => {
   // Get active inventory items
   const activeInventory = inventory.filter(item => item.status === 'active');
   
-  // Get categories, names, and versions from product_definitions
-  const availableCategories = [...new Set(productDefinitions.map(p => p.productCategory))];
-  const getAvailableNames = (category: string) => 
-    [...new Set(productDefinitions.filter(p => p.productCategory === category).map(p => p.itemName))];
-  const getAvailableVersions = (category: string, name: string) =>
-    [...new Set(productDefinitions.filter(p => p.productCategory === category && p.itemName === name).map(p => p.productVersion))];
+  // Get unique categories, names, and versions from active inventory
+  const availableCategories = [...new Set(activeInventory.map(item => item.productCategory))].filter(Boolean);
+  const availableNames = [...new Set(activeInventory.map(item => item.itemName))].filter(Boolean);
+  const availableVersions = [...new Set(activeInventory.map(item => item.productVersion))].filter(Boolean);
 
   // Calculate totals first
   const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
@@ -272,17 +268,6 @@ const InvoiceForm = () => {
     setLoading(true);
 
     try {
-      // Ensure product definitions exist for manual entries
-      for (const item of items) {
-        if (item.sourceType === 'manual' && item.productCategory && item.itemName && item.productVersion) {
-          await addProductDefinition({
-            productCategory: item.productCategory,
-            itemName: item.itemName,
-            productVersion: item.productVersion
-          });
-        }
-      }
-
       // Convert InvoiceFormItem[] to extended InvoiceItem[] with product details
       const firestoreItems: InvoiceItem[] = items.map(item => ({
         description: `${item.productCategory} - ${item.itemName} (${item.productVersion})`,
@@ -596,7 +581,12 @@ const InvoiceForm = () => {
                     <div className="md:col-span-2">
                       <Label className="text-sm font-medium text-foreground mb-2 block">Product Name *</Label>
                       <SearchableDropdown
-                        items={item.productCategory ? getAvailableNames(item.productCategory) : []}
+                        items={availableNames.filter(name => {
+                          if (!item.productCategory) return true;
+                          return activeInventory.some(inv => 
+                            inv.productCategory === item.productCategory && inv.itemName === name
+                          );
+                        })}
                         value={item.itemName}
                         onValueChange={(value) => updateItem(index, 'itemName', value)}
                         placeholder="Select name"
@@ -605,7 +595,14 @@ const InvoiceForm = () => {
                     <div className="md:col-span-2">
                       <Label className="text-sm font-medium text-foreground mb-2 block">Product Version *</Label>
                       <SearchableDropdown
-                        items={item.productCategory && item.itemName ? getAvailableVersions(item.productCategory, item.itemName) : []}
+                        items={availableVersions.filter(version => {
+                          if (!item.productCategory || !item.itemName) return true;
+                          return activeInventory.some(inv => 
+                            inv.productCategory === item.productCategory && 
+                            inv.itemName === item.itemName && 
+                            inv.productVersion === version
+                          );
+                        })}
                         value={item.productVersion}
                         onValueChange={(value) => updateItem(index, 'productVersion', value)}
                         placeholder="Select version"

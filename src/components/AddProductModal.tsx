@@ -22,7 +22,7 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
   const { addInventoryItem } = useInventory();
   const { companyData } = useCompanyData();
   const { convertToINR, getCurrencyInfo, loading: currencyLoading } = useCurrencyConverter();
-  const { productDefinitions, addProductDefinition } = useProductDefinitions();
+  const { productDefinitions } = useProductDefinitions();
   
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -37,19 +37,19 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
   const companyCurrency = getCurrencyInfo(companyData?.country || 'US');
 
   // Get unique categories
-  const categories = [...new Set(productDefinitions.map(p => p.productCategory))];
+  const categories = [...new Set(productDefinitions.map(p => p.category))];
   
   // Get names for selected category
   const namesForCategory = [...new Set(
     productDefinitions
-      .filter(p => p.productCategory === formData.category)
-      .map(p => p.itemName)
+      .filter(p => p.category === formData.category)
+      .map(p => p.name)
   )];
   
   // Get versions for selected category and name
   const versionsForName = productDefinitions
-    .filter(p => p.productCategory === formData.category && p.itemName === formData.name)
-    .map(p => p.productVersion);
+    .filter(p => p.category === formData.category && p.name === formData.name)
+    .map(p => p.version);
 
   // Reset dependent fields when parent selection changes
   useEffect(() => {
@@ -94,13 +94,6 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
     setLoading(true);
 
     try {
-      // Ensure product definition exists in the collection
-      await addProductDefinition({
-        productCategory: formData.category,
-        itemName: formData.name,
-        productVersion: formData.version
-      });
-
       // Convert to INR using the same logic as before
       const { amountInINR, rate: exchangeRate } = await convertToINR(rateValue, companyData?.country || 'US');
       

@@ -17,9 +17,9 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export interface ProductDefinition {
   id: string;
-  productCategory: string;
-  itemName: string;
-  productVersion: string;
+  category: string;
+  name: string;
+  version: string;
   companyId: string;
   createdAt: Date;
   updatedAt: Date;
@@ -42,9 +42,9 @@ export const useProductDefinitions = () => {
       const q = query(
         collection(db, 'product_definitions'),
         where('companyId', '==', currentUser.companyId),
-        orderBy('productCategory'),
-        orderBy('itemName'),
-        orderBy('productVersion')
+        orderBy('category'),
+        orderBy('name'),
+        orderBy('version')
       );
       
       const snapshot = await getDocs(q);
@@ -52,9 +52,9 @@ export const useProductDefinitions = () => {
         const data = doc.data();
         return {
           id: doc.id,
-          productCategory: data.productCategory,
-          itemName: data.itemName,
-          productVersion: data.productVersion,
+          category: data.category,
+          name: data.name,
+          version: data.version,
           companyId: data.companyId,
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
@@ -83,9 +83,9 @@ export const useProductDefinitions = () => {
     try {
       // Check if this exact combination already exists
       const existing = productDefinitions.find(pd => 
-        pd.productCategory === definition.productCategory &&
-        pd.itemName === definition.itemName &&
-        pd.productVersion === definition.productVersion
+        pd.category === definition.category &&
+        pd.name === definition.name &&
+        pd.version === definition.version
       );
 
       if (existing) {
@@ -94,9 +94,9 @@ export const useProductDefinitions = () => {
       }
 
       const newDefinition = {
-        productCategory: definition.productCategory,
-        itemName: definition.itemName,
-        productVersion: definition.productVersion,
+        category: definition.category,
+        name: definition.name,
+        version: definition.version,
         companyId: currentUser.companyId,
         createdAt: new Date(),
         updatedAt: new Date(),
