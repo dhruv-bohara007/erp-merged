@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -70,8 +71,8 @@ const StockDetails = () => {
             productVersion: item.productVersion || 'N/A',
             currentStock: 0,
             unit: item.unit || 'pcs',
-            minRequired: 0,
-            safeQuantityLimit: 0,
+            minRequired: 0, // Default to 0 for new items
+            safeQuantityLimit: 0, // Default to 0 for new items
             displayStatus: 'displayed',
             createdAt: new Date(),
             updatedAt: new Date()
@@ -83,7 +84,7 @@ const StockDetails = () => {
       }
     });
 
-    // Save to stock_details collection
+    // Save to stock_details collection with merge to preserve existing min_required and safe_quantity_limit values
     const stockDetailsCollection = collection(db, 'stock_details');
     
     for (const stockItem of Object.values(stockData)) {
@@ -106,15 +107,19 @@ const StockDetails = () => {
       const q = query(stockDetailsCollection, where('companyId', '==', currentUser.companyId));
       const snapshot = await getDocs(q);
       
-      return snapshot.docs.map(doc => ({
-        ...doc.data(),
-        id: doc.id,
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-        lastPurchaseDate: doc.data().lastPurchaseDate?.toDate(),
-        minRequired: doc.data().minRequired ?? 0,
-        safeQuantityLimit: doc.data().safeQuantityLimit ?? 0
-      })) as StockDetailsData[];
+      return snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          ...data,
+          id: doc.id,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+          lastPurchaseDate: data.lastPurchaseDate?.toDate(),
+          // Use actual values from Firestore, fallback to 0 only if undefined
+          minRequired: data.minRequired !== undefined ? data.minRequired : 0,
+          safeQuantityLimit: data.safeQuantityLimit !== undefined ? data.safeQuantityLimit : 0
+        };
+      }) as StockDetailsData[];
     } catch (error) {
       console.error('Error fetching stock details:', error);
       return [];
@@ -132,7 +137,7 @@ const StockDetails = () => {
       if (existingStockDetails.length === 0 || inventory.length > 0) {
         const newStockDetails = await generateStockDetails();
         if (newStockDetails) {
-          existingStockDetails = await fetchStockDetails(); // Refetch to get persisted data
+          existingStockDetails = await fetchStockDetails(); // Refetch to get persisted data with actual values
         }
       }
       
@@ -192,7 +197,7 @@ const StockDetails = () => {
 
       await updateDoc(docRef, updateData);
 
-      // Update local state
+      // Update local state with the actual saved values
       setStockDetails(prev => prev.map(stockItem => 
         stockItem.id === itemId 
           ? { 
@@ -273,6 +278,17 @@ const StockDetails = () => {
   const isDisplayButtonEnabled = (item: StockDetailsData) => {
     return (item.minRequired !== undefined && item.minRequired !== null && item.minRequired > 0) && 
            (item.safeQuantityLimit !== undefined && item.safeQuantityLimit !== null && item.safeQuantityLimit >= 0);
+  };
+
+  // Get the display value for input fields - show editing value or actual saved value
+  const getDisplayValue = (item: StockDetailsData, fieldType: 'minRequired' | 'safeQuantityLimit') => {
+    const editingValue = editingFields[item.id]?.[fieldType];
+    if (editingValue !== undefined) {
+      return editingValue;
+    }
+    
+    const actualValue = item[fieldType];
+    return actualValue !== undefined ? actualValue.toString() : '0';
   };
 
   // Filter and sort stock details
@@ -442,7 +458,7 @@ const StockDetails = () => {
                             type="text"
                             placeholder="0"
                             className="w-20"
-                            value={editingFields[item.id]?.minRequired ?? (item.minRequired !== undefined ? item.minRequired.toString() : '0')}
+                            value={getDisplayValue(item, 'minRequired')}
                             onChange={(e) => setEditingFields(prev => ({
                               ...prev,
                               [item.id]: {
@@ -483,7 +499,7 @@ const StockDetails = () => {
                             type="text"
                             placeholder="0"
                             className="w-20"
-                            value={editingFields[item.id]?.safeQuantityLimit ?? (item.safeQuantityLimit !== undefined ? item.safeQuantityLimit.toString() : '0')}
+                            value={getDisplayValue(item, 'safeQuantityLimit')}
                             onChange={(e) => setEditingFields(prev => ({
                               ...prev,
                               [item.id]: {
