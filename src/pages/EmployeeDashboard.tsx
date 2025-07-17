@@ -139,28 +139,6 @@ const EmployeeDashboard = () => {
 
         {/* Charts and Alerts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Stock Levels Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="w-5 h-5 text-blue-500" />
-                Current vs Minimum Stock Levels
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={stockChartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="current" fill="#3B82F6" name="Current Stock" />
-                  <Bar dataKey="minimum" fill="#EF4444" name="Minimum Required" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
           {/* Low Stock Alerts */}
           <Card>
             <CardHeader>

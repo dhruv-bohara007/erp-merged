@@ -52,12 +52,7 @@ const EmployeeNavigation = () => {
       name: 'Purchase Requests',
       href: '/employee-purchases',
       icon: ShoppingCart,
-    },
-    {
-      name: 'Low Stock Alerts',
-      href: '/employee-alerts',
-      icon: AlertTriangle,
-    },
+    }
   ];
 
   return (

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -41,7 +40,7 @@ const AdminNavigation = () => {
     { to: '/clients', icon: Users, label: 'Clients' },
     { to: '/suppliers', icon: Building, label: 'Suppliers' },
     { to: '/employees', icon: UserCheck, label: 'Employees' },
-    { to: '/inventory', icon: Package, label: 'Products' },
+    { to: '/inventory', icon: Package, label: 'Product Management' },  // Changed from 'Products'
     { to: '/payments', icon: DollarSign, label: 'Payments' },
     { to: '/reports', icon: BarChart3, label: 'Reports' },
     { to: '/profitability', icon: TrendingUp, label: 'Profitability' },
@@ -167,7 +166,7 @@ const AdminNavigation = () => {
                     isActive('/stock-details') ? 'text-blue-500 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-500 dark:group-hover:text-gray-400'
                   }`}
                 />
-                Stock Details
+                Inventory
               </NavLink>
 
               {/* Render remaining items starting from Payments */}
@@ -345,7 +344,7 @@ const AdminNavigation = () => {
                     isActive('/stock-details') ? 'text-blue-500 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-500 dark:group-hover:text-gray-400'
                   }`}
                 />
-                Stock Details
+                Inventory
               </NavLink>
 
               {/* Render remaining items starting from Payments */}

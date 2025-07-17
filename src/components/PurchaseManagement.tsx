@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -119,6 +118,12 @@ const PurchaseManagement = () => {
   // Format currency with company currency symbol and 2 decimal places
   const formatCurrency = (amount: number) => {
     return `${companyCurrency.symbol}${amount.toFixed(2)}`;
+  };
+
+  const handleViewDetails = (purchase: any) => {
+    // TODO: Implement view details functionality
+    console.log('View details for purchase:', purchase);
+    alert(`Viewing details for purchase: ${purchase.id}`);
   };
 
   // Handle edit purchase
@@ -391,17 +396,9 @@ const PurchaseManagement = () => {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => handleEditPurchase(purchase)}
+                                  onClick={() => handleViewDetails(purchase)}
                                 >
-                                  Edit
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleDeletePurchase(purchase.id)}
-                                  className="text-red-600 hover:text-red-700"
-                                >
-                                  Delete
+                                  View
                                 </Button>
                               </div>
                             </TableCell>
