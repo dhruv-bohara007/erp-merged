@@ -29,7 +29,7 @@ const SearchableDropdown = ({
   const [isOpen, setIsOpen] = useState(false);
 
   const filteredItems = items.filter(item =>
-    item.toLowerCase().includes(searchTerm.toLowerCase())
+    item && typeof item === 'string' && item.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (

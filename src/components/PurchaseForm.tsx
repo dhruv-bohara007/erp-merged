@@ -68,11 +68,11 @@ const PurchaseForm = () => {
   const companyCurrency = getCurrencyInfo(companyCountry);
 
   // Get unique categories, names, and versions for dropdowns
-  const categories = [...new Set(productDefinitions.map(p => p.productCategory))];
+  const categories = [...new Set(productDefinitions.map(p => p.productCategory).filter(Boolean))];
   const getProductNames = (category: string) => 
-    [...new Set(productDefinitions.filter(p => p.productCategory === category).map(p => p.itemName))];
+    [...new Set(productDefinitions.filter(p => p.productCategory === category).map(p => p.itemName).filter(Boolean))];
   const getProductVersions = (category: string, name: string) =>
-    [...new Set(productDefinitions.filter(p => p.productCategory === category && p.itemName === name).map(p => p.productVersion))];
+    [...new Set(productDefinitions.filter(p => p.productCategory === category && p.itemName === name).map(p => p.productVersion).filter(Boolean))];
 
   const addNewItem = () => {
     const newItem: PurchaseItem = {

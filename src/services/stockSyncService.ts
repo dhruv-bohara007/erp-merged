@@ -13,6 +13,7 @@ export interface ProductKey {
   itemName: string;
   productVersion: string;
   unit: string;
+  price: number;
 }
 
 export interface StockData {
@@ -20,6 +21,7 @@ export interface StockData {
   itemName: string;
   productVersion: string;
   unit: string;
+  price: number;
   totalQuantity: number;
   inventoryQuantity: number;
   purchaseQuantity: number;
@@ -48,7 +50,8 @@ export const syncStockDetails = async (companyId: string): Promise<StockSyncResu
     // Process inventory records
     inventorySnapshot.forEach((doc) => {
       const data = doc.data();
-      const key = `${data.productCategory}|${data.itemName}|${data.productVersion}|${data.unit}`;
+      const price = data.rate || data.unitPrice || 0;
+      const key = `${data.productCategory}|${data.itemName}|${data.productVersion}|${data.unit}|${price}`;
       
       if (productMap.has(key)) {
         const existing = productMap.get(key)!;
@@ -60,6 +63,7 @@ export const syncStockDetails = async (companyId: string): Promise<StockSyncResu
           itemName: data.itemName,
           productVersion: data.productVersion,
           unit: data.unit,
+          price: price,
           totalQuantity: data.quantity || 0,
           inventoryQuantity: data.quantity || 0,
           purchaseQuantity: 0,
@@ -71,7 +75,8 @@ export const syncStockDetails = async (companyId: string): Promise<StockSyncResu
     // Process purchase records
     purchaseSnapshot.forEach((doc) => {
       const data = doc.data();
-      const key = `${data.productCategory}|${data.itemName}|${data.productVersion}|${data.unit}`;
+      const price = data.pricePerUnit || 0;
+      const key = `${data.productCategory}|${data.itemName}|${data.productVersion}|${data.unit}|${price}`;
       
       if (productMap.has(key)) {
         const existing = productMap.get(key)!;
@@ -83,6 +88,7 @@ export const syncStockDetails = async (companyId: string): Promise<StockSyncResu
           itemName: data.itemName,
           productVersion: data.productVersion,
           unit: data.unit,
+          price: price,
           totalQuantity: data.quantity || 0,
           inventoryQuantity: 0,
           purchaseQuantity: data.quantity || 0,
