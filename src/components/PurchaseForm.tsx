@@ -10,15 +10,13 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import SearchableDropdown from '@/components/SearchableDropdown';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
-import { usePurchases, useInventory } from '@/hooks/useFirestore';
+import { usePurchases } from '@/hooks/useFirestore';
 import { useProductDefinitions } from '@/hooks/useProductDefinitions';
 import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
 import { useCompanyData } from '@/hooks/useCompanyData';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTaxCalculations } from '@/hooks/useTaxCalculations';
 import { format } from 'date-fns';
-import { collection, doc, setDoc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 
 interface PurchaseItem {
   id: string;
@@ -52,7 +50,6 @@ const UNIT_OPTIONS = [
 const PurchaseForm = () => {
   const navigate = useNavigate();
   const { addPurchase } = usePurchases();
-  const { inventory, updateInventoryItem, addInventoryItem } = useInventory();
   const { productDefinitions } = useProductDefinitions();
   const { convertToINR, getCurrencyInfo } = useCurrencyConverter();
   const { currentUser, refreshUser } = useAuth();
@@ -145,7 +142,7 @@ const PurchaseForm = () => {
       const { amountInINR, rate } = await convertToINR(totalAmount, companyCountry);
       const totalAmountINRFormatted = Math.round(amountInINR * 100) / 100;
 
-      // Process each item
+      // Process each item - only save to purchase_records
       for (const item of items) {
         // Convert item price to INR with 2 decimal places
         const { amountInINR: itemAmountInINR } = await convertToINR(item.amount, companyCountry);
@@ -181,79 +178,6 @@ const PurchaseForm = () => {
           status: 'recorded',
           purchaseStatus: 'completed'
         });
-
-        // Update or add inventory item with Total Amount After Tax, Quantity, and Unit
-        const existingItem = inventory.find(invItem => 
-          invItem.itemName.toLowerCase() === item.itemName.toLowerCase() &&
-          (!item.productCategory || invItem.productCategory === item.productCategory) &&
-          (!item.productVersion || invItem.productVersion === item.productVersion)
-        );
-
-        if (existingItem) {
-          // Update existing inventory item with 2 decimal places
-          await updateInventoryItem(existingItem.id, {
-            unitPrice: Math.round(item.pricePerUnit * 100) / 100, // Copy pricePerUnit to unitPrice
-            rate: priceInINRFormatted,
-            rateInInr: priceInINRFormatted,
-            exchangeRateUsed: rate,
-            totalAmountAfterTax: Math.round(totalAmount * 100) / 100, // Total Amount After Tax in company currency
-            totalAmountAfterTaxINR: totalAmountAfterTaxFormatted, // Total Amount After Tax in INR
-            quantity: item.quantity,
-            unit: item.unit,
-            updatedAt: new Date()
-          });
-        } else {
-          // Add new inventory item with 2 decimal places and new fields
-          await addInventoryItem({
-            itemName: item.itemName,
-            productCategory: item.productCategory,
-            productVersion: item.productVersion,
-            unitPrice: Math.round(item.pricePerUnit * 100) / 100, // Copy pricePerUnit to unitPrice
-            rate: priceInINRFormatted,
-            rateInInr: priceInINRFormatted,
-            exchangeRateUsed: rate,
-            totalAmountAfterTax: Math.round(totalAmount * 100) / 100, // Total Amount After Tax in company currency
-            totalAmountAfterTaxINR: totalAmountAfterTaxFormatted, // Total Amount After Tax in INR
-            quantity: item.quantity,
-            unit: item.unit,
-            companyCurrency: companyCurrency.code,
-            companyCountry: companyCountry,
-            status: 'active'
-          });
-        }
-
-        // Add or update stock_details collection
-        const stockDetailsKey = `${item.productCategory}-${item.itemName}-${item.productVersion}`;
-        const stockDetailsRef = doc(db, 'stock_details', stockDetailsKey);
-        
-        // Check if stock details already exists
-        const stockDetailsQuery = await getDoc(stockDetailsRef);
-        
-        if (stockDetailsQuery.exists()) {
-          // Update existing stock details - add to current stock
-          const currentData = stockDetailsQuery.data();
-          await setDoc(stockDetailsRef, {
-            currentStock: (currentData.currentStock || 0) + item.quantity,
-            pricePerUnit: Math.round(item.pricePerUnit * 100) / 100,
-            lastPurchaseDate: new Date(purchaseDate),
-            updatedAt: new Date()
-          }, { merge: true });
-        } else {
-          // Create new stock details
-          await setDoc(stockDetailsRef, {
-            companyId: currentUser.companyId,
-            productCategory: item.productCategory,
-            itemName: item.itemName,
-            productVersion: item.productVersion,
-            currentStock: item.quantity,
-            pricePerUnit: Math.round(item.pricePerUnit * 100) / 100,
-            unit: item.unit,
-            displayStatus: 'displayed',
-            lastPurchaseDate: new Date(purchaseDate),
-            createdAt: new Date(),
-            updatedAt: new Date()
-          });
-        }
       }
 
       // Redirect to Purchase Management page

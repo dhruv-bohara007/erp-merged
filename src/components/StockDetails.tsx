@@ -16,7 +16,7 @@ import {
   Edit,
   Trash2
 } from 'lucide-react';
-import { useInventory } from '@/hooks/useFirestore';
+
 import { useCompanyData } from '@/hooks/useCompanyData';
 import { collection, doc, setDoc, getDocs, query, where, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -48,45 +48,18 @@ const StockDetails = () => {
   const [loading, setLoading] = useState(true);
   const [editingFields, setEditingFields] = useState<{[key: string]: {minRequired?: string, safeQuantityLimit?: string}}>({});
   
-  const { inventory } = useInventory();
+  
   const { companyData } = useCompanyData();
   const { currentUser } = useAuth();
   const { toast } = useToast();
 
-  // Generate stock details from inventory collection and purchase_records
+  // Generate stock details from purchase_records only
   const generateStockDetails = async () => {
     if (!currentUser?.companyId) return;
 
     const stockData: Record<string, StockDetailsData> = {};
 
-    // Group inventory items by product
-    inventory.forEach(item => {
-      if (item.status === 'active' && item.quantity && item.quantity > 0) {
-        const key = `${item.productCategory || 'Uncategorized'}-${item.itemName || 'Unknown'}-${item.productVersion || 'N/A'}`;
-        
-        if (!stockData[key]) {
-          stockData[key] = {
-            id: key,
-            companyId: currentUser.companyId,
-            productCategory: item.productCategory || 'Uncategorized',
-            itemName: item.itemName || 'Unknown',
-            productVersion: item.productVersion || 'N/A',
-            currentStock: 0,
-            unit: item.unit || 'pcs',
-            minRequired: 0, // Default to 0 for new items
-            safeQuantityLimit: 0, // Default to 0 for new items
-            displayStatus: 'displayed',
-            createdAt: new Date(),
-            updatedAt: new Date()
-          };
-        }
-
-        stockData[key].currentStock += item.quantity || 0;
-        stockData[key].updatedAt = new Date();
-      }
-    });
-
-    // Also include purchase_records data
+    // Get data from purchase_records only
     try {
       const purchaseRecordsCollection = collection(db, 'purchase_records');
       const purchaseQuery = query(purchaseRecordsCollection, where('companyId', '==', currentUser.companyId));
@@ -110,12 +83,21 @@ const StockDetails = () => {
               safeQuantityLimit: 0,
               displayStatus: 'displayed',
               createdAt: new Date(),
-              updatedAt: new Date()
+              updatedAt: new Date(),
+              lastPurchaseDate: purchaseData.purchaseDate || purchaseData.expenseDate,
+              pricePerUnit: purchaseData.pricePerUnit || 0
             };
           }
           
           stockData[key].currentStock += purchaseData.quantity || 0;
           stockData[key].updatedAt = new Date();
+          
+          // Update last purchase date and price per unit
+          const purchaseDate = purchaseData.purchaseDate || purchaseData.expenseDate;
+          if (purchaseDate && (!stockData[key].lastPurchaseDate || purchaseDate > stockData[key].lastPurchaseDate)) {
+            stockData[key].lastPurchaseDate = purchaseDate;
+            stockData[key].pricePerUnit = purchaseData.pricePerUnit || 0;
+          }
         }
       });
     } catch (error) {
@@ -171,8 +153,8 @@ const StockDetails = () => {
       // First try to fetch existing stock details
       let existingStockDetails = await fetchStockDetails();
       
-      // If no stock details exist or inventory has been updated, regenerate
-      if (existingStockDetails.length === 0 || inventory.length > 0) {
+      // Always regenerate stock details from purchase_records
+      if (existingStockDetails.length === 0 || true) {
         const newStockDetails = await generateStockDetails();
         if (newStockDetails) {
           existingStockDetails = await fetchStockDetails(); // Refetch to get persisted data with actual values
@@ -184,7 +166,7 @@ const StockDetails = () => {
     };
 
     loadStockDetails();
-  }, [inventory, currentUser?.companyId]);
+  }, [currentUser?.companyId]);
 
   // Save field changes with enhanced validation
   const saveFieldChanges = async (itemId: string, fieldType: 'minRequired' | 'safeQuantityLimit') => {
