@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -81,7 +80,7 @@ const StockDetails = () => {
               unit: purchaseData.unit || 'pcs',
               minRequired: 0,
               safeQuantityLimit: 0,
-              displayStatus: 'displayed',
+              displayStatus: 'suspended',
               createdAt: new Date(),
               updatedAt: new Date(),
               lastPurchaseDate: purchaseData.purchaseDate || purchaseData.expenseDate,
@@ -109,7 +108,21 @@ const StockDetails = () => {
     
     for (const stockItem of Object.values(stockData)) {
       try {
-        await setDoc(doc(stockDetailsCollection, stockItem.id), stockItem, { merge: true });
+        // Only update if item doesn't exist, to preserve existing minRequired and safeQuantityLimit
+        const docRef = doc(stockDetailsCollection, stockItem.id);
+        const existingDoc = await getDocs(query(collection(db, 'stock_details'), where('id', '==', stockItem.id)));
+        
+        if (existingDoc.empty) {
+          await setDoc(docRef, stockItem);
+        } else {
+          // Only update stock quantities, not the limits
+          await updateDoc(docRef, {
+            currentStock: stockItem.currentStock,
+            updatedAt: stockItem.updatedAt,
+            lastPurchaseDate: stockItem.lastPurchaseDate,
+            pricePerUnit: stockItem.pricePerUnit
+          });
+        }
       } catch (error) {
         console.error('Error saving stock details:', error);
       }
@@ -324,7 +337,8 @@ const StockDetails = () => {
     }
     
     const actualValue = item[fieldType];
-    return actualValue !== undefined ? actualValue.toString() : '0';
+    // Fix: Return actual value if it exists and is not null/undefined, otherwise return empty string for better UX
+    return actualValue !== undefined && actualValue !== null ? actualValue.toString() : '';
   };
 
   // Filter and sort stock details
@@ -374,7 +388,7 @@ const StockDetails = () => {
       {/* Header Section */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Stock Details</h1>
+          <h1 className="text-3xl font-bold">Inventory Management</h1>
           <p className="text-gray-600 mt-2">Track and manage your inventory stock levels</p>
         </div>
       </div>
@@ -478,7 +492,7 @@ const StockDetails = () => {
                       <TableCell>
                         <div className="flex gap-2 items-center">
                           <Input
-                            type="text"
+                            type="number"
                             placeholder="0"
                             className="w-20"
                             value={getDisplayValue(item, 'minRequired')}
@@ -507,7 +521,7 @@ const StockDetails = () => {
                                 ...prev,
                                 [item.id]: {
                                   ...prev[item.id],
-                                  minRequired: (item.minRequired !== undefined ? item.minRequired.toString() : '0')
+                                  minRequired: (item.minRequired !== undefined && item.minRequired !== null ? item.minRequired.toString() : '')
                                 }
                               }))}
                             >
@@ -519,7 +533,7 @@ const StockDetails = () => {
                       <TableCell>
                         <div className="flex gap-2 items-center">
                           <Input
-                            type="text"
+                            type="number"
                             placeholder="0"
                             className="w-20"
                             value={getDisplayValue(item, 'safeQuantityLimit')}
@@ -548,7 +562,7 @@ const StockDetails = () => {
                                 ...prev,
                                 [item.id]: {
                                   ...prev[item.id],
-                                  safeQuantityLimit: (item.safeQuantityLimit !== undefined ? item.safeQuantityLimit.toString() : '0')
+                                  safeQuantityLimit: (item.safeQuantityLimit !== undefined && item.safeQuantityLimit !== null ? item.safeQuantityLimit.toString() : '')
                                 }
                               }))}
                             >
@@ -575,23 +589,14 @@ const StockDetails = () => {
                             {item.displayStatus === 'displayed' ? (
                               <>
                                 <EyeOff className="h-3 w-3" />
-                                Suspend Stock
+                                Suspend
                               </>
                             ) : (
                               <>
                                 <Eye className="h-3 w-3" />
-                                Display Stock
+                                Display
                               </>
                             )}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => deleteStockItem(item.id)}
-                            className="flex items-center gap-2"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                            Delete
                           </Button>
                         </div>
                       </TableCell>

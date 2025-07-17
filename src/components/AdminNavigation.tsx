@@ -40,7 +40,7 @@ const AdminNavigation = () => {
     { to: '/clients', icon: Users, label: 'Clients' },
     { to: '/suppliers', icon: Building, label: 'Suppliers' },
     { to: '/employees', icon: UserCheck, label: 'Employees' },
-    { to: '/inventory', icon: Package, label: 'Product Management' },  // Changed from 'Products'
+    { to: '/inventory', icon: Package, label: 'Products' },  // Changed from 'Product Management'
     { to: '/payments', icon: DollarSign, label: 'Payments' },
     { to: '/reports', icon: BarChart3, label: 'Reports' },
     { to: '/profitability', icon: TrendingUp, label: 'Profitability' },

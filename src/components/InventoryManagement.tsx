@@ -115,7 +115,7 @@ const InventoryManagement = () => {
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Inventory Management</h1>
+        <h1 className="text-3xl font-bold">Product Management</h1>
         <div className="flex gap-2">
           <Button 
             variant="outline" 
