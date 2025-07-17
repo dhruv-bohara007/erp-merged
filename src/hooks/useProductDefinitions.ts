@@ -45,12 +45,10 @@ export const useProductDefinitions = () => {
       setLoading(true);
       console.log('Querying product_definitions with companyId:', currentUser.companyId);
       
+      // Simplified query without multiple orderBy to avoid index requirements
       const q = query(
         collection(db, 'product_definitions'),
-        where('companyId', '==', currentUser.companyId),
-        orderBy('productCategory'),
-        orderBy('itemName'),
-        orderBy('productVersion')
+        where('companyId', '==', currentUser.companyId)
       );
       
       const snapshot = await getDocs(q);
@@ -72,8 +70,19 @@ export const useProductDefinitions = () => {
         return definition;
       }) as ProductDefinition[];
 
-      console.log('Final definitions array:', definitions);
-      setProductDefinitions(definitions);
+      // Sort the definitions on the frontend to avoid Firestore index requirements
+      const sortedDefinitions = definitions.sort((a, b) => {
+        const categoryCompare = (a.productCategory || '').localeCompare(b.productCategory || '');
+        if (categoryCompare !== 0) return categoryCompare;
+        
+        const nameCompare = (a.itemName || '').localeCompare(b.itemName || '');
+        if (nameCompare !== 0) return nameCompare;
+        
+        return (a.productVersion || '').localeCompare(b.productVersion || '');
+      });
+
+      console.log('Final definitions array:', sortedDefinitions);
+      setProductDefinitions(sortedDefinitions);
       setError(null);
     } catch (err) {
       console.error('Error fetching product definitions:', err);
