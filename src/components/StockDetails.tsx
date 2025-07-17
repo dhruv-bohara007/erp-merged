@@ -11,7 +11,8 @@ import {
   Calendar,
   Save,
   Eye,
-  EyeOff
+  EyeOff,
+  Edit
 } from 'lucide-react';
 import { useInventory } from '@/hooks/useFirestore';
 import { useCompanyData } from '@/hooks/useCompanyData';
@@ -142,15 +143,33 @@ const StockDetails = () => {
     loadStockDetails();
   }, [inventory, currentUser?.companyId]);
 
-  // Save field changes with validation
-  const saveFieldChanges = async (itemId: string) => {
+  // Save field changes with enhanced validation
+  const saveFieldChanges = async (itemId: string, fieldType: 'minRequired' | 'safeQuantityLimit') => {
     if (!editingFields[itemId]) return;
 
-    const minRequired = editingFields[itemId].minRequired ? Number(editingFields[itemId].minRequired) : 0;
-    const safeQuantityLimit = editingFields[itemId].safeQuantityLimit ? Number(editingFields[itemId].safeQuantityLimit) : 0;
+    const item = stockDetails.find(s => s.id === itemId);
+    if (!item) return;
+
+    const minRequiredValue = fieldType === 'minRequired' 
+      ? Number(editingFields[itemId].minRequired || 0)
+      : Number(item.minRequired || 0);
+    
+    const safeQuantityLimitValue = fieldType === 'safeQuantityLimit'
+      ? Number(editingFields[itemId].safeQuantityLimit || 0)
+      : Number(item.safeQuantityLimit || 0);
+
+    // Validation: Min Required should be less than or equal to Current Stock
+    if (fieldType === 'minRequired' && minRequiredValue > item.currentStock) {
+      toast({
+        title: "Validation Error",
+        description: "Min Required should be less than or equal to Current Stock.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     // Validation: Safe Quantity Limit should be less than or equal to Min Required
-    if (safeQuantityLimit > minRequired) {
+    if (safeQuantityLimitValue > minRequiredValue) {
       toast({
         title: "Validation Error",
         description: "Safe Quantity Limit should be less than or equal to Min Required.",
@@ -161,34 +180,49 @@ const StockDetails = () => {
 
     try {
       const docRef = doc(db, 'stock_details', itemId);
-      await updateDoc(docRef, {
-        minRequired: minRequired,
-        safeQuantityLimit: safeQuantityLimit,
+      const updateData: any = {
         updatedAt: new Date()
-      });
+      };
+
+      if (fieldType === 'minRequired') {
+        updateData.minRequired = minRequiredValue;
+      } else {
+        updateData.safeQuantityLimit = safeQuantityLimitValue;
+      }
+
+      await updateDoc(docRef, updateData);
 
       // Update local state
-      setStockDetails(prev => prev.map(item => 
-        item.id === itemId 
+      setStockDetails(prev => prev.map(stockItem => 
+        stockItem.id === itemId 
           ? { 
-              ...item, 
-              minRequired: minRequired,
-              safeQuantityLimit: safeQuantityLimit,
+              ...stockItem, 
+              ...(fieldType === 'minRequired' ? { minRequired: minRequiredValue } : { safeQuantityLimit: safeQuantityLimitValue }),
               updatedAt: new Date()
             }
-          : item
+          : stockItem
       ));
 
-      // Clear editing state
+      // Clear editing state for this field
       setEditingFields(prev => {
         const newState = { ...prev };
-        delete newState[itemId];
+        if (newState[itemId]) {
+          if (fieldType === 'minRequired') {
+            delete newState[itemId].minRequired;
+          } else {
+            delete newState[itemId].safeQuantityLimit;
+          }
+          // If no fields are being edited, remove the item entirely
+          if (!newState[itemId].minRequired && !newState[itemId].safeQuantityLimit) {
+            delete newState[itemId];
+          }
+        }
         return newState;
       });
 
       toast({
         title: "Success",
-        description: "Stock details updated successfully"
+        description: `${fieldType === 'minRequired' ? 'Min Required' : 'Safe Quantity Limit'} updated successfully`
       });
     } catch (error) {
       console.error('Error updating stock details:', error);
@@ -418,13 +452,27 @@ const StockDetails = () => {
                             }))}
                           />
                           <span className="text-sm text-gray-500">{item.unit}</span>
-                          {editingFields[item.id]?.minRequired !== undefined && (
+                          {editingFields[item.id]?.minRequired !== undefined ? (
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => saveFieldChanges(item.id)}
+                              onClick={() => saveFieldChanges(item.id, 'minRequired')}
                             >
                               <Save className="h-3 w-3" />
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setEditingFields(prev => ({
+                                ...prev,
+                                [item.id]: {
+                                  ...prev[item.id],
+                                  minRequired: (item.minRequired !== undefined ? item.minRequired.toString() : '0')
+                                }
+                              }))}
+                            >
+                              <Edit className="h-3 w-3" />
                             </Button>
                           )}
                         </div>
@@ -445,13 +493,27 @@ const StockDetails = () => {
                             }))}
                           />
                           <span className="text-sm text-gray-500">{item.unit}</span>
-                          {editingFields[item.id]?.safeQuantityLimit !== undefined && (
+                          {editingFields[item.id]?.safeQuantityLimit !== undefined ? (
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => saveFieldChanges(item.id)}
+                              onClick={() => saveFieldChanges(item.id, 'safeQuantityLimit')}
                             >
                               <Save className="h-3 w-3" />
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setEditingFields(prev => ({
+                                ...prev,
+                                [item.id]: {
+                                  ...prev[item.id],
+                                  safeQuantityLimit: (item.safeQuantityLimit !== undefined ? item.safeQuantityLimit.toString() : '0')
+                                }
+                              }))}
+                            >
+                              <Edit className="h-3 w-3" />
                             </Button>
                           )}
                         </div>
