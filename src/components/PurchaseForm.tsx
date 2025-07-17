@@ -17,6 +17,8 @@ import { useCompanyData } from '@/hooks/useCompanyData';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTaxCalculations } from '@/hooks/useTaxCalculations';
 import { format } from 'date-fns';
+import { collection, doc, setDoc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 interface PurchaseItem {
   id: string;
@@ -217,6 +219,39 @@ const PurchaseForm = () => {
             companyCurrency: companyCurrency.code,
             companyCountry: companyCountry,
             status: 'active'
+          });
+        }
+
+        // Add or update stock_details collection
+        const stockDetailsKey = `${item.productCategory}-${item.itemName}-${item.productVersion}`;
+        const stockDetailsRef = doc(db, 'stock_details', stockDetailsKey);
+        
+        // Check if stock details already exists
+        const stockDetailsQuery = await getDoc(stockDetailsRef);
+        
+        if (stockDetailsQuery.exists()) {
+          // Update existing stock details - add to current stock
+          const currentData = stockDetailsQuery.data();
+          await setDoc(stockDetailsRef, {
+            currentStock: (currentData.currentStock || 0) + item.quantity,
+            pricePerUnit: Math.round(item.pricePerUnit * 100) / 100,
+            lastPurchaseDate: new Date(purchaseDate),
+            updatedAt: new Date()
+          }, { merge: true });
+        } else {
+          // Create new stock details
+          await setDoc(stockDetailsRef, {
+            companyId: currentUser.companyId,
+            productCategory: item.productCategory,
+            itemName: item.itemName,
+            productVersion: item.productVersion,
+            currentStock: item.quantity,
+            pricePerUnit: Math.round(item.pricePerUnit * 100) / 100,
+            unit: item.unit,
+            displayStatus: 'displayed',
+            lastPurchaseDate: new Date(purchaseDate),
+            createdAt: new Date(),
+            updatedAt: new Date()
           });
         }
       }

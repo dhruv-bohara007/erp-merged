@@ -29,6 +29,7 @@ interface StockDetailsData {
   itemName: string;
   productVersion: string;
   currentStock: number;
+  pricePerUnit?: number;
   lastPurchaseDate?: Date;
   unit: string;
   minRequired?: number;
