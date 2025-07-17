@@ -98,6 +98,9 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
         productVersion: '1.0'
       });
       
+      // Explicitly refresh definitions to ensure immediate update
+      await refreshDefinitions();
+      
       setNewCategory('');
       toast({
         title: "Success",
@@ -126,6 +129,9 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
         itemName: newName.trim(),
         productVersion: '1.0'
       });
+      
+      // Explicitly refresh definitions to ensure immediate update
+      await refreshDefinitions();
       
       setNewName('');
       toast({
@@ -156,6 +162,9 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
         itemName: selectedName,
         productVersion: newVersion.trim()
       });
+      
+      // Explicitly refresh definitions to ensure immediate update
+      await refreshDefinitions();
       
       setNewVersion('');
       toast({
