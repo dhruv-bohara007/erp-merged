@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,29 +10,99 @@ import {
   Eye,
   Flag
 } from 'lucide-react';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
-// Mock inventory data - replace with real hooks later
-const mockInventoryData = [
-  { id: '1', name: 'Office Chairs', category: 'Furniture', currentStock: 15, minThreshold: 10, status: 'normal', location: 'Warehouse A' },
-  { id: '2', name: 'Laptops', category: 'Electronics', currentStock: 3, minThreshold: 5, status: 'low', location: 'IT Storage' },
-  { id: '3', name: 'Printers', category: 'Electronics', currentStock: 2, minThreshold: 3, status: 'low', location: 'Office Floor 2' },
-  { id: '4', name: 'Paper Reams', category: 'Stationery', currentStock: 25, minThreshold: 20, status: 'normal', location: 'Supply Room' },
-  { id: '5', name: 'USB Drives', category: 'Electronics', currentStock: 1, minThreshold: 8, status: 'critical', location: 'IT Storage' },
-  { id: '6', name: 'Desk Lamps', category: 'Furniture', currentStock: 12, minThreshold: 8, status: 'normal', location: 'Warehouse A' },
-  { id: '7', name: 'Whiteboard Markers', category: 'Stationery', currentStock: 4, minThreshold: 10, status: 'low', location: 'Supply Room' },
-];
+interface StockDetailsData {
+  id: string;
+  companyId: string;
+  productCategory: string;
+  itemName: string;
+  productVersion: string;
+  currentStock: number;
+  lastPurchaseDate?: Date;
+  unit: string;
+  minRequired?: number;
+  safeQuantityLimit?: number;
+  displayStatus: 'displayed' | 'suspended';
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 const EmployeeInventory = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [stockDetails, setStockDetails] = useState<StockDetailsData[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  const { currentUser } = useAuth();
+  const { toast } = useToast();
 
-  const categories = ['all', ...Array.from(new Set(mockInventoryData.map(item => item.category)))];
+  // Fetch displayed stock details from Firestore
+  const fetchDisplayedStockDetails = async () => {
+    if (!currentUser?.companyId) return [];
 
-  const filteredInventory = mockInventoryData.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
+    try {
+      const stockDetailsCollection = collection(db, 'stock_details');
+      const q = query(
+        stockDetailsCollection, 
+        where('companyId', '==', currentUser.companyId),
+        where('displayStatus', '==', 'displayed')
+      );
+      const snapshot = await getDocs(q);
+      
+      return snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          ...data,
+          id: doc.id,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+          lastPurchaseDate: data.lastPurchaseDate?.toDate(),
+          minRequired: data.minRequired !== undefined ? data.minRequired : 0,
+          safeQuantityLimit: data.safeQuantityLimit !== undefined ? data.safeQuantityLimit : 0
+        };
+      }) as StockDetailsData[];
+    } catch (error) {
+      console.error('Error fetching displayed stock details:', error);
+      return [];
+    }
+  };
+
+  useEffect(() => {
+    const loadStockDetails = async () => {
+      setLoading(true);
+      const displayedStock = await fetchDisplayedStockDetails();
+      setStockDetails(displayedStock);
+      setLoading(false);
+    };
+
+    loadStockDetails();
+  }, [currentUser?.companyId]);
+
+  const categories = ['all', ...Array.from(new Set(stockDetails.map(item => item.productCategory)))];
+
+  const filteredInventory = stockDetails.filter(item => {
+    const matchesSearch = item.itemName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         item.productCategory.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === 'all' || item.productCategory === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+
+  // Calculate status based on new logic
+  const getItemStatus = (item: StockDetailsData) => {
+    const { currentStock, minRequired = 0, safeQuantityLimit = 0 } = item;
+    
+    if (currentStock >= minRequired) {
+      return 'normal';
+    } else if (currentStock <= safeQuantityLimit) {
+      return 'critical';
+    } else {
+      return 'low';
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -53,9 +123,23 @@ const EmployeeInventory = () => {
   };
 
   const handleFlagLowStock = (itemId: string, itemName: string) => {
-    alert(`Low stock alert sent to admin for: ${itemName}`);
+    toast({
+      title: "Alert Sent",
+      description: `Low stock alert sent to admin for: ${itemName}`
+    });
     // TODO: Implement actual alert functionality
   };
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading inventory...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -98,60 +182,66 @@ const EmployeeInventory = () => {
 
         {/* Inventory Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredInventory.map((item) => (
-            <Card key={item.id} className={`border-l-4 ${
-              item.status === 'critical' ? 'border-l-red-500' :
-              item.status === 'low' ? 'border-l-yellow-500' : 'border-l-green-500'
-            }`}>
-              <CardHeader className="pb-3">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-lg">{item.name}</CardTitle>
-                    <p className="text-sm text-gray-500">{item.category}</p>
+          {filteredInventory.map((item) => {
+            const status = getItemStatus(item);
+            return (
+              <Card key={item.id} className={`border-l-4 ${
+                status === 'critical' ? 'border-l-red-500' :
+                status === 'low' ? 'border-l-yellow-500' : 'border-l-green-500'
+              }`}>
+                <CardHeader className="pb-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-lg">{item.itemName}</CardTitle>
+                      <p className="text-sm text-gray-500">{item.productCategory}</p>
+                      {item.productVersion && item.productVersion !== 'N/A' && (
+                        <p className="text-xs text-gray-400">v{item.productVersion}</p>
+                      )}
+                    </div>
+                    <Badge variant={getStatusBadgeVariant(status)}>
+                      {status}
+                    </Badge>
                   </div>
-                  <Badge variant={getStatusBadgeVariant(item.status)}>
-                    {item.status}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Current Stock:</span>
-                    <span className={`font-semibold ${getStatusColor(item.status)}`}>
-                      {item.currentStock}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Min Required:</span>
-                    <span className="font-medium">{item.minThreshold}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Location:</span>
-                    <span className="text-sm">{item.location}</span>
-                  </div>
-                  
-                  <div className="flex gap-2 pt-2">
-                    <Button size="sm" variant="outline" className="flex-1">
-                      <Eye className="w-3 h-3 mr-1" />
-                      Details
-                    </Button>
-                    {(item.status === 'low' || item.status === 'critical') && (
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => handleFlagLowStock(item.id, item.name)}
-                        className="flex-1"
-                      >
-                        <Flag className="w-3 h-3 mr-1" />
-                        Flag Low
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Current Stock:</span>
+                      <span className={`font-semibold ${getStatusColor(status)}`}>
+                        {item.currentStock} {item.unit}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Min Required:</span>
+                      <span className="font-medium">{item.minRequired || 0} {item.unit}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Safe Limit:</span>
+                      <span className="font-medium">{item.safeQuantityLimit || 0} {item.unit}</span>
+                    </div>
+                    
+                    <div className="flex gap-2 pt-2">
+                      <Button size="sm" variant="outline" className="flex-1">
+                        <Eye className="w-3 h-3 mr-1" />
+                        Details
                       </Button>
-                    )}
+                      {(status === 'low' || status === 'critical') && (
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleFlagLowStock(item.id, item.itemName)}
+                          className="flex-1"
+                        >
+                          <Flag className="w-3 h-3 mr-1" />
+                          Flag Low
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         {filteredInventory.length === 0 && (
@@ -172,8 +262,8 @@ const EmployeeInventory = () => {
               <Package className="h-4 w-4 text-blue-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{mockInventoryData.length}</div>
-              <p className="text-xs text-gray-500">Across all categories</p>
+              <div className="text-2xl font-bold">{stockDetails.length}</div>
+              <p className="text-xs text-gray-500">Displayed items</p>
             </CardContent>
           </Card>
 
@@ -184,7 +274,7 @@ const EmployeeInventory = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-yellow-600">
-                {mockInventoryData.filter(item => item.status === 'low').length}
+                {stockDetails.filter(item => getItemStatus(item) === 'low').length}
               </div>
               <p className="text-xs text-gray-500">Items need restocking</p>
             </CardContent>
@@ -197,7 +287,7 @@ const EmployeeInventory = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">
-                {mockInventoryData.filter(item => item.status === 'critical').length}
+                {stockDetails.filter(item => getItemStatus(item) === 'critical').length}
               </div>
               <p className="text-xs text-gray-500">Immediate attention needed</p>
             </CardContent>
