@@ -1,11 +1,10 @@
-
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, ArrowRight, Plus } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Plus, Loader2 } from 'lucide-react';
 import { useProductDefinitions } from '@/hooks/useProductDefinitions';
 import { useToast } from '@/hooks/use-toast';
 import SearchableDropdown from './SearchableDropdown';
@@ -37,14 +36,31 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
 
-  const categories = [...new Set(productDefinitions.map(p => p.productCategory))];
+  // Filter out empty/invalid entries
+  const categories = [...new Set(
+    productDefinitions
+      .filter(p => p.productCategory && p.productCategory.trim() !== '')
+      .map(p => p.productCategory)
+  )];
+
   const namesInCategory = productDefinitions
-    .filter(p => p.productCategory === selectedCategory)
+    .filter(p => p.productCategory === selectedCategory && p.itemName && p.itemName.trim() !== '')
     .map(p => p.itemName);
   const uniqueNamesInCategory = [...new Set(namesInCategory)];
+
   const versionsForName = productDefinitions
-    .filter(p => p.productCategory === selectedCategory && p.itemName === selectedName)
+    .filter(p => 
+      p.productCategory === selectedCategory && 
+      p.itemName === selectedName &&
+      p.productVersion && p.productVersion.trim() !== ''
+    )
     .map(p => p.productVersion);
+
+  // Debug logging
+  useEffect(() => {
+    console.log('ManageProductCategoryModal - Product definitions:', productDefinitions.length);
+    console.log('ManageProductCategoryModal - Categories:', categories);
+  }, [productDefinitions, categories]);
 
   // Reset dependent fields when parent selection changes
   useEffect(() => {
@@ -75,6 +91,7 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
     if (!newCategory.trim()) return;
     
     try {
+      console.log('Adding new category to product_definitions:', newCategory.trim());
       await addProductDefinition({
         productCategory: newCategory.trim(),
         itemName: 'Default Product',
@@ -100,6 +117,10 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
     if (!newName.trim() || !selectedCategory) return;
     
     try {
+      console.log('Adding new product name to product_definitions:', {
+        category: selectedCategory,
+        name: newName.trim()
+      });
       await addProductDefinition({
         productCategory: selectedCategory,
         itemName: newName.trim(),
@@ -125,6 +146,11 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
     if (!newVersion.trim() || !selectedCategory || !selectedName) return;
     
     try {
+      console.log('Adding new product version to product_definitions:', {
+        category: selectedCategory,
+        name: selectedName,
+        version: newVersion.trim()
+      });
       await addProductDefinition({
         productCategory: selectedCategory,
         itemName: selectedName,
@@ -487,7 +513,8 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
         
         {loading ? (
           <div className="flex justify-center items-center h-32">
-            <div>Loading...</div>
+            <Loader2 className="w-6 h-6 animate-spin" />
+            <span className="ml-2">Loading product definitions...</span>
           </div>
         ) : (
           <>

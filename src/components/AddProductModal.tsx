@@ -22,7 +22,7 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
   const { addInventoryItem } = useInventory();
   const { companyData } = useCompanyData();
   const { convertToINR, getCurrencyInfo, loading: currencyLoading } = useCurrencyConverter();
-  const { productDefinitions, addProductDefinition } = useProductDefinitions();
+  const { productDefinitions, addProductDefinition, loading: definitionsLoading } = useProductDefinitions();
   
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -36,20 +36,38 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
 
   const companyCurrency = getCurrencyInfo(companyData?.country || 'US');
 
-  // Get unique categories
-  const categories = [...new Set(productDefinitions.map(p => p.productCategory))];
+  // Get unique categories with proper filtering
+  const categories = [...new Set(
+    productDefinitions
+      .filter(p => p.productCategory && p.productCategory.trim() !== '')
+      .map(p => p.productCategory)
+  )];
   
   // Get names for selected category
   const namesForCategory = [...new Set(
     productDefinitions
-      .filter(p => p.productCategory === formData.category)
+      .filter(p => p.productCategory === formData.category && p.itemName && p.itemName.trim() !== '')
       .map(p => p.itemName)
   )];
   
   // Get versions for selected category and name
   const versionsForName = productDefinitions
-    .filter(p => p.productCategory === formData.category && p.itemName === formData.name)
+    .filter(p => 
+      p.productCategory === formData.category && 
+      p.itemName === formData.name &&
+      p.productVersion && p.productVersion.trim() !== ''
+    )
     .map(p => p.productVersion);
+
+  // Debug logging
+  useEffect(() => {
+    console.log('Product definitions loaded:', productDefinitions.length);
+    console.log('Available categories:', categories);
+    console.log('Selected category:', formData.category);
+    console.log('Names for category:', namesForCategory);
+    console.log('Selected name:', formData.name);
+    console.log('Versions for name:', versionsForName);
+  }, [productDefinitions, categories, formData.category, formData.name, namesForCategory, versionsForName]);
 
   // Reset dependent fields when parent selection changes
   useEffect(() => {
@@ -95,6 +113,12 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
 
     try {
       // Ensure product definition exists in the collection
+      console.log('Adding product definition:', {
+        productCategory: formData.category,
+        itemName: formData.name,
+        productVersion: formData.version
+      });
+
       await addProductDefinition({
         productCategory: formData.category,
         itemName: formData.name,
@@ -104,6 +128,21 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
       // Convert to INR using the same logic as before
       const { amountInINR, rate: exchangeRate } = await convertToINR(rateValue, companyData?.country || 'US');
       
+      console.log('Adding inventory item:', {
+        itemName: formData.name,
+        productCategory: formData.category,
+        productVersion: formData.version,
+        unitPrice: rateValue,
+        rate: rateValue,
+        rateInInr: amountInINR,
+        exchangeRateUsed: exchangeRate,
+        quantity: quantityValue,
+        unit: formData.unit,
+        companyCurrency: companyCurrency.code,
+        companyCountry: companyData?.country || 'US',
+        status: 'active'
+      });
+
       await addInventoryItem({
         itemName: formData.name,
         productCategory: formData.category,
@@ -158,6 +197,22 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
     onClose();
   };
 
+  if (definitionsLoading) {
+    return (
+      <Dialog open={isOpen} onOpenChange={handleClose}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Product</DialogTitle>
+          </DialogHeader>
+          <div className="flex justify-center items-center h-32">
+            <Loader2 className="w-6 h-6 animate-spin" />
+            <span className="ml-2">Loading product definitions...</span>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-md">
@@ -171,12 +226,18 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
               <SelectTrigger>
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
-              <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
+              <SelectContent className="bg-white z-50 max-h-48 overflow-y-auto">
+                {categories.length > 0 ? (
+                  categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="no-categories" disabled>
+                    No categories available
                   </SelectItem>
-                ))}
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -191,12 +252,18 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
               <SelectTrigger>
                 <SelectValue placeholder="Select a product name" />
               </SelectTrigger>
-              <SelectContent>
-                {namesForCategory.map((name) => (
-                  <SelectItem key={name} value={name}>
-                    {name}
+              <SelectContent className="bg-white z-50 max-h-48 overflow-y-auto">
+                {namesForCategory.length > 0 ? (
+                  namesForCategory.map((name) => (
+                    <SelectItem key={name} value={name}>
+                      {name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="no-names" disabled>
+                    {formData.category ? 'No names available for this category' : 'Select a category first'}
                   </SelectItem>
-                ))}
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -211,12 +278,18 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
               <SelectTrigger>
                 <SelectValue placeholder="Select a version" />
               </SelectTrigger>
-              <SelectContent>
-                {versionsForName.map((version) => (
-                  <SelectItem key={version} value={version}>
-                    {version}
+              <SelectContent className="bg-white z-50 max-h-48 overflow-y-auto">
+                {versionsForName.length > 0 ? (
+                  versionsForName.map((version) => (
+                    <SelectItem key={version} value={version}>
+                      {version}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="no-versions" disabled>
+                    {formData.name ? 'No versions available for this product' : 'Select a product name first'}
                   </SelectItem>
-                ))}
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -263,7 +336,7 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
               <SelectTrigger>
                 <SelectValue placeholder="Select unit" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white z-50 max-h-48 overflow-y-auto">
                 {['pcs', 'kg', 'lbs', 'grams', 'liters', 'gallons', 'meters', 'feet', 'boxes', 'bottles', 'packets', 'sets', 'units'].map(unit => (
                   <SelectItem key={unit} value={unit}>{unit}</SelectItem>
                 ))}
