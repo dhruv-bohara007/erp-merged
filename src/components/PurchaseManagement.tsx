@@ -333,9 +333,8 @@ const PurchaseManagement = () => {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="recent-purchases" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-1">
               <TabsTrigger value="recent-purchases">Recent Purchases ({filteredPurchases.length})</TabsTrigger>
-              <TabsTrigger value="stock-details">Stock Details ({Object.keys(stockDetails).length})</TabsTrigger>
             </TabsList>
             
             <TabsContent value="recent-purchases">
@@ -414,58 +413,6 @@ const PurchaseManagement = () => {
                           </TableRow>
                         );
                       })
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="stock-details">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Product Category</TableHead>
-                      <TableHead>Item Name</TableHead>
-                      <TableHead>Product Version</TableHead>
-                      <TableHead>Current Stock</TableHead>
-                      <TableHead>Total Value</TableHead>
-                      <TableHead>Last Purchase</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {Object.keys(stockDetails).length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                          No stock items found
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      Object.values(stockDetails).map((item: any, index) => (
-                        <TableRow key={index}>
-                          <TableCell>
-                            <div className="font-medium">{item.productCategory}</div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="font-medium">{item.itemName}</div>
-                          </TableCell>
-                          <TableCell>
-                            <div>{item.productVersion}</div>
-                          </TableCell>
-                          <TableCell>
-                            <div>{item.currentStock} {item.unit}</div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="font-medium">{formatCurrency(item.totalValue)}</div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center text-sm">
-                              <Calendar className="w-3 h-3 mr-1 text-gray-400" />
-                              {item.lastPurchaseDate?.toLocaleDateString() || 'N/A'}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
                     )}
                   </TableBody>
                 </Table>
