@@ -13,11 +13,12 @@ import {
   Save,
   Eye,
   EyeOff,
-  Edit
+  Edit,
+  Trash2
 } from 'lucide-react';
 import { useInventory } from '@/hooks/useFirestore';
 import { useCompanyData } from '@/hooks/useCompanyData';
-import { collection, doc, setDoc, getDocs, query, where, updateDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, query, where, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -52,9 +53,9 @@ const StockDetails = () => {
   const { currentUser } = useAuth();
   const { toast } = useToast();
 
-  // Generate stock details from inventory collection
+  // Generate stock details from inventory collection and purchase_records
   const generateStockDetails = async () => {
-    if (!inventory.length || !currentUser?.companyId) return;
+    if (!currentUser?.companyId) return;
 
     const stockData: Record<string, StockDetailsData> = {};
 
@@ -84,6 +85,42 @@ const StockDetails = () => {
         stockData[key].updatedAt = new Date();
       }
     });
+
+    // Also include purchase_records data
+    try {
+      const purchaseRecordsCollection = collection(db, 'purchase_records');
+      const purchaseQuery = query(purchaseRecordsCollection, where('companyId', '==', currentUser.companyId));
+      const purchaseSnapshot = await getDocs(purchaseQuery);
+      
+      purchaseSnapshot.docs.forEach(doc => {
+        const purchaseData = doc.data();
+        if (purchaseData.itemName && purchaseData.productCategory && purchaseData.productVersion && purchaseData.quantity && purchaseData.quantity > 0) {
+          const key = `${purchaseData.productCategory}-${purchaseData.itemName}-${purchaseData.productVersion}`;
+          
+          if (!stockData[key]) {
+            stockData[key] = {
+              id: key,
+              companyId: currentUser.companyId,
+              productCategory: purchaseData.productCategory,
+              itemName: purchaseData.itemName,
+              productVersion: purchaseData.productVersion,
+              currentStock: 0,
+              unit: purchaseData.unit || 'pcs',
+              minRequired: 0,
+              safeQuantityLimit: 0,
+              displayStatus: 'displayed',
+              createdAt: new Date(),
+              updatedAt: new Date()
+            };
+          }
+          
+          stockData[key].currentStock += purchaseData.quantity || 0;
+          stockData[key].updatedAt = new Date();
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching purchase records:', error);
+    }
 
     // Save to stock_details collection with merge to preserve existing min_required and safe_quantity_limit values
     const stockDetailsCollection = collection(db, 'stock_details');
@@ -164,15 +201,6 @@ const StockDetails = () => {
       ? Number(editingFields[itemId].safeQuantityLimit || 0)
       : Number(item.safeQuantityLimit || 0);
 
-    // Validation: Min Required should be less than or equal to Current Stock
-    if (fieldType === 'minRequired' && minRequiredValue > item.currentStock) {
-      toast({
-        title: "Validation Error",
-        description: "Min Required should be less than or equal to Current Stock.",
-        variant: "destructive"
-      });
-      return;
-    }
 
     // Validation: Safe Quantity Limit should be less than or equal to Min Required
     if (safeQuantityLimitValue > minRequiredValue) {
@@ -275,6 +303,31 @@ const StockDetails = () => {
     }
   };
 
+  // Delete stock item
+  const deleteStockItem = async (itemId: string) => {
+    if (!confirm('Are you sure you want to delete this stock item?')) return;
+
+    try {
+      const docRef = doc(db, 'stock_details', itemId);
+      await deleteDoc(docRef);
+
+      // Update local state
+      setStockDetails(prev => prev.filter(item => item.id !== itemId));
+
+      toast({
+        title: "Success",
+        description: "Stock item deleted successfully"
+      });
+    } catch (error) {
+      console.error('Error deleting stock item:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete stock item",
+        variant: "destructive"
+      });
+    }
+  };
+
   // Check if Display/Suspend button should be enabled
   const isDisplayButtonEnabled = (item: StockDetailsData) => {
     return (item.minRequired !== undefined && item.minRequired !== null && item.minRequired > 0) && 
@@ -345,7 +398,7 @@ const StockDetails = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -360,19 +413,6 @@ const StockDetails = () => {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Stock</p>
-                <p className="text-2xl font-bold">{totalStock}</p>
-              </div>
-              <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
-                <TrendingUp className="h-4 w-4 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Stock Details Table */}
@@ -542,25 +582,36 @@ const StockDetails = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          size="sm"
-                          variant={item.displayStatus === 'displayed' ? 'default' : 'secondary'}
-                          disabled={!isDisplayButtonEnabled(item)}
-                          onClick={() => toggleDisplayStatus(item.id)}
-                          className="flex items-center gap-2"
-                        >
-                          {item.displayStatus === 'displayed' ? (
-                            <>
-                              <EyeOff className="h-3 w-3" />
-                              Suspend Stock
-                            </>
-                          ) : (
-                            <>
-                              <Eye className="h-3 w-3" />
-                              Display Stock
-                            </>
-                          )}
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant={item.displayStatus === 'displayed' ? 'default' : 'secondary'}
+                            disabled={!isDisplayButtonEnabled(item)}
+                            onClick={() => toggleDisplayStatus(item.id)}
+                            className="flex items-center gap-2"
+                          >
+                            {item.displayStatus === 'displayed' ? (
+                              <>
+                                <EyeOff className="h-3 w-3" />
+                                Suspend Stock
+                              </>
+                            ) : (
+                              <>
+                                <Eye className="h-3 w-3" />
+                                Display Stock
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => deleteStockItem(item.id)}
+                            className="flex items-center gap-2"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                            Delete
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))

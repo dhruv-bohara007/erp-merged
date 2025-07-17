@@ -65,11 +65,22 @@ const InventoryManagement = () => {
   };
 
   // Filter to only show active products (products with rates > 0 and status = 'active')
+  // Also prevent duplicates based on itemName, productVersion, productCategory, and rate
   const activeInventory = inventory.filter(item => 
     item.status === 'active' && (item.rate || 0) > 0
   );
 
-  const filteredInventory = activeInventory.filter(item =>
+  // Remove duplicates based on itemName, productVersion, productCategory, and rate
+  const uniqueInventory = activeInventory.filter((item, index, self) => 
+    index === self.findIndex(t => 
+      t.itemName === item.itemName &&
+      t.productVersion === item.productVersion &&
+      t.productCategory === item.productCategory &&
+      t.rate === item.rate
+    )
+  );
+
+  const filteredInventory = uniqueInventory.filter(item =>
     item.itemName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.productCategory?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.productVersion?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -88,8 +99,8 @@ const InventoryManagement = () => {
     }
   });
 
-  const totalItems = activeInventory.length;
-  const totalValue = activeInventory.reduce((sum, item) => sum + (item.rate || 0), 0);
+  const totalItems = uniqueInventory.length;
+  const totalValue = uniqueInventory.reduce((sum, item) => sum + (item.rate || 0), 0);
 
   if (loading) {
     return (
@@ -185,8 +196,6 @@ const InventoryManagement = () => {
                   <TableHead>Item Name</TableHead>
                   <TableHead>Product Version</TableHead>
                   <TableHead>Product Category</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Unit</TableHead>
                   <TableHead>Rate per Unit</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -204,12 +213,6 @@ const InventoryManagement = () => {
                     </TableCell>
                     <TableCell>
                       {item.productCategory || '-'}
-                    </TableCell>
-                    <TableCell>
-                      {item.quantity || '-'}
-                    </TableCell>
-                    <TableCell>
-                      {item.unit || '-'}
                     </TableCell>
                     <TableCell className="font-medium">
                       {formatCurrency(item.unitPrice || item.rate || 0)}

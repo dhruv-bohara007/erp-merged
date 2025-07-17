@@ -19,7 +19,7 @@ interface AddProductModalProps {
 
 const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
   const { toast } = useToast();
-  const { addInventoryItem } = useInventory();
+  const { addInventoryItem, inventory } = useInventory();
   const { companyData } = useCompanyData();
   const { convertToINR, getCurrencyInfo, loading: currencyLoading } = useCurrencyConverter();
   const { productDefinitions, addProductDefinition, loading: definitionsLoading } = useProductDefinitions();
@@ -29,9 +29,7 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
     category: '',
     name: '',
     version: '',
-    rate: '',
-    quantity: '',
-    unit: 'pcs'
+    rate: ''
   });
 
   const companyCurrency = getCurrencyInfo(companyData?.country || 'US');
@@ -81,7 +79,7 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.category || !formData.name || !formData.version || !formData.rate || !formData.quantity) {
+    if (!formData.category || !formData.name || !formData.version || !formData.rate) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -91,19 +89,10 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
     }
 
     const rateValue = parseFloat(formData.rate);
-    const quantityValue = parseFloat(formData.quantity);
     if (isNaN(rateValue) || rateValue <= 0) {
       toast({
         title: "Error",
         description: "Please enter a valid rate",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (isNaN(quantityValue) || quantityValue <= 0) {
-      toast({
-        title: "Error",
-        description: "Please enter a valid quantity",
         variant: "destructive",
       });
       return;
@@ -125,6 +114,24 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
         productVersion: formData.version
       });
 
+      // Check for duplicate products
+      const existingProduct = inventory.find(item => 
+        item.itemName === formData.name &&
+        item.productCategory === formData.category &&
+        item.productVersion === formData.version &&
+        item.rate === rateValue &&
+        item.status === 'active'
+      );
+
+      if (existingProduct) {
+        toast({
+          title: "Error",
+          description: "A product with the same name, category, version, and rate already exists",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // Convert to INR using the same logic as before
       const { amountInINR, rate: exchangeRate } = await convertToINR(rateValue, companyData?.country || 'US');
       
@@ -136,8 +143,6 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
         rate: rateValue,
         rateInInr: amountInINR,
         exchangeRateUsed: exchangeRate,
-        quantity: quantityValue,
-        unit: formData.unit,
         companyCurrency: companyCurrency.code,
         companyCountry: companyData?.country || 'US',
         status: 'active'
@@ -151,8 +156,6 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
         rate: rateValue,
         rateInInr: amountInINR,
         exchangeRateUsed: exchangeRate,
-        quantity: quantityValue,
-        unit: formData.unit,
         companyCurrency: companyCurrency.code,
         companyCountry: companyData?.country || 'US',
         status: 'active'
@@ -162,9 +165,7 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
         category: '',
         name: '',
         version: '',
-        rate: '',
-        quantity: '',
-        unit: 'pcs'
+        rate: ''
       });
       
       toast({
@@ -190,9 +191,7 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
       category: '',
       name: '',
       version: '',
-      rate: '',
-      quantity: '',
-      unit: 'pcs'
+      rate: ''
     });
     onClose();
   };
@@ -312,37 +311,6 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
             />
           </div>
 
-          <div>
-            <Label htmlFor="quantity">Quantity</Label>
-            <Input
-              id="quantity"
-              type="text"
-              inputMode="decimal"
-              value={formData.quantity}
-              onChange={(e) => {
-                const value = e.target.value;
-                if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                  setFormData({...formData, quantity: value});
-                }
-              }}
-              placeholder="1"
-              required
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="unit">Unit</Label>
-            <Select value={formData.unit} onValueChange={(value) => setFormData({...formData, unit: value})}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select unit" />
-              </SelectTrigger>
-              <SelectContent className="bg-white z-50 max-h-48 overflow-y-auto">
-                {['pcs', 'kg', 'lbs', 'grams', 'liters', 'gallons', 'meters', 'feet', 'boxes', 'bottles', 'packets', 'sets', 'units'].map(unit => (
-                  <SelectItem key={unit} value={unit}>{unit}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
           <div className="flex justify-end space-x-2">
             <Button type="button" variant="outline" onClick={handleClose}>
