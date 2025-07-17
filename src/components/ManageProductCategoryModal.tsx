@@ -24,6 +24,10 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
     addProductDefinition, 
     updateProductDefinition, 
     deleteProductDefinition,
+    deleteCategoryAndAllRelated,
+    deleteItemNameAndAllVersions,
+    updateCategoryForAllRelated,
+    updateItemNameForAllVersions,
     refreshDefinitions 
   } = useProductDefinitions();
 
@@ -200,8 +204,15 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
       const item = productDefinitions.find(p => p.id === id);
       if (!item) return;
 
-      const updates = { ...item, [field]: newValue.trim() };
-      await updateProductDefinition(id, updates);
+      // Use batch update for categories and item names to maintain consistency
+      if (field === 'productCategory') {
+        await updateCategoryForAllRelated(item.productCategory, newValue.trim());
+      } else if (field === 'itemName') {
+        await updateItemNameForAllVersions(item.productCategory, item.itemName, newValue.trim());
+      } else if (field === 'productVersion') {
+        // For versions, update only the specific document
+        await updateProductDefinition(id, { [field]: newValue.trim() });
+      }
       
       setEditingItem(null);
       setEditValue('');
@@ -246,10 +257,23 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
     }
   };
 
-  const handleDeleteCategory = (category: string) => {
-    const categoryItem = productDefinitions.find(p => p.productCategory === category);
-    if (categoryItem) {
-      handleDelete(categoryItem.id);
+  const handleDeleteCategory = async (category: string) => {
+    const relatedCount = productDefinitions.filter(p => p.productCategory === category).length;
+    if (!window.confirm(`Are you sure you want to delete category "${category}" and all ${relatedCount} related items?`)) return;
+    
+    try {
+      await deleteCategoryAndAllRelated(category);
+      toast({
+        title: "Success",
+        description: `Category "${category}" and all related items deleted successfully`,
+      });
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete category",
+        variant: "destructive",
+      });
     }
   };
 
@@ -261,10 +285,23 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
     }
   };
 
-  const handleDeleteName = (name: string) => {
-    const nameItem = productDefinitions.find(p => p.productCategory === selectedCategory && p.itemName === name);
-    if (nameItem) {
-      handleDelete(nameItem.id);
+  const handleDeleteName = async (name: string) => {
+    const relatedCount = productDefinitions.filter(p => p.productCategory === selectedCategory && p.itemName === name).length;
+    if (!window.confirm(`Are you sure you want to delete product name "${name}" and all ${relatedCount} related versions?`)) return;
+    
+    try {
+      await deleteItemNameAndAllVersions(selectedCategory, name);
+      toast({
+        title: "Success",
+        description: `Product name "${name}" and all related versions deleted successfully`,
+      });
+    } catch (error) {
+      console.error('Error deleting product name:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete product name",
+        variant: "destructive",
+      });
     }
   };
 

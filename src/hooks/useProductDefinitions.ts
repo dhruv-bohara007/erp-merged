@@ -156,6 +156,112 @@ export const useProductDefinitions = () => {
     }
   };
 
+  const deleteCategoryAndAllRelated = async (categoryName: string) => {
+    if (!currentUser?.companyId) {
+      throw new Error('No company ID found');
+    }
+
+    try {
+      // Find all documents with this category
+      const relatedDefinitions = productDefinitions.filter(def => 
+        def.productCategory === categoryName && def.companyId === currentUser.companyId
+      );
+
+      // Delete all related documents
+      const deletePromises = relatedDefinitions.map(def => 
+        deleteDoc(doc(db, 'product_definitions', def.id))
+      );
+
+      await Promise.all(deletePromises);
+      await fetchProductDefinitions(); // Refresh the list
+    } catch (err) {
+      console.error('Error deleting category and related definitions:', err);
+      throw new Error(err instanceof Error ? err.message : 'Failed to delete category and related definitions');
+    }
+  };
+
+  const deleteItemNameAndAllVersions = async (categoryName: string, itemName: string) => {
+    if (!currentUser?.companyId) {
+      throw new Error('No company ID found');
+    }
+
+    try {
+      // Find all documents with this category and item name
+      const relatedDefinitions = productDefinitions.filter(def => 
+        def.productCategory === categoryName && 
+        def.itemName === itemName && 
+        def.companyId === currentUser.companyId
+      );
+
+      // Delete all related documents
+      const deletePromises = relatedDefinitions.map(def => 
+        deleteDoc(doc(db, 'product_definitions', def.id))
+      );
+
+      await Promise.all(deletePromises);
+      await fetchProductDefinitions(); // Refresh the list
+    } catch (err) {
+      console.error('Error deleting item name and all versions:', err);
+      throw new Error(err instanceof Error ? err.message : 'Failed to delete item name and all versions');
+    }
+  };
+
+  const updateCategoryForAllRelated = async (oldCategoryName: string, newCategoryName: string) => {
+    if (!currentUser?.companyId) {
+      throw new Error('No company ID found');
+    }
+
+    try {
+      // Find all documents with this category
+      const relatedDefinitions = productDefinitions.filter(def => 
+        def.productCategory === oldCategoryName && def.companyId === currentUser.companyId
+      );
+
+      // Update all related documents
+      const updatePromises = relatedDefinitions.map(def => 
+        updateDoc(doc(db, 'product_definitions', def.id), { 
+          productCategory: newCategoryName.trim(),
+          updatedAt: new Date()
+        })
+      );
+
+      await Promise.all(updatePromises);
+      await fetchProductDefinitions(); // Refresh the list
+    } catch (err) {
+      console.error('Error updating category for all related definitions:', err);
+      throw new Error(err instanceof Error ? err.message : 'Failed to update category for all related definitions');
+    }
+  };
+
+  const updateItemNameForAllVersions = async (categoryName: string, oldItemName: string, newItemName: string) => {
+    if (!currentUser?.companyId) {
+      throw new Error('No company ID found');
+    }
+
+    try {
+      // Find all documents with this category and item name
+      const relatedDefinitions = productDefinitions.filter(def => 
+        def.productCategory === categoryName && 
+        def.itemName === oldItemName && 
+        def.companyId === currentUser.companyId
+      );
+
+      // Update all related documents
+      const updatePromises = relatedDefinitions.map(def => 
+        updateDoc(doc(db, 'product_definitions', def.id), { 
+          itemName: newItemName.trim(),
+          updatedAt: new Date()
+        })
+      );
+
+      await Promise.all(updatePromises);
+      await fetchProductDefinitions(); // Refresh the list
+    } catch (err) {
+      console.error('Error updating item name for all versions:', err);
+      throw new Error(err instanceof Error ? err.message : 'Failed to update item name for all versions');
+    }
+  };
+
   return { 
     productDefinitions, 
     loading, 
@@ -163,6 +269,10 @@ export const useProductDefinitions = () => {
     addProductDefinition, 
     updateProductDefinition, 
     deleteProductDefinition,
+    deleteCategoryAndAllRelated,
+    deleteItemNameAndAllVersions,
+    updateCategoryForAllRelated,
+    updateItemNameForAllVersions,
     refreshDefinitions: fetchProductDefinitions
   };
 };
