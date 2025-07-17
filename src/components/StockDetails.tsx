@@ -163,6 +163,15 @@ const StockDetails = () => {
       ? Number(editingFields[itemId].safeQuantityLimit || 0)
       : Number(item.safeQuantityLimit || 0);
 
+    // Validation: Min Required should be less than or equal to Current Stock
+    if (fieldType === 'minRequired' && minRequiredValue > item.currentStock) {
+      toast({
+        title: "Validation Error",
+        description: "Min Required should be less than or equal to Current Stock.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     // Validation: Safe Quantity Limit should be less than or equal to Min Required
     if (safeQuantityLimitValue > minRequiredValue) {

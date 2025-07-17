@@ -161,6 +161,38 @@ const EmployeeDashboard = () => {
             </CardContent>
           </Card>
 
+          {/* Low Stock Alerts */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-red-500" />
+                Low Stock Alerts
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {lowStockItems.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-2 h-2 rounded-full ${
+                        item.status === 'critical' ? 'bg-red-500' : 'bg-yellow-500'
+                      }`}></div>
+                      <div>
+                        <p className="font-medium text-gray-900">{item.name}</p>
+                        <p className="text-sm text-gray-500">Stock: {item.currentStock} (Min: {item.minThreshold})</p>
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline">
+                      Request Restock
+                    </Button>
+                  </div>
+                ))}
+                {lowStockItems.length === 0 && (
+                  <p className="text-center text-gray-500 py-4">All items are well stocked!</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Purchase Requests and History */}
