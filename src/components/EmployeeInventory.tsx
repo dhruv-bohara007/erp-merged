@@ -1,10 +1,12 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Package, 
   Search,
@@ -12,12 +14,15 @@ import {
   Eye,
   Flag,
   MessageCircle,
-  X
+  X,
+  CalendarIcon
 } from 'lucide-react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface StockDetailsData {
   id: string;
@@ -40,8 +45,9 @@ interface FlagRequestData {
   itemName: string;
   productVersion: string;
   status: string;
-  unit: string;
   quantity: string;
+  unit: string;
+  requestedDate?: Date;
   reason: string;
 }
 
@@ -56,13 +62,17 @@ const EmployeeInventory = () => {
     itemName: '',
     productVersion: '',
     status: '',
-    unit: '',
     quantity: '',
+    unit: '',
+    requestedDate: undefined,
     reason: ''
   });
   
   const { currentUser } = useAuth();
   const { toast } = useToast();
+
+  // Common units for the dropdown
+  const units = ['pcs', 'kg', 'grams', 'liters', 'meters', 'boxes', 'packets', 'units'];
 
   // Fetch displayed stock details from Firestore
   const fetchDisplayedStockDetails = async () => {
@@ -153,28 +163,66 @@ const EmployeeInventory = () => {
       itemName: item.itemName,
       productVersion: item.productVersion,
       status: status,
-      unit: item.unit,
       quantity: '',
+      unit: item.unit,
+      requestedDate: undefined,
       reason: ''
     });
     setShowFlagForm(true);
   };
 
-  const handleSendRequest = () => {
-    toast({
-      title: "Request Sent",
-      description: `Low stock request sent to admin for: ${flagRequestData.itemName}`
-    });
-    setShowFlagForm(false);
-    setFlagRequestData({
-      productCategory: '',
-      itemName: '',
-      productVersion: '',
-      status: '',
-      unit: '',
-      quantity: '',
-      reason: ''
-    });
+  const handleSendRequest = async () => {
+    if (!currentUser?.companyId || !flagRequestData.quantity || !flagRequestData.unit || !flagRequestData.requestedDate || !flagRequestData.reason) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, 'purchase_requests'), {
+        companyId: currentUser.companyId,
+        employeeName: currentUser.displayName || currentUser.email?.split('@')[0] || 'Unknown',
+        employeeEmail: currentUser.email,
+        productCategory: flagRequestData.productCategory,
+        itemName: flagRequestData.itemName,
+        productVersion: flagRequestData.productVersion,
+        stockStatus: flagRequestData.status,
+        quantityRequired: parseInt(flagRequestData.quantity),
+        unit: flagRequestData.unit,
+        requestedDate: flagRequestData.requestedDate,
+        reason: flagRequestData.reason,
+        status: 'pending',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+
+      toast({
+        title: "Request Sent",
+        description: `Purchase request sent to admin for: ${flagRequestData.itemName}`
+      });
+
+      setShowFlagForm(false);
+      setFlagRequestData({
+        productCategory: '',
+        itemName: '',
+        productVersion: '',
+        status: '',
+        quantity: '',
+        unit: '',
+        requestedDate: undefined,
+        reason: ''
+      });
+    } catch (error) {
+      console.error('Error sending purchase request:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send purchase request. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleCancelRequest = () => {
@@ -184,8 +232,9 @@ const EmployeeInventory = () => {
       itemName: '',
       productVersion: '',
       status: '',
-      unit: '',
       quantity: '',
+      unit: '',
+      requestedDate: undefined,
       reason: ''
     });
   };
@@ -358,7 +407,7 @@ const EmployeeInventory = () => {
         {/* Flag Low Stock Form Modal */}
         {showFlagForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="bg-white rounded-lg p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">Flag Low Stock Request</h3>
                 <Button variant="ghost" size="sm" onClick={handleCancelRequest}>
@@ -413,7 +462,7 @@ const EmployeeInventory = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Quantity
+                    Quantity Required *
                   </label>
                   <Input
                     type="text"
@@ -425,18 +474,62 @@ const EmployeeInventory = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Unit
+                    Unit *
                   </label>
-                  <Input
+                  <Select
                     value={flagRequestData.unit}
-                    readOnly
-                    className="bg-gray-50"
-                  />
+                    onValueChange={(value) => setFlagRequestData(prev => ({ ...prev, unit: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {units.map((unit) => (
+                        <SelectItem key={unit} value={unit}>
+                          {unit}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Reason for Request
+                    Requested Date *
+                  </label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !flagRequestData.requestedDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {flagRequestData.requestedDate ? (
+                          format(flagRequestData.requestedDate, "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={flagRequestData.requestedDate}
+                        onSelect={(date) => setFlagRequestData(prev => ({ ...prev, requestedDate: date }))}
+                        disabled={(date) => date < new Date()}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Reason for Request *
                   </label>
                   <Textarea
                     value={flagRequestData.reason}
@@ -450,7 +543,7 @@ const EmployeeInventory = () => {
                   <Button 
                     onClick={handleSendRequest}
                     className="flex-1"
-                    disabled={!flagRequestData.quantity || !flagRequestData.reason}
+                    disabled={!flagRequestData.quantity || !flagRequestData.unit || !flagRequestData.requestedDate || !flagRequestData.reason}
                   >
                     Send Request to Admin
                   </Button>
