@@ -36,12 +36,20 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
 
-  // Filter out empty/invalid entries
+  // Filter out empty/invalid entries with debugging
   const categories = [...new Set(
     productDefinitions
-      .filter(p => p.productCategory && p.productCategory.trim() !== '')
+      .filter(p => {
+        console.log('Filtering product definition:', p);
+        const hasCategory = p.productCategory && p.productCategory.trim() !== '';
+        console.log('Has valid category:', hasCategory, 'Category:', p.productCategory);
+        return hasCategory;
+      })
       .map(p => p.productCategory)
   )];
+  
+  console.log('ManageProductCategoryModal - All product definitions:', productDefinitions);
+  console.log('ManageProductCategoryModal - Filtered categories:', categories);
 
   const namesInCategory = productDefinitions
     .filter(p => p.productCategory === selectedCategory && p.itemName && p.itemName.trim() !== '')
@@ -58,9 +66,13 @@ const ManageProductCategoryModal = ({ isOpen, onClose }: ManageProductCategoryMo
 
   // Debug logging
   useEffect(() => {
-    console.log('ManageProductCategoryModal - Product definitions:', productDefinitions.length);
-    console.log('ManageProductCategoryModal - Categories:', categories);
-  }, [productDefinitions, categories]);
+    console.log('=== ManageProductCategoryModal Debug ===');
+    console.log('Product definitions count:', productDefinitions.length);
+    console.log('Product definitions data:', productDefinitions);
+    console.log('Categories extracted:', categories);
+    console.log('Loading status:', loading);
+    console.log('==========================================');
+  }, [productDefinitions, categories, loading]);
 
   // Reset dependent fields when parent selection changes
   useEffect(() => {

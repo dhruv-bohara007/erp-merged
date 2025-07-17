@@ -32,13 +32,19 @@ export const useProductDefinitions = () => {
   const { currentUser } = useAuth();
 
   const fetchProductDefinitions = useCallback(async () => {
+    console.log('=== fetchProductDefinitions called ===');
+    console.log('Current user companyId:', currentUser?.companyId);
+    
     if (!currentUser?.companyId) {
+      console.log('No companyId found, stopping fetch');
       setLoading(false);
       return;
     }
 
     try {
       setLoading(true);
+      console.log('Querying product_definitions with companyId:', currentUser.companyId);
+      
       const q = query(
         collection(db, 'product_definitions'),
         where('companyId', '==', currentUser.companyId),
@@ -48,9 +54,12 @@ export const useProductDefinitions = () => {
       );
       
       const snapshot = await getDocs(q);
+      console.log('Query snapshot size:', snapshot.size);
+      console.log('Raw documents:', snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      
       const definitions = snapshot.docs.map(doc => {
         const data = doc.data();
-        return {
+        const definition = {
           id: doc.id,
           productCategory: data.productCategory,
           itemName: data.itemName,
@@ -59,8 +68,11 @@ export const useProductDefinitions = () => {
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
         };
+        console.log('Processed definition:', definition);
+        return definition;
       }) as ProductDefinition[];
 
+      console.log('Final definitions array:', definitions);
       setProductDefinitions(definitions);
       setError(null);
     } catch (err) {
