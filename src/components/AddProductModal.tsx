@@ -22,7 +22,7 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
   const { addInventoryItem } = useInventory();
   const { companyData } = useCompanyData();
   const { convertToINR, getCurrencyInfo, loading: currencyLoading } = useCurrencyConverter();
-  const { productDefinitions } = useProductDefinitions();
+  const { productDefinitions, addProductDefinition } = useProductDefinitions();
   
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -94,6 +94,13 @@ const AddProductModal = ({ isOpen, onClose }: AddProductModalProps) => {
     setLoading(true);
 
     try {
+      // Ensure product definition exists in the collection
+      await addProductDefinition({
+        category: formData.category,
+        name: formData.name,
+        version: formData.version
+      });
+
       // Convert to INR using the same logic as before
       const { amountInINR, rate: exchangeRate } = await convertToINR(rateValue, companyData?.country || 'US');
       
