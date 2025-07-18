@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -35,6 +34,7 @@ import EmployeeInventory from "./components/EmployeeInventory";
 import EmployeePurchases from "./components/EmployeePurchases";
 import StockDetails from "./components/StockDetails";
 import PurchaseRequests from "./components/PurchaseRequests";
+import PurchaseRequestsAdmin from "./components/PurchaseRequestsAdmin";
 
 const queryClient = new QueryClient();
 
@@ -227,7 +227,7 @@ const AuthenticatedApp = () => {
                     const urlParams = new URLSearchParams(window.location.search);
                     const section = urlParams.get('section');
                     if (section === 'purchase-requests') {
-                      return <PurchaseRequests />;
+                      return <PurchaseRequestsAdmin />;
                     }
                     return <PurchaseManagement />;
                   })()}
