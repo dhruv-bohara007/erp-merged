@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -219,22 +220,32 @@ const PurchaseManagement = () => {
     <PurchaseRequestsAdmin />
   );
 
-  // Purchase Order Content
+  // Purchase Order Content - Added Create Purchase Order button
   const renderPurchaseOrder = () => (
-    <Card>
-      <CardContent className="p-8 text-center">
-        <Package className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Purchase Order Management</h3>
-        <p className="text-gray-600 mb-4">Create and manage purchase orders with suppliers.</p>
+    <div className="space-y-6">
+      {/* Header with Create Purchase Order button */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">{pageContent.title}</h1>
+          <p className="text-gray-600 mt-2">{pageContent.description}</p>
+        </div>
         <Button className="bg-blue-600 hover:bg-blue-700">
           <Plus className="w-4 h-4 mr-2" />
           Create Purchase Order
         </Button>
-      </CardContent>
-    </Card>
+      </div>
+
+      <Card>
+        <CardContent className="p-8 text-center">
+          <Package className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Purchase Order Management</h3>
+          <p className="text-gray-600 mb-4">Create and manage purchase orders with suppliers.</p>
+        </CardContent>
+      </Card>
+    </div>
   );
 
-  // Purchase Record Content
+  // Purchase Record Content - Removed Actions column
   const renderPurchaseRecord = () => (
     <>
       {/* Summary Cards */}
@@ -349,13 +360,12 @@ const PurchaseManagement = () => {
                       <TableHead>Price per Unit</TableHead>
                       <TableHead>Total Amount</TableHead>
                       <TableHead>Date</TableHead>
-                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredPurchases.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                           No purchases found
                         </TableCell>
                       </TableRow>
@@ -391,17 +401,6 @@ const PurchaseManagement = () => {
                                 {(purchase.purchaseDate || purchase.expenseDate)?.toLocaleDateString() || 'N/A'}
                               </div>
                             </TableCell>
-                            <TableCell>
-                              <div className="flex space-x-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleViewDetails(purchase)}
-                                >
-                                  View
-                                </Button>
-                              </div>
-                            </TableCell>
                           </TableRow>
                         );
                       })
@@ -418,7 +417,7 @@ const PurchaseManagement = () => {
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       {/* Header Section - Only show for non-purchase-requests sections */}
-      {activeSection !== 'purchase-requests' && (
+      {activeSection !== 'purchase-requests' && activeSection !== 'purchase-order' && (
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold">{pageContent.title}</h1>

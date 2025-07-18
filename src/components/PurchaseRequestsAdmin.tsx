@@ -10,7 +10,10 @@ import {
   Search,
   Package,
   AlertTriangle,
-  MessageSquare
+  MessageSquare,
+  Edit,
+  Save,
+  X
 } from 'lucide-react';
 import { collection, getDocs, query, where, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -50,6 +53,8 @@ const PurchaseRequestsAdmin = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [editingQuantity, setEditingQuantity] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
   
   const { currentUser } = useAuth();
   const { toast } = useToast();
@@ -123,6 +128,58 @@ const PurchaseRequestsAdmin = () => {
         variant: "destructive"
       });
     }
+  };
+
+  const handleQuantityEdit = (requestId: string, currentQuantity: number) => {
+    setEditingQuantity(requestId);
+    setEditValue(currentQuantity.toString());
+  };
+
+  const handleQuantitySave = async (requestId: string) => {
+    const newQuantity = parseFloat(editValue);
+    if (isNaN(newQuantity) || newQuantity <= 0) {
+      toast({
+        title: "Invalid Quantity",
+        description: "Please enter a valid positive number",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const requestRef = doc(db, 'purchase_requests', requestId);
+      await updateDoc(requestRef, {
+        quantityRequired: newQuantity,
+        updatedAt: new Date()
+      });
+
+      // Update local state immediately
+      setRequests(prev => prev.map(req => 
+        req.id === requestId 
+          ? { ...req, quantityRequired: newQuantity, updatedAt: new Date() }
+          : req
+      ));
+
+      setEditingQuantity(null);
+      setEditValue('');
+
+      toast({
+        title: "Quantity Updated",
+        description: "Quantity has been successfully updated",
+      });
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update quantity",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleQuantityCancel = () => {
+    setEditingQuantity(null);
+    setEditValue('');
   };
 
   const getStatusBadgeVariant = (status: string) => {
@@ -293,7 +350,43 @@ const PurchaseRequestsAdmin = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {request.quantityRequired} {request.unit}
+                      {editingQuantity === request.id ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            className="w-20"
+                            min="1"
+                            step="1"
+                          />
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleQuantitySave(request.id)}
+                          >
+                            <Save className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={handleQuantityCancel}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span>{request.quantityRequired} {request.unit}</span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleQuantityEdit(request.id, request.quantityRequired)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge 
