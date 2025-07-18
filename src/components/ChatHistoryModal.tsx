@@ -177,7 +177,10 @@ const ChatHistoryModal = ({
                         <Shield className="w-3 h-3" />
                       )}
                       <span className="text-xs font-medium">
-                        {isCurrentUserMessage(message) ? 'You' : message.senderName}
+                        From: {message.senderEmail}
+                      </span>
+                      <span className="text-xs font-medium opacity-80">
+                        To: {isCurrentUserMessage(message) ? targetEmployeeEmail || 'Admin' : currentUser?.email}
                       </span>
                       <span className="text-xs opacity-70">
                         {format(message.createdAt, 'MMM dd, HH:mm')}
