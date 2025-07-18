@@ -10,8 +10,7 @@ import {
   Search,
   Package,
   TrendingUp,
-  AlertTriangle,
-  Plus
+  AlertTriangle
 } from 'lucide-react';
 import { collection, getDocs, query, where, doc, updateDoc, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -165,16 +164,10 @@ const PurchaseRequests = () => {
   return (
     <div className="p-6">
       <div className="max-w-7xl mx-auto space-y-4">
-        {/* Header with Create Purchase Order button */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Purchase Requests</h1>
-            <p className="text-gray-600 mt-2">Review and manage employee purchase requests</p>
-          </div>
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-            <Plus className="h-4 w-4 mr-2" />
-            Create Purchase Order
-          </Button>
+        {/* Header - Removed "New Request" button */}
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Purchase Requests</h1>
+          <p className="text-gray-600 mt-2">Review and manage employee purchase requests</p>
         </div>
 
         {/* Summary Cards - Moved upward */}
