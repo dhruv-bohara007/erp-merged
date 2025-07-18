@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -264,7 +263,7 @@ const EmployeeInventory = () => {
           </div>
         </div>
 
-        {/* Summary Stats - Moved to top */}
+        {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -514,14 +513,14 @@ const EmployeeInventory = () => {
                         {flagRequestData.requestedDate ? format(flagRequestData.requestedDate, "PPP") : <span>Pick a date</span>}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent className="w-auto p-0 z-[60]" align="start">
                       <Calendar
                         mode="single"
                         selected={flagRequestData.requestedDate}
                         onSelect={(date) => setFlagRequestData(prev => ({ ...prev, requestedDate: date }))}
                         disabled={(date) => date < new Date()}
                         initialFocus
-                        className={cn("p-3 pointer-events-auto")}
+                        className="p-3 pointer-events-auto"
                       />
                     </PopoverContent>
                   </Popover>
