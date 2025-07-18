@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageCircle, Send, Clock, User, Shield } from 'lucide-react';
-import { collection, addDoc, query, where, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, query, where, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -29,9 +29,18 @@ interface ChatHistoryModalProps {
   itemName: string;
   productCategory: string;
   children: React.ReactNode;
+  isAdmin?: boolean;
+  targetEmployeeEmail?: string;
 }
 
-const ChatHistoryModal = ({ itemId, itemName, productCategory, children }: ChatHistoryModalProps) => {
+const ChatHistoryModal = ({ 
+  itemId, 
+  itemName, 
+  productCategory, 
+  children, 
+  isAdmin = false,
+  targetEmployeeEmail 
+}: ChatHistoryModalProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -40,7 +49,7 @@ const ChatHistoryModal = ({ itemId, itemName, productCategory, children }: ChatH
   const { currentUser } = useAuth();
   const { toast } = useToast();
 
-  // Fetch messages when modal opens
+  // Fetch messages when modal opens - removed orderBy to avoid composite index requirement
   useEffect(() => {
     if (!open || !currentUser?.companyId) return;
 
@@ -48,8 +57,7 @@ const ChatHistoryModal = ({ itemId, itemName, productCategory, children }: ChatH
     const q = query(
       messagesCollection,
       where('companyId', '==', currentUser.companyId),
-      where('itemId', '==', itemId),
-      orderBy('createdAt', 'asc')
+      where('itemId', '==', itemId)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -61,6 +69,9 @@ const ChatHistoryModal = ({ itemId, itemName, productCategory, children }: ChatH
           createdAt: data.createdAt?.toDate() || new Date()
         };
       }) as ChatMessage[];
+
+      // Sort in memory by createdAt to avoid composite index requirement
+      fetchedMessages.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
       setMessages(fetchedMessages);
     }, (error) => {
@@ -87,7 +98,7 @@ const ChatHistoryModal = ({ itemId, itemName, productCategory, children }: ChatH
         productCategory: productCategory,
         senderEmail: currentUser.email,
         senderName: currentUser.displayName || currentUser.email?.split('@')[0] || 'Unknown',
-        senderRole: 'employee',
+        senderRole: isAdmin ? 'company_admin' : 'employee',
         message: newMessage.trim(),
         createdAt: serverTimestamp()
       });
@@ -95,7 +106,7 @@ const ChatHistoryModal = ({ itemId, itemName, productCategory, children }: ChatH
       setNewMessage('');
       toast({
         title: "Message Sent",
-        description: "Your message has been sent to the admin"
+        description: isAdmin ? "Your message has been sent to the employee" : "Your message has been sent to the admin"
       });
     } catch (error) {
       console.error('Error sending message:', error);
@@ -144,12 +155,15 @@ const ChatHistoryModal = ({ itemId, itemName, productCategory, children }: ChatH
                 <div
                   key={message.id}
                   className={`flex gap-3 ${
-                    message.senderRole === 'employee' ? 'justify-end' : 'justify-start'
+                    (isAdmin && message.senderRole === 'company_admin') || 
+                    (!isAdmin && message.senderRole === 'employee')
+                      ? 'justify-end' : 'justify-start'
                   }`}
                 >
                   <div
                     className={`max-w-[70%] rounded-lg p-3 ${
-                      message.senderRole === 'employee'
+                      (isAdmin && message.senderRole === 'company_admin') || 
+                      (!isAdmin && message.senderRole === 'employee')
                         ? 'bg-blue-600 text-white'
                         : 'bg-gray-100 text-gray-900'
                     }`}
@@ -179,7 +193,7 @@ const ChatHistoryModal = ({ itemId, itemName, productCategory, children }: ChatH
         <div className="flex items-end gap-2 pt-4 border-t">
           <div className="flex-1">
             <Input
-              placeholder="Type your message to admin..."
+              placeholder={isAdmin ? "Type your message to employee..." : "Type your message to admin..."}
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyPress={handleKeyPress}
@@ -193,7 +207,7 @@ const ChatHistoryModal = ({ itemId, itemName, productCategory, children }: ChatH
             className="bg-blue-600 hover:bg-blue-700"
           >
             <Send className="w-4 h-4 mr-1" />
-            Send to Admin
+            {isAdmin ? "Send to Employee" : "Send to Admin"}
           </Button>
         </div>
       </DialogContent>

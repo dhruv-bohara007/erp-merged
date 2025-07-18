@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,6 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import ChatHistoryModal from '@/components/ChatHistoryModal';
 
 interface PurchaseRequest {
   id: string;
@@ -408,14 +408,22 @@ const PurchaseRequestsAdmin = () => {
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col gap-2">
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          className="w-full"
+                        <ChatHistoryModal
+                          itemId={request.id}
+                          itemName={request.itemName}
+                          productCategory={request.productCategory}
+                          isAdmin={true}
+                          targetEmployeeEmail={request.employeeEmail}
                         >
-                          <MessageSquare className="h-4 w-4 mr-1" />
-                          Chat History
-                        </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="w-full"
+                          >
+                            <MessageSquare className="h-4 w-4 mr-1" />
+                            Chat History
+                          </Button>
+                        </ChatHistoryModal>
                         {request.status === 'rejected' && (
                           <Badge variant="destructive" className="self-start">
                             Rejected
