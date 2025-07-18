@@ -70,6 +70,11 @@ const ChatHistoryModal = ({
         };
       }) as ChatMessage[];
 
+      console.log('DEBUG - All fetched messages:', fetchedMessages);
+      console.log('DEBUG - Current user email:', currentUser?.email);
+      console.log('DEBUG - Current user role:', currentUser?.role);
+      console.log('DEBUG - Item ID:', itemId);
+
       // Sort in memory by createdAt to avoid composite index requirement
       fetchedMessages.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
