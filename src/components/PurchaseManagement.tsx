@@ -24,7 +24,7 @@ import { useCompanyData } from '@/hooks/useCompanyData';
 import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import EmployeePurchases from './EmployeePurchases';
+import PurchaseRequestsAdmin from './PurchaseRequestsAdmin';
 
 const PurchaseManagement = () => {
   const navigate = useNavigate();
@@ -214,9 +214,9 @@ const PurchaseManagement = () => {
 
   const pageContent = getPageContent();
 
-  // Purchase Requests Content
+  // Purchase Requests Content - Now renders PurchaseRequestsAdmin
   const renderPurchaseRequests = () => (
-    <EmployeePurchases />
+    <PurchaseRequestsAdmin />
   );
 
   // Purchase Order Content
@@ -417,22 +417,24 @@ const PurchaseManagement = () => {
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
-      {/* Header Section */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">{pageContent.title}</h1>
-          <p className="text-gray-600 mt-2">{pageContent.description}</p>
+      {/* Header Section - Only show for non-purchase-requests sections */}
+      {activeSection !== 'purchase-requests' && (
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">{pageContent.title}</h1>
+            <p className="text-gray-600 mt-2">{pageContent.description}</p>
+          </div>
+          {activeSection === 'purchase-record' && (
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={() => navigate('/add-purchase')}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Purchase
+            </Button>
+          )}
         </div>
-        {activeSection === 'purchase-record' && (
-          <Button 
-            className="bg-blue-600 hover:bg-blue-700"
-            onClick={() => navigate('/add-purchase')}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Purchase
-          </Button>
-        )}
-      </div>
+      )}
 
       {/* Content Section */}
       {activeSection === 'purchase-requests' && renderPurchaseRequests()}
