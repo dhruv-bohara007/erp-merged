@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,10 @@ import {
   CheckCircle, 
   XCircle, 
   Clock,
-  Search
+  Search,
+  Package,
+  TrendingUp,
+  AlertTriangle
 } from 'lucide-react';
 import { collection, getDocs, query, where, doc, updateDoc, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -140,6 +144,12 @@ const PurchaseRequests = () => {
     return matchesSearch && matchesStatus;
   });
 
+  // Calculate summary statistics
+  const totalRequests = requests.length;
+  const pendingRequests = requests.filter(r => r.status === 'pending').length;
+  const approvedRequests = requests.filter(r => r.status === 'approved').length;
+  const criticalStockRequests = requests.filter(r => r.stockStatus === 'critical').length;
+
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center min-h-screen">
@@ -153,13 +163,70 @@ const PurchaseRequests = () => {
 
   return (
     <div className="p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Purchase Requests</h1>
-            <p className="text-gray-600 mt-2">Review and manage employee purchase requests</p>
-          </div>
+      <div className="max-w-7xl mx-auto space-y-4">
+        {/* Header - Removed "New Request" button */}
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Purchase Requests</h1>
+          <p className="text-gray-600 mt-2">Review and manage employee purchase requests</p>
+        </div>
+
+        {/* Summary Cards - Moved upward */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Requests</p>
+                  <p className="text-2xl font-bold">{totalRequests}</p>
+                </div>
+                <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Package className="h-4 w-4 text-blue-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Pending</p>
+                  <p className="text-2xl font-bold text-yellow-600">{pendingRequests}</p>
+                </div>
+                <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                  <Clock className="h-4 w-4 text-yellow-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Approved</p>
+                  <p className="text-2xl font-bold text-green-600">{approvedRequests}</p>
+                </div>
+                <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Critical Stock</p>
+                  <p className="text-2xl font-bold text-red-600">{criticalStockRequests}</p>
+                </div>
+                <div className="h-8 w-8 bg-red-100 rounded-full flex items-center justify-center">
+                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Search and Filter */}
@@ -194,7 +261,7 @@ const PurchaseRequests = () => {
           {filteredRequests.map((request) => (
             <Card key={request.id} className="border-l-4 border-l-blue-500">
               <CardContent className="pt-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                   {/* Employee Info */}
                   <div>
                     <h3 className="font-semibold text-lg mb-2">Employee Details</h3>
@@ -227,44 +294,42 @@ const PurchaseRequests = () => {
                   <div>
                     <h3 className="font-semibold text-lg mb-2">Request Details</h3>
                     <div className="space-y-1 text-sm">
-                      <p><span className="font-medium">Quantity:</span> {request.quantityRequired} {request.unit}</p>
-                      <p><span className="font-medium">Required Date:</span> {format(request.requestedDate, 'PPP')}</p>
+                      <p><span className="font-medium">Quantity Required:</span> {request.quantityRequired} {request.unit}</p>
+                      <p><span className="font-medium">Requested Date:</span> {format(request.requestedDate, 'PPP')}</p>
                       <p><span className="font-medium">Reason:</span> {request.reason}</p>
                     </div>
                   </div>
-                </div>
 
-                {/* Status and Actions */}
-                <div className="flex justify-between items-center mt-6 pt-4 border-t">
-                  <div className="flex items-center gap-2">
-                    {getStatusIcon(request.status)}
-                    <Badge variant={getStatusBadgeVariant(request.status)}>
-                      {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                    </Badge>
-                  </div>
-
-                  {request.status === 'pending' && (
-                    <div className="flex gap-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => handleUpdateStatus(request.id, 'approved')}
-                        className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                      >
-                        <CheckCircle className="w-4 h-4 mr-1" />
-                        Approve
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => handleUpdateStatus(request.id, 'rejected')}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <XCircle className="w-4 h-4 mr-1" />
-                        Reject
-                      </Button>
+                  {/* Status and Actions */}
+                  <div className="flex flex-col justify-between">
+                    <div className="flex items-center gap-2 mb-4">
+                      {getStatusIcon(request.status)}
+                      <Badge variant={getStatusBadgeVariant(request.status)}>
+                        {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                      </Badge>
                     </div>
-                  )}
+
+                    {request.status === 'pending' && (
+                      <div className="flex flex-col gap-2">
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleUpdateStatus(request.id, 'approved')}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          <CheckCircle className="w-4 h-4 mr-1" />
+                          ✅ Approve
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="destructive"
+                          onClick={() => handleUpdateStatus(request.id, 'rejected')}
+                        >
+                          <XCircle className="w-4 h-4 mr-1" />
+                          ❌ Reject
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
