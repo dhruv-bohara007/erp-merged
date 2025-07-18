@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageCircle, Send, Clock, User, Shield } from 'lucide-react';
-import { collection, addDoc, query, where, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, query, where, onSnapshot, serverTimestamp, or } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -49,7 +49,7 @@ const ChatHistoryModal = ({
   const { currentUser } = useAuth();
   const { toast } = useToast();
 
-  // Fetch messages when modal opens - removed orderBy to avoid composite index requirement
+  // Fetch messages when modal opens - get all messages for this item to show complete conversation
   useEffect(() => {
     if (!open || !currentUser?.companyId) return;
 
@@ -127,6 +127,11 @@ const ChatHistoryModal = ({
     }
   };
 
+  // Determine if the message is from the current user
+  const isCurrentUserMessage = (message: ChatMessage) => {
+    return message.senderEmail === currentUser?.email;
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -155,15 +160,12 @@ const ChatHistoryModal = ({
                 <div
                   key={message.id}
                   className={`flex gap-3 ${
-                    (isAdmin && message.senderRole === 'company_admin') || 
-                    (!isAdmin && message.senderRole === 'employee')
-                      ? 'justify-end' : 'justify-start'
+                    isCurrentUserMessage(message) ? 'justify-end' : 'justify-start'
                   }`}
                 >
                   <div
                     className={`max-w-[70%] rounded-lg p-3 ${
-                      (isAdmin && message.senderRole === 'company_admin') || 
-                      (!isAdmin && message.senderRole === 'employee')
+                      isCurrentUserMessage(message)
                         ? 'bg-blue-600 text-white'
                         : 'bg-gray-100 text-gray-900'
                     }`}
@@ -175,7 +177,7 @@ const ChatHistoryModal = ({
                         <Shield className="w-3 h-3" />
                       )}
                       <span className="text-xs font-medium">
-                        {message.senderName}
+                        {isCurrentUserMessage(message) ? 'You' : message.senderName}
                       </span>
                       <span className="text-xs opacity-70">
                         {format(message.createdAt, 'MMM dd, HH:mm')}
