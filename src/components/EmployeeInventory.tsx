@@ -23,6 +23,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import ChatHistoryModal from './ChatHistoryModal';
 
 interface StockDetailsData {
   id: string;
@@ -368,10 +369,16 @@ const EmployeeInventory = () => {
                     </div>
                     
                     <div className="flex gap-2 pt-2">
-                      <Button size="sm" variant="outline" className="flex-1">
-                        <MessageCircle className="w-3 h-3 mr-1" />
-                        Chat History
-                      </Button>
+                      <ChatHistoryModal
+                        itemId={item.id}
+                        itemName={item.itemName}
+                        productCategory={item.productCategory}
+                      >
+                        <Button size="sm" variant="outline" className="flex-1">
+                          <MessageCircle className="w-3 h-3 mr-1" />
+                          Chat History
+                        </Button>
+                      </ChatHistoryModal>
                       {(status === 'low' || status === 'critical') && (
                         <Button 
                           size="sm" 

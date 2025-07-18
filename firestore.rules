@@ -258,5 +258,23 @@ service cloud.firestore {
       
       allow read, write: if isSuperAdmin();
     }
+
+    // MESSAGES: employees can read/write their messages, admins can read/write all company messages
+    match /messages/{messageId} {
+      // Company admins can read and write all messages from their company
+      allow read, write: if isCompanyAdmin() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      // Employees can create messages for their company
+      allow create: if isEmployeeUser() && getUserData().companyId != null &&
+        request.resource.data.companyId == getUserData().companyId &&
+        request.resource.data.senderEmail == getUserData().email;
+      
+      // Employees can read messages from their company
+      allow read: if isEmployeeUser() && getUserData().companyId != null &&
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow read, write: if isSuperAdmin();
+    }
   }
 }
