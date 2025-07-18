@@ -11,7 +11,7 @@ import {
   Package,
   AlertTriangle
 } from 'lucide-react';
-import { collection, getDocs, query, where, doc, updateDoc, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -58,10 +58,10 @@ const PurchaseRequestsAdmin = () => {
 
     try {
       const requestsCollection = collection(db, 'purchase_requests');
+      // Remove orderBy to avoid composite index requirement
       const q = query(
         requestsCollection, 
-        where('companyId', '==', currentUser.companyId),
-        orderBy('createdAt', 'desc')
+        where('companyId', '==', currentUser.companyId)
       );
       const snapshot = await getDocs(q);
       
@@ -75,6 +75,9 @@ const PurchaseRequestsAdmin = () => {
           requestedDate: data.requestedDate?.toDate() || new Date()
         };
       }) as PurchaseRequest[];
+
+      // Sort in memory instead of using orderBy
+      fetchedRequests.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
 
       setRequests(fetchedRequests);
     } catch (error) {
