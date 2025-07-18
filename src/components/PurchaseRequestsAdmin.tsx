@@ -9,8 +9,7 @@ import {
   Clock,
   Search,
   Package,
-  AlertTriangle,
-  MessageCircle
+  AlertTriangle
 } from 'lucide-react';
 import { collection, getDocs, query, where, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -272,7 +271,7 @@ const PurchaseRequestsAdmin = () => {
                   <TableHead>Stock Status</TableHead>
                   <TableHead>Requested Date</TableHead>
                   <TableHead>Reason</TableHead>
-                  <TableHead>Chat History</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -314,21 +313,9 @@ const PurchaseRequestsAdmin = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col gap-2">
-                        {request.status === 'rejected' && (
-                          <Badge variant="destructive">
-                            Rejected
-                          </Badge>
-                        )}
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          className="flex items-center gap-1"
-                        >
-                          <MessageCircle className="h-4 w-4" />
-                          Chat History
-                        </Button>
-                      </div>
+                      <Badge variant={getStatusBadgeVariant(request.status)}>
+                        {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       {request.status === 'pending' && (
@@ -348,14 +335,6 @@ const PurchaseRequestsAdmin = () => {
                             ❌ Reject
                           </Button>
                         </div>
-                      )}
-                      {request.status === 'approved' && (
-                        <Button 
-                          size="sm" 
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
-                        >
-                          Create Purchase Order
-                        </Button>
                       )}
                     </TableCell>
                   </TableRow>
