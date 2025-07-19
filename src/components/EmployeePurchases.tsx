@@ -1,15 +1,10 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   ShoppingCart, 
-  Plus,
   Clock,
   CheckCircle,
   XCircle,
@@ -62,25 +57,39 @@ const mockPurchaseRequests = [
     priority: 'medium',
     sentDate: '2024-01-17'
   },
+  { 
+    id: '5', 
+    itemName: 'Monitors', 
+    quantity: 2, 
+    reason: 'Additional screens for developers', 
+    status: 'approved', 
+    requestDate: '2024-01-11',
+    estimatedCost: 30000,
+    priority: 'medium',
+    approvedDate: '2024-01-13'
+  },
+  { 
+    id: '6', 
+    itemName: 'Keyboards', 
+    quantity: 5, 
+    reason: 'Replacement for damaged keyboards', 
+    status: 'pending', 
+    requestDate: '2024-01-10',
+    estimatedCost: 2500,
+    priority: 'low'
+  },
 ];
 
 const mockPurchaseHistory = [
   { id: '1', itemName: 'Office Chairs', quantity: 5, purchaseDate: '2024-01-10', cost: 25000, status: 'delivered' },
   { id: '2', itemName: 'Printer Paper', quantity: 20, purchaseDate: '2024-01-08', cost: 1000, status: 'delivered' },
   { id: '3', itemName: 'Stationery Kit', quantity: 10, purchaseDate: '2024-01-05', cost: 3000, status: 'delivered' },
+  { id: '4', itemName: 'Desk Lamps', quantity: 8, purchaseDate: '2024-01-03', cost: 4000, status: 'delivered' },
+  { id: '5', itemName: 'Whiteboards', quantity: 3, purchaseDate: '2024-01-01', cost: 15000, status: 'delivered' },
+  { id: '6', itemName: 'Coffee Machine', quantity: 1, purchaseDate: '2023-12-28', cost: 12000, status: 'delivered' },
 ];
 
 const EmployeePurchases = () => {
-  const [isNewRequestOpen, setIsNewRequestOpen] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState(null);
-  const [formData, setFormData] = useState({
-    itemName: '',
-    quantity: '',
-    reason: '',
-    priority: 'medium',
-    estimatedCost: ''
-  });
-
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'pending': return 'secondary';
@@ -110,103 +119,66 @@ const EmployeePurchases = () => {
     }
   };
 
-  const handleSubmitRequest = () => {
-    // TODO: Implement actual request submission
-    console.log('Submitting request:', formData);
-    setIsNewRequestOpen(false);
-    setFormData({
-      itemName: '',
-      quantity: '',
-      reason: '',
-      priority: 'medium',
-      estimatedCost: ''
-    });
-    alert('Purchase request submitted successfully!');
+  // Filter and limit functions
+  const filterRequestsByStatus = (status: string) => {
+    return mockPurchaseRequests.filter(req => req.status === status).slice(0, 5);
   };
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
+  const limitedPurchaseHistory = mockPurchaseHistory.slice(0, 5);
+
+  const renderRequestItem = (request: any) => (
+    <div key={request.id} className="border rounded-lg p-4 hover:bg-gray-50">
+      <div className="flex items-start justify-between mb-2">
+        <div>
+          <h4 className="font-medium text-gray-900">{request.itemName}</h4>
+          <p className="text-sm text-gray-500">Qty: {request.quantity} | ₹{request.estimatedCost.toLocaleString()}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs font-medium ${getPriorityColor(request.priority)}`}>
+            {request.priority.toUpperCase()}
+          </span>
+          <Badge variant={getStatusBadgeVariant(request.status)}>
+            {getStatusIcon(request.status)}
+            <span className="ml-1">{request.status}</span>
+          </Badge>
+        </div>
+      </div>
+      <p className="text-sm text-gray-600 mb-2">{request.reason}</p>
+      <div className="flex items-center justify-between text-xs text-gray-500">
+        <span>Requested: {request.requestDate}</span>
+        <Button size="sm" variant="outline">
+          <Eye className="w-3 h-3 mr-1" />
+          Details
+        </Button>
+      </div>
+    </div>
+  );
+
+  const renderHistoryItem = (purchase: any) => (
+    <div key={purchase.id} className="border rounded-lg p-4 hover:bg-gray-50">
+      <div className="flex items-start justify-between mb-2">
+        <div>
+          <h4 className="font-medium text-gray-900">{purchase.itemName}</h4>
+          <p className="text-sm text-gray-500">Qty: {purchase.quantity} | ₹{purchase.cost.toLocaleString()}</p>
+        </div>
+        <Badge variant="default">
+          <CheckCircle className="w-3 h-3 mr-1" />
+          {purchase.status}
+        </Badge>
+      </div>
+      <div className="flex items-center justify-between text-xs text-gray-500">
+        <span>Delivered: {purchase.purchaseDate}</span>
+        <Button size="sm" variant="outline">
+          <Eye className="w-3 h-3 mr-1" />
+          View
+        </Button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <Dialog open={isNewRequestOpen} onOpenChange={setIsNewRequestOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-blue-600 hover:bg-blue-700 ml-auto">
-              <Plus className="w-4 h-4 mr-2" />
-              New Request
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Submit Purchase Request</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="itemName">Item Name</Label>
-                <Input
-                  id="itemName"
-                  value={formData.itemName}
-                  onChange={(e) => handleInputChange('itemName', e.target.value)}
-                  placeholder="Enter item name"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="quantity">Quantity</Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    value={formData.quantity}
-                    onChange={(e) => handleInputChange('quantity', e.target.value)}
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="estimatedCost">Estimated Cost (₹)</Label>
-                  <Input
-                    id="estimatedCost"
-                    type="number"
-                    value={formData.estimatedCost}
-                    onChange={(e) => handleInputChange('estimatedCost', e.target.value)}
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="priority">Priority</Label>
-                <select
-                  id="priority"
-                  value={formData.priority}
-                  onChange={(e) => handleInputChange('priority', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="reason">Reason for Request</Label>
-                <Textarea
-                  id="reason"
-                  value={formData.reason}
-                  onChange={(e) => handleInputChange('reason', e.target.value)}
-                  placeholder="Explain why this purchase is needed..."
-                  rows={3}
-                />
-              </div>
-              <Button onClick={handleSubmitRequest} className="w-full">
-                Submit Request
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Summary Cards */}
+      {/* Summary Cards - Moved to top */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -257,73 +229,59 @@ const EmployeePurchases = () => {
 
       {/* Purchase Requests and History */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Active Requests */}
+        {/* Purchase Requests with Tabs */}
         <Card>
           <CardHeader>
-            <CardTitle>My Purchase Requests</CardTitle>
+            <CardTitle>Purchase Requests</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {mockPurchaseRequests.map((request) => (
-                <div key={request.id} className="border rounded-lg p-4 hover:bg-gray-50">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h4 className="font-medium text-gray-900">{request.itemName}</h4>
-                      <p className="text-sm text-gray-500">Qty: {request.quantity} | ₹{request.estimatedCost.toLocaleString()}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-xs font-medium ${getPriorityColor(request.priority)}`}>
-                        {request.priority.toUpperCase()}
-                      </span>
-                      <Badge variant={getStatusBadgeVariant(request.status)}>
-                        {getStatusIcon(request.status)}
-                        <span className="ml-1">{request.status}</span>
-                      </Badge>
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-2">{request.reason}</p>
-                  <div className="flex items-center justify-between text-xs text-gray-500">
-                    <span>Requested: {request.requestDate}</span>
-                    <Button size="sm" variant="outline">
-                      <Eye className="w-3 h-3 mr-1" />
-                      Details
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <Tabs defaultValue="all" className="w-full">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="pending">Pending</TabsTrigger>
+                <TabsTrigger value="approved">Approved</TabsTrigger>
+                <TabsTrigger value="rejected">Rejected</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="all" className="space-y-4 mt-4">
+                {mockPurchaseRequests.slice(0, 5).map(renderRequestItem)}
+              </TabsContent>
+              
+              <TabsContent value="pending" className="space-y-4 mt-4">
+                {filterRequestsByStatus('pending').map(renderRequestItem)}
+              </TabsContent>
+              
+              <TabsContent value="approved" className="space-y-4 mt-4">
+                {filterRequestsByStatus('approved').map(renderRequestItem)}
+              </TabsContent>
+              
+              <TabsContent value="rejected" className="space-y-4 mt-4">
+                {filterRequestsByStatus('rejected').map(renderRequestItem)}
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
 
-        {/* Purchase History */}
+        {/* Purchase History with Tabs */}
         <Card>
           <CardHeader>
             <CardTitle>Purchase History</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {mockPurchaseHistory.map((purchase) => (
-                <div key={purchase.id} className="border rounded-lg p-4 hover:bg-gray-50">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h4 className="font-medium text-gray-900">{purchase.itemName}</h4>
-                      <p className="text-sm text-gray-500">Qty: {purchase.quantity} | ₹{purchase.cost.toLocaleString()}</p>
-                    </div>
-                    <Badge variant="default">
-                      <CheckCircle className="w-3 h-3 mr-1" />
-                      {purchase.status}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-gray-500">
-                    <span>Delivered: {purchase.purchaseDate}</span>
-                    <Button size="sm" variant="outline">
-                      <Eye className="w-3 h-3 mr-1" />
-                      View
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <Tabs defaultValue="recent" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="recent">Recent</TabsTrigger>
+                <TabsTrigger value="all">All</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="recent" className="space-y-4 mt-4">
+                {limitedPurchaseHistory.map(renderHistoryItem)}
+              </TabsContent>
+              
+              <TabsContent value="all" className="space-y-4 mt-4">
+                {mockPurchaseHistory.slice(0, 5).map(renderHistoryItem)}
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       </div>
