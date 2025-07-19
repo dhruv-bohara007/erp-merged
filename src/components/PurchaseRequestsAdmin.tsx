@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -44,6 +45,7 @@ interface PurchaseRequest {
   requestedDate: Date;
   reason: string;
   status: 'pending' | 'approved' | 'rejected';
+  priority: 'low' | 'medium' | 'high';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -78,7 +80,8 @@ const PurchaseRequestsAdmin = () => {
           id: doc.id,
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
-          requestedDate: data.requestedDate?.toDate() || new Date()
+          requestedDate: data.requestedDate?.toDate() || new Date(),
+          priority: data.priority || 'medium' // Default to medium if not set
         };
       }) as PurchaseRequest[];
 
@@ -187,6 +190,15 @@ const PurchaseRequestsAdmin = () => {
       case 'pending': return 'secondary';
       case 'approved': return 'default';
       case 'rejected': return 'destructive';
+      default: return 'secondary';
+    }
+  };
+
+  const getPriorityBadgeVariant = (priority: string) => {
+    switch (priority) {
+      case 'high': return 'destructive';
+      case 'medium': return 'secondary';
+      case 'low': return 'default';
       default: return 'secondary';
     }
   };
@@ -326,6 +338,7 @@ const PurchaseRequestsAdmin = () => {
                   <TableHead>Employee</TableHead>
                   <TableHead>Product Details</TableHead>
                   <TableHead>Quantity</TableHead>
+                  <TableHead>Priority</TableHead>
                   <TableHead>Stock Status</TableHead>
                   <TableHead>Requested Date</TableHead>
                   <TableHead>Reason</TableHead>
@@ -387,6 +400,11 @@ const PurchaseRequestsAdmin = () => {
                           </Button>
                         </div>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={getPriorityBadgeVariant(request.priority)}>
+                        {request.priority.charAt(0).toUpperCase() + request.priority.slice(1)}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <Badge 
@@ -451,12 +469,14 @@ const PurchaseRequestsAdmin = () => {
                         </div>
                       )}
                       {request.status === 'approved' && (
-                        <Button 
-                          size="sm"
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
-                        >
-                          Create Purchase Order
-                        </Button>
+                        <Badge variant="default" className="bg-green-100 text-green-800">
+                          Approved
+                        </Badge>
+                      )}
+                      {request.status === 'rejected' && (
+                        <Badge variant="destructive">
+                          Rejected
+                        </Badge>
                       )}
                     </TableCell>
                   </TableRow>

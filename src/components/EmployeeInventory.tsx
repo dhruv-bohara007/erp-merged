@@ -17,7 +17,9 @@ import {
   MessageCircle,
   X,
   CalendarIcon,
-  ChevronDown
+  ChevronDown,
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 import { collection, getDocs, query, where, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -55,13 +57,14 @@ interface FlagRequestData {
   requestedDate: Date | undefined;
 }
 
-interface PendingRequest {
+interface PurchaseRequest {
   id: string;
   itemName: string;
   productCategory: string;
   productVersion: string;
-  status: 'pending';
+  status: 'pending' | 'approved' | 'rejected';
   priority: 'low' | 'medium' | 'high';
+  quantityRequired: number;
   createdAt: Date;
 }
 
@@ -69,7 +72,7 @@ const EmployeeInventory = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [stockDetails, setStockDetails] = useState<StockDetailsData[]>([]);
-  const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
+  const [allRequests, setAllRequests] = useState<PurchaseRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [showFlagForm, setShowFlagForm] = useState(false);
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
@@ -121,16 +124,15 @@ const EmployeeInventory = () => {
     }
   };
 
-  // Fetch pending purchase requests for this company
-  const fetchPendingRequests = async () => {
+  // Fetch all purchase requests for this company
+  const fetchAllRequests = async () => {
     if (!currentUser?.companyId) return [];
 
     try {
       const purchaseRequestsCollection = collection(db, 'purchase_requests');
       const q = query(
         purchaseRequestsCollection,
-        where('companyId', '==', currentUser.companyId),
-        where('status', '==', 'pending')
+        where('companyId', '==', currentUser.companyId)
       );
       const snapshot = await getDocs(q);
       
@@ -143,11 +145,12 @@ const EmployeeInventory = () => {
           productVersion: data.productVersion,
           status: data.status,
           priority: data.priority || 'medium',
+          quantityRequired: data.quantityRequired || 0,
           createdAt: data.createdAt?.toDate() || new Date()
         };
-      }) as PendingRequest[];
+      }) as PurchaseRequest[];
     } catch (error) {
-      console.error('Error fetching pending requests:', error);
+      console.error('Error fetching all requests:', error);
       return [];
     }
   };
@@ -157,10 +160,10 @@ const EmployeeInventory = () => {
       setLoading(true);
       const [displayedStock, requests] = await Promise.all([
         fetchDisplayedStockDetails(),
-        fetchPendingRequests()
+        fetchAllRequests()
       ]);
       setStockDetails(displayedStock);
-      setPendingRequests(requests);
+      setAllRequests(requests);
       setLoading(false);
     };
 
@@ -189,13 +192,16 @@ const EmployeeInventory = () => {
     }
   };
 
-  // Check if item has pending request
-  const getItemPendingRequest = (item: StockDetailsData) => {
-    return pendingRequests.find(req => 
+  // Get the most recent request for an item
+  const getItemRequest = (item: StockDetailsData) => {
+    const itemRequests = allRequests.filter(req => 
       req.itemName === item.itemName &&
       req.productCategory === item.productCategory &&
       req.productVersion === item.productVersion
     );
+    
+    // Return the most recent request
+    return itemRequests.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
   };
 
   const getStatusColor = (status: string) => {
@@ -213,15 +219,6 @@ const EmployeeInventory = () => {
       case 'low': return 'secondary';
       case 'critical': return 'destructive';
       default: return 'secondary';
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'text-red-600';
-      case 'medium': return 'text-yellow-600';
-      case 'low': return 'text-green-600';
-      default: return 'text-gray-600';
     }
   };
 
@@ -282,17 +279,18 @@ const EmployeeInventory = () => {
       await addDoc(collection(db, 'purchase_requests'), newRequest);
 
       // Add to local state for immediate UI update
-      const newPendingRequest: PendingRequest = {
+      const newPurchaseRequest: PurchaseRequest = {
         id: Date.now().toString(), // temporary ID
         itemName: flagRequestData.itemName,
         productCategory: flagRequestData.productCategory,
         productVersion: flagRequestData.productVersion,
         status: 'pending',
         priority: flagRequestData.priority as 'low' | 'medium' | 'high',
+        quantityRequired: parseInt(flagRequestData.quantity),
         createdAt: new Date()
       };
 
-      setPendingRequests(prev => [...prev, newPendingRequest]);
+      setAllRequests(prev => [...prev, newPurchaseRequest]);
 
       toast({
         title: "Request Sent",
@@ -422,7 +420,9 @@ const EmployeeInventory = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredInventory.map((item) => {
             const status = getItemStatus(item);
-            const pendingRequest = getItemPendingRequest(item);
+            const itemRequest = getItemRequest(item);
+            const isRequestDisabled = itemRequest?.status === 'approved';
+            
             return (
               <Card key={item.id} className={`border-l-4 ${
                 status === 'critical' ? 'border-l-red-500' :
@@ -444,15 +444,47 @@ const EmployeeInventory = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {/* Pending Request Alert */}
-                    {pendingRequest && status !== 'normal' && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    {/* Request Status Alerts */}
+                    {itemRequest && (
+                      <div className={`border rounded-lg p-3 ${
+                        itemRequest.status === 'pending' ? 'bg-blue-50 border-blue-200' :
+                        itemRequest.status === 'approved' ? 'bg-green-50 border-green-200' :
+                        'bg-red-50 border-red-200'
+                      }`}>
                         <div className="flex items-center gap-2">
-                          <Flag className="h-4 w-4 text-blue-600" />
-                          <span className="text-sm font-medium text-blue-800">Request Pending</span>
+                          {itemRequest.status === 'pending' && (
+                            <>
+                              <Flag className="h-4 w-4 text-blue-600" />
+                              <span className="text-sm font-medium text-blue-800">Request Pending</span>
+                            </>
+                          )}
+                          {itemRequest.status === 'approved' && (
+                            <>
+                              <CheckCircle className="h-4 w-4 text-green-600" />
+                              <span className="text-sm font-medium text-green-800">Request Approved</span>
+                            </>
+                          )}
+                          {itemRequest.status === 'rejected' && (
+                            <>
+                              <XCircle className="h-4 w-4 text-red-600" />
+                              <span className="text-sm font-medium text-red-800">Request Rejected</span>
+                            </>
+                          )}
                         </div>
-                        <p className="text-xs text-blue-600 mt-1">
-                          Purchase request submitted with {pendingRequest.priority} priority
+                        <p className="text-xs mt-1 ${
+                          itemRequest.status === 'pending' ? 'text-blue-600' :
+                          itemRequest.status === 'approved' ? 'text-green-600' :
+                          'text-red-600'
+                        }">
+                          {itemRequest.status === 'pending' && 
+                            `Purchase request submitted with ${itemRequest.priority} priority`
+                          }
+                          {itemRequest.status === 'approved' && 
+                            `Previous purchase request of ${itemRequest.quantityRequired} was approved by admin.`
+                          }
+                          {itemRequest.status === 'rejected' && 
+                            `Previous purchase request of ${itemRequest.quantityRequired} was rejected by admin.`
+                          }
                         </p>
                       </div>
                     )}
@@ -483,13 +515,14 @@ const EmployeeInventory = () => {
                           Chat History
                         </Button>
                       </ChatHistoryModal>
-                      {(status === 'low' || status === 'critical') && !pendingRequest && (
+                      {(status === 'low' || status === 'critical') && (
                         <div className="relative flex-1">
                           <Button 
                             size="sm" 
                             variant="outline"
                             onClick={() => handleFlagLowClick(item)}
                             className="w-full"
+                            disabled={isRequestDisabled}
                           >
                             <Flag className="w-3 h-3 mr-1" />
                             Flag Low
