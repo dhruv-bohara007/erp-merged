@@ -461,6 +461,7 @@ const StockDetails = () => {
                   <TableHead>Item Name</TableHead>
                   <TableHead>Product Version</TableHead>
                   <TableHead>Current Stock</TableHead>
+                  <TableHead>Price Per Unit</TableHead>
                   <TableHead>Min Required</TableHead>
                   <TableHead>Safe Quantity Limit</TableHead>
                   <TableHead>Last Updated</TableHead>
@@ -470,7 +471,7 @@ const StockDetails = () => {
               <TableBody>
                 {sortedStockDetails.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                       No stock items found
                     </TableCell>
                   </TableRow>
@@ -488,6 +489,17 @@ const StockDetails = () => {
                       </TableCell>
                       <TableCell>
                         <div>{item.currentStock} {item.unit}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">
+                          {companyData?.companyCurrency ? 
+                            `${companyData.companyCurrency === 'USD' ? '$' : 
+                               companyData.companyCurrency === 'EUR' ? '€' : 
+                               companyData.companyCurrency === 'GBP' ? '£' : 
+                               companyData.companyCurrency === 'INR' ? '₹' : 
+                               companyData.companyCurrency}${(item.pricePerUnit || 0).toLocaleString()}` 
+                            : `$${(item.pricePerUnit || 0).toLocaleString()}`}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2 items-center">

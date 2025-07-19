@@ -36,6 +36,7 @@ export class PurchaseStockService {
           currentStock: quantity,
           lastPurchaseDate: purchaseRecord.purchaseDate || new Date(),
           unit: purchaseRecord.unit || 'pcs',
+          pricePerUnit: purchaseRecord.pricePerUnit || 0,
           minRequired: 0,
           safeQuantityLimit: 0,
           displayStatus: 'displayed',
@@ -50,6 +51,7 @@ export class PurchaseStockService {
         await updateDoc(doc(db, 'stock_details', stockDoc.id), {
           currentStock: currentData.currentStock + quantity,
           lastPurchaseDate: purchaseRecord.purchaseDate || new Date(),
+          pricePerUnit: purchaseRecord.pricePerUnit || currentData.pricePerUnit || 0,
           updatedAt: new Date()
         });
       }
