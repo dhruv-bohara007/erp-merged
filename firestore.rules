@@ -259,6 +259,21 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
     }
 
+    // PURCHASE_ORDERS: only accessible by users from the same company
+    match /purchase_orders/{purchaseOrderId} {
+      allow read, write: if isCompanyAdmin() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow create: if isCompanyAdmin() &&
+        request.resource.data.companyId == getUserData().companyId;
+      
+      // Employees can read purchase orders from their company
+      allow read: if isEmployeeUser() && getUserData().companyId != null &&
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow read, write: if isSuperAdmin();
+    }
+
     // MESSAGES: employees can read/write their messages, admins can read/write all company messages
     match /messages/{messageId} {
       // Company admins can read and write all messages from their company

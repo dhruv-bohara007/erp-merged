@@ -107,7 +107,7 @@ const PurchaseCreationForm = () => {
       p.itemName === name && 
       p.productVersion === version
     );
-    return product?.pricePerUnitValue || 0;
+    return product?.pricePerUnit || 0;
   };
 
   // Calculate totals
@@ -254,6 +254,15 @@ const PurchaseCreationForm = () => {
   const supplierCurrency = getCurrencyInfo(supplierCountry);
 
   const handleSubmit = async (status: 'draft' | 'completed') => {
+    if (!currentUser?.companyId) {
+      toast({
+        title: "Error",
+        description: "Company information is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!purchaseData.supplierId) {
       toast({
         title: "Error",
@@ -275,25 +284,47 @@ const PurchaseCreationForm = () => {
     setLoading(true);
 
     try {
-      // Here you would add the purchase logic
-      console.log('Purchase data:', {
-        purchaseData,
+      const { addDoc, collection } = await import('firebase/firestore');
+      
+      // Create purchase order document with all required data
+      const purchaseOrderData = {
+        // Purchase details
+        ...purchaseData,
         items,
         subtotal,
         taxCalculation,
-        status
-      });
+        status,
+        
+        // Currency amounts
+        currencyAmounts,
+        
+        // Supplier details (copy all fields)
+        supplier: selectedSupplier ? { ...selectedSupplier } : null,
+        
+        // Company details (copy all fields)
+        company: companyData ? { ...companyData } : null,
+        
+        // Additional metadata
+        companyId: currentUser.companyId,
+        createdBy: currentUser.uid,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      // Save to purchase_orders collection
+      await addDoc(collection(db, 'purchase_orders'), purchaseOrderData);
 
       toast({
         title: "Success",
-        description: `Purchase ${status === 'draft' ? 'saved as draft' : 'created'} successfully`,
+        description: `Purchase order ${status === 'draft' ? 'saved as draft' : 'created'} successfully`,
       });
 
       navigate('/purchases');
     } catch (error) {
+      console.error('Error creating purchase order:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to create purchase",
+        description: error instanceof Error ? error.message : "Failed to create purchase order",
         variant: "destructive",
       });
     } finally {
