@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -45,7 +44,6 @@ interface PurchaseRequest {
   requestedDate: Date;
   reason: string;
   status: 'pending' | 'approved' | 'rejected';
-  priority: 'low' | 'medium' | 'high';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -78,7 +76,6 @@ const PurchaseRequestsAdmin = () => {
         return {
           ...data,
           id: doc.id,
-          priority: data.priority || 'medium', // Default to medium if not set
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
           requestedDate: data.requestedDate?.toDate() || new Date()
@@ -190,15 +187,6 @@ const PurchaseRequestsAdmin = () => {
       case 'pending': return 'secondary';
       case 'approved': return 'default';
       case 'rejected': return 'destructive';
-      default: return 'secondary';
-    }
-  };
-
-  const getPriorityBadgeVariant = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'destructive';
-      case 'medium': return 'secondary';
-      case 'low': return 'default';
       default: return 'secondary';
     }
   };
@@ -337,13 +325,12 @@ const PurchaseRequestsAdmin = () => {
                 <TableRow>
                   <TableHead>Employee</TableHead>
                   <TableHead>Product Details</TableHead>
-                  <TableHead>Priority</TableHead>
                   <TableHead>Quantity</TableHead>
                   <TableHead>Stock Status</TableHead>
                   <TableHead>Requested Date</TableHead>
                   <TableHead>Reason</TableHead>
                   <TableHead>Chat History</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -361,11 +348,6 @@ const PurchaseRequestsAdmin = () => {
                         <p className="text-sm text-gray-500">{request.productCategory}</p>
                         <p className="text-xs text-gray-400">v{request.productVersion}</p>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getPriorityBadgeVariant(request.priority)}>
-                        {request.priority.charAt(0).toUpperCase() + request.priority.slice(1)}
-                      </Badge>
                     </TableCell>
                     <TableCell>
                       {editingQuantity === request.id ? (
@@ -425,24 +407,32 @@ const PurchaseRequestsAdmin = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <ChatHistoryModal
-                        itemId={request.id}
-                        itemName={request.itemName}
-                        productCategory={request.productCategory}
-                        isAdmin={true}
-                        targetEmployeeEmail={request.employeeEmail}
-                      >
-                        <Button 
-                          size="sm" 
-                          variant="outline"
+                      <div className="flex flex-col gap-2">
+                        <ChatHistoryModal
+                          itemId={request.id}
+                          itemName={request.itemName}
+                          productCategory={request.productCategory}
+                          isAdmin={true}
+                          targetEmployeeEmail={request.employeeEmail}
                         >
-                          <MessageSquare className="h-4 w-4 mr-1" />
-                          Chat History
-                        </Button>
-                      </ChatHistoryModal>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="w-full"
+                          >
+                            <MessageSquare className="h-4 w-4 mr-1" />
+                            Chat History
+                          </Button>
+                        </ChatHistoryModal>
+                        {request.status === 'rejected' && (
+                          <Badge variant="destructive" className="self-start">
+                            Rejected
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
-                      {request.status === 'pending' ? (
+                      {request.status === 'pending' && (
                         <div className="flex gap-2">
                           <Button 
                             size="sm" 
@@ -459,10 +449,14 @@ const PurchaseRequestsAdmin = () => {
                             ❌ Reject
                           </Button>
                         </div>
-                      ) : (
-                        <Badge variant={getStatusBadgeVariant(request.status)}>
-                          {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                        </Badge>
+                      )}
+                      {request.status === 'approved' && (
+                        <Button 
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          Create Purchase Order
+                        </Button>
                       )}
                     </TableCell>
                   </TableRow>
