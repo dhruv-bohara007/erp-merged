@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +17,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useCompanyData } from '@/hooks/useCompanyData';
 import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
+import PurchaseOrderModal from './PurchaseOrderModal';
 
 const PurchaseOrderView = () => {
   const navigate = useNavigate();
@@ -24,6 +26,8 @@ const PurchaseOrderView = () => {
   const { getCurrencyInfo } = useCurrencyConverter();
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Get company currency info
   const companyCountry = companyData?.country || 'US';
@@ -78,11 +82,26 @@ const PurchaseOrderView = () => {
     return `${companyCurrency.symbol}${amount.toFixed(2)}`;
   };
 
+  // Get the correct amount to display based on currency conversion
+  const getDisplayAmount = (order: any) => {
+    // Use the company amount from currencyAmounts if available, otherwise fallback to totalAmount
+    const companyAmount = order.currencyAmounts?.companyAmount || order.totalAmount || 0;
+    return formatCurrency(companyAmount);
+  };
+
   const handleViewPurchaseOrder = (order: any) => {
-    console.log('View purchase order:', order);
+    setSelectedOrder(order);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedOrder(null);
   };
 
   const handleDownloadPurchaseOrder = (order: any) => {
+    const companyAmount = order.currencyAmounts?.companyAmount || order.totalAmount || 0;
+    
     const content = `
 PURCHASE ORDER
 
@@ -99,7 +118,7 @@ ${order.items?.map((item: any) =>
 ).join('\n') || 'No items'}
 
 Subtotal: ${companyCurrency.symbol}${(order.subtotal || 0).toFixed(2)}
-Total Amount: ${companyCurrency.symbol}${(order.totalAmount || 0).toFixed(2)}
+Total Amount: ${companyCurrency.symbol}${companyAmount.toFixed(2)}
 
 Notes: ${order.notes || 'N/A'}
 Terms: ${order.terms || 'N/A'}
@@ -202,7 +221,7 @@ Terms: ${order.terms || 'N/A'}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium">{formatCurrency(order.totalAmount || 0)}</div>
+                        <div className="font-medium">{getDisplayAmount(order)}</div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center text-sm">
@@ -261,6 +280,13 @@ Terms: ${order.terms || 'N/A'}
           )}
         </CardContent>
       </Card>
+
+      {/* Purchase Order Modal */}
+      <PurchaseOrderModal 
+        order={selectedOrder}
+        isOpen={isModalOpen}
+        onClose={closeModal}
+      />
     </div>
   );
 };
