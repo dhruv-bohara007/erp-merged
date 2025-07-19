@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -33,15 +32,15 @@ const PurchaseOrderView = () => {
   useEffect(() => {
     const loadPurchaseOrders = async () => {
       try {
-        const { collection, query, where, orderBy, onSnapshot } = await import('firebase/firestore');
+        const { collection, query, where, onSnapshot } = await import('firebase/firestore');
         const { db } = await import('@/lib/firebase');
         
         if (!currentUser?.companyId) return;
 
+        // Remove orderBy to avoid composite index requirement
         const q = query(
           collection(db, 'purchase_orders'),
-          where('companyId', '==', currentUser.companyId),
-          orderBy('createdAt', 'desc')
+          where('companyId', '==', currentUser.companyId)
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -52,6 +51,14 @@ const PurchaseOrderView = () => {
             dueDate: doc.data().dueDate ? new Date(doc.data().dueDate) : null,
             createdAt: doc.data().createdAt?.toDate()
           }));
+          
+          // Sort in memory by createdAt descending
+          orders.sort((a, b) => {
+            const aTime = a.createdAt ? a.createdAt.getTime() : 0;
+            const bTime = b.createdAt ? b.createdAt.getTime() : 0;
+            return bTime - aTime;
+          });
+          
           setPurchaseOrders(orders);
           setLoading(false);
         });
