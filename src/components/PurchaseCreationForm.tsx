@@ -36,7 +36,7 @@ const PurchaseCreationForm = () => {
   const { suppliers } = useSuppliers();
   const { companyData } = useCompanyData();
   const { calculateTaxes, getTaxDisplayName } = useTaxCalculations();
-  const { convertToINR, formatCurrency, getCurrencyInfo, loading: currencyLoading } = useCurrencyConverter();
+  const { convertToINR, convertFromINR, formatCurrency, getCurrencyInfo, loading: currencyLoading } = useCurrencyConverter();
   const { currentUser } = useAuth();
   
   const [loading, setLoading] = useState(false);
@@ -65,6 +65,14 @@ const PurchaseCreationForm = () => {
   ]);
 
   const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
+  const [conversionError, setConversionError] = useState<string | null>(null);
+  const [currencyAmounts, setCurrencyAmounts] = useState({
+    companyAmount: 0,
+    totalAmountINR: 0,
+    supplierAmount: 0,
+    companyToINRRate: 1,
+    INRToSupplierRate: 1
+  });
 
   // Fetch stock details from Firestore
   useEffect(() => {
@@ -92,6 +100,15 @@ const PurchaseCreationForm = () => {
     [...new Set(stockDetails.filter(p => p.productCategory === category).map(p => p.itemName))];
   const getAvailableVersions = (category: string, name: string) =>
     [...new Set(stockDetails.filter(p => p.productCategory === category && p.itemName === name).map(p => p.productVersion))];
+  
+  const getProductPrice = (category: string, name: string, version: string): number => {
+    const product = stockDetails.find(p => 
+      p.productCategory === category && 
+      p.itemName === name && 
+      p.productVersion === version
+    );
+    return product?.pricePerUnitValue || 0;
+  };
 
   // Calculate totals
   const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
@@ -108,6 +125,80 @@ const PurchaseCreationForm = () => {
       setSelectedSupplier(null);
     }
   }, [purchaseData.supplierId, suppliers]);
+
+  // Currency conversion effect (similar to InvoiceForm)
+  useEffect(() => {
+    if (!selectedSupplier || subtotal === 0) {
+      setCurrencyAmounts({
+        companyAmount: taxCalculation.totalAmount,
+        totalAmountINR: taxCalculation.totalAmount,
+        supplierAmount: taxCalculation.totalAmount,
+        companyToINRRate: 1,
+        INRToSupplierRate: 1
+      });
+      setConversionError(null);
+      return;
+    }
+
+    const convertAmounts = async () => {
+      const companyTotal = taxCalculation.totalAmount;
+      setConversionError(null);
+
+      try {
+        console.log('Starting currency conversion for purchase:', companyTotal, companyCountry, 'to', supplierCountry);
+        
+        if (companyCountry === 'IN') {
+          const { convertedAmount: supplierTotal, rate: INRToSupplierRate } = await convertFromINR(companyTotal, supplierCountry);
+          
+          setCurrencyAmounts({
+            companyAmount: companyTotal,
+            totalAmountINR: companyTotal,
+            supplierAmount: supplierTotal,
+            companyToINRRate: 1,
+            INRToSupplierRate
+          });
+        } else {
+          const { amountInINR, rate: companyToINRRate } = await convertToINR(companyTotal, companyCountry);
+          
+          if (supplierCountry === 'IN') {
+            setCurrencyAmounts({
+              companyAmount: companyTotal,
+              totalAmountINR: amountInINR,
+              supplierAmount: amountInINR,
+              companyToINRRate,
+              INRToSupplierRate: 1
+            });
+          } else {
+            const { convertedAmount: supplierTotal, rate: INRToSupplierRate } = await convertFromINR(amountInINR, supplierCountry);
+            
+            setCurrencyAmounts({
+              companyAmount: companyTotal,
+              totalAmountINR: amountInINR,
+              supplierAmount: supplierTotal,
+              companyToINRRate,
+              INRToSupplierRate
+            });
+          }
+        }
+        
+        console.log('Currency conversion completed successfully');
+      } catch (error) {
+        console.error('Currency conversion failed:', error);
+        setConversionError('Currency conversion failed. Using fallback rates.');
+        
+        setCurrencyAmounts({
+          companyAmount: companyTotal,
+          totalAmountINR: companyTotal,
+          supplierAmount: companyTotal,
+          companyToINRRate: 1,
+          INRToSupplierRate: 1
+        });
+      }
+    };
+
+    const timeoutId = setTimeout(convertAmounts, 300);
+    return () => clearTimeout(timeoutId);
+  }, [subtotal, selectedSupplier, companyData?.country, taxCalculation.totalAmount]);
 
   const addItem = () => {
     const newItem: PurchaseFormItem = {
@@ -133,6 +224,16 @@ const PurchaseCreationForm = () => {
     setItems(items.map((item, i) => {
       if (i === index) {
         const updatedItem = { ...item, [field]: value };
+        
+        // Auto-populate rate when product is selected (only for 'available' source type)
+        if ((field === 'productCategory' || field === 'itemName' || field === 'productVersion') && updatedItem.sourceType === 'available') {
+          if (updatedItem.productCategory && updatedItem.itemName && updatedItem.productVersion) {
+            const price = getProductPrice(updatedItem.productCategory, updatedItem.itemName, updatedItem.productVersion);
+            if (price > 0) {
+              updatedItem.rate = price;
+            }
+          }
+        }
         
         // Recalculate amount when quantity, rate, or discount changes
         if (field === 'quantity' || field === 'rate' || field === 'discount') {
@@ -307,12 +408,54 @@ const PurchaseCreationForm = () => {
               
               <Separator />
               
+              {/* Multi-Currency Display */}
               <div className="space-y-3 bg-blue-50 p-4 rounded-lg">
                 <div className="flex justify-between font-bold text-lg">
-                  <span>Total Amount ({companyCurrency.code}):</span>
-                  <span>{formatCurrency(taxCalculation.totalAmount, companyCountry)}</span>
+                  <span>Company Currency ({companyCurrency.code}):</span>
+                  <span>{formatCurrency(currencyAmounts.companyAmount, companyCountry)}</span>
                 </div>
+                
+                <div className="flex justify-between text-sm text-blue-700">
+                  <span>Converted to INR:</span>
+                  <span>
+                    {currencyLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin inline" />
+                    ) : (
+                      `₹${currencyAmounts.totalAmountINR.toFixed(2)}`
+                    )}
+                  </span>
+                </div>
+
+                {selectedSupplier && companyCountry !== supplierCountry && (
+                  <div className="flex justify-between text-sm text-green-700">
+                    <span>Supplier Currency ({supplierCurrency.code}):</span>
+                    <span>
+                      {currencyLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin inline" />
+                      ) : (
+                        `${supplierCurrency.symbol}${currencyAmounts.supplierAmount.toFixed(2)}`
+                      )}
+                    </span>
+                  </div>
+                )}
               </div>
+
+              {/* Exchange Rate Info */}
+              {selectedSupplier && currencyAmounts.companyToINRRate !== 1 && (
+                <div className="text-xs text-gray-500 mt-2">
+                  <p>Exchange rates: 1 {companyCurrency.code} = ₹{currencyAmounts.companyToINRRate.toFixed(4)}</p>
+                  {companyCountry !== supplierCountry && (
+                    <p>1 INR = {currencyAmounts.INRToSupplierRate.toFixed(4)} {supplierCurrency.code}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Show conversion error if any */}
+              {conversionError && (
+                <div className="text-xs text-red-600 bg-red-50 p-2 rounded">
+                  {conversionError}
+                </div>
+              )}
             </div>
             
             {selectedSupplier && (
@@ -424,19 +567,14 @@ const PurchaseCreationForm = () => {
                     </div>
                     <div>
                       <Label className="text-sm font-medium text-foreground mb-2 block">
-                        Rate ({companyCurrency.symbol}) *
+                        Rate ({companyCurrency.symbol})
                       </Label>
                       <Input
                         type="text"
                         value={item.rate === 0 ? '' : item.rate.toString()}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
-                            updateItem(index, 'rate', value === '' ? 0 : Number(value));
-                          }
-                        }}
-                        placeholder="0.00"
-                        className="bg-background"
+                        readOnly
+                        className="bg-muted text-muted-foreground"
+                        placeholder="Auto-filled"
                       />
                     </div>
                     <div>
