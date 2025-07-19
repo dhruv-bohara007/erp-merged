@@ -240,6 +240,9 @@ export interface Expense {
   status: 'recorded' | 'approved' | 'reimbursed';
   // Purchase-specific fields (for when used as Purchase)
   supplierName?: string;
+  supplierCountry?: string; // New field for supplier country
+  supplierCurrency?: string; // New field for supplier currency
+  companyCountry?: string; // New field for company country
   itemName?: string;
   productCategory?: string; // Added for product categorization
   productName?: string; // Added for consistency with productCategory

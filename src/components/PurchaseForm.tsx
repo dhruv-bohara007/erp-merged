@@ -10,13 +10,15 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import SearchableDropdown from '@/components/SearchableDropdown';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
-import { usePurchases } from '@/hooks/useFirestore';
+import { usePurchases, useSuppliers } from '@/hooks/useFirestore';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
 import { useCompanyData } from '@/hooks/useCompanyData';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTaxCalculations } from '@/hooks/useTaxCalculations';
+import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
+import { PurchaseStockService } from '@/services/purchaseStockService';
 import { format } from 'date-fns';
 
 interface PurchaseItem {
@@ -51,13 +53,17 @@ const UNIT_OPTIONS = [
 const PurchaseForm = () => {
   const navigate = useNavigate();
   const { addPurchase } = usePurchases();
+  const { suppliers } = useSuppliers();
   const { convertToINR, getCurrencyInfo } = useCurrencyConverter();
   const { currentUser, refreshUser } = useAuth();
   const { companyData } = useCompanyData();
   const { calculateTaxes } = useTaxCalculations();
 
   const [entryMode, setEntryMode] = useState<'manual' | 'select'>('manual');
+  const [selectedSupplierId, setSelectedSupplierId] = useState('');
   const [supplierName, setSupplierName] = useState('');
+  const [supplierCountry, setSupplierCountry] = useState('');
+  const [supplierCurrency, setSupplierCurrency] = useState('');
   const [purchaseDate, setPurchaseDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [items, setItems] = useState<PurchaseItem[]>([]);
   const [description, setDescription] = useState('');
@@ -87,6 +93,24 @@ const PurchaseForm = () => {
 
     fetchStockDetails();
   }, [currentUser?.companyId]);
+
+  // Handle supplier selection
+  const handleSupplierSelect = (supplierId: string) => {
+    const supplier = suppliers.find(s => s.id === supplierId);
+    if (supplier) {
+      setSelectedSupplierId(supplierId);
+      setSupplierName(supplier.name);
+      setSupplierCountry(supplier.country);
+      const currency = getCurrencyByCountry(supplier.country);
+      setSupplierCurrency(currency.code);
+    }
+  };
+
+  // Get supplier options for dropdown
+  const supplierOptions = suppliers.map(supplier => ({
+    value: supplier.id,
+    label: `${supplier.name} - ${supplier.country}`
+  }));
 
   // Get unique categories, names, and versions for dropdowns from stock_details
   const categories = [...new Set(stockDetails.map(p => p.productCategory).filter(Boolean))];
@@ -154,8 +178,8 @@ const PurchaseForm = () => {
       }
     }
 
-    if (!supplierName || items.length === 0 || items.some(item => !item.itemName || item.quantity <= 0 || item.pricePerUnit <= 0)) {
-      alert('Please fill in all required fields');
+    if (!selectedSupplierId || !supplierName || items.length === 0 || items.some(item => !item.itemName || item.quantity <= 0 || item.pricePerUnit <= 0)) {
+      alert('Please select a supplier and fill in all required fields');
       return;
     }
 
@@ -175,10 +199,13 @@ const PurchaseForm = () => {
         const priceInINRFormatted = Math.round(priceInINR * 100) / 100;
         const totalAmountAfterTaxFormatted = Math.round(totalAmountAfterTaxINR * 100) / 100;
 
-        // Add purchase record for each item with product categorization fields and Total Amount After Tax
-        await addPurchase({
+        // Create purchase record with all the new fields
+        const purchaseRecord = {
           title: `${item.itemName} from ${supplierName}`,
           supplierName,
+          supplierCountry,
+          supplierCurrency,
+          companyCountry,
           itemName: item.itemName,
           productCategory: item.productCategory, // Save product category
           productVersion: item.productVersion, // Save product version
@@ -197,9 +224,24 @@ const PurchaseForm = () => {
           amount: Math.round(item.amount * 100) / 100, // Store with 2 decimal places
           expenseDate: new Date(purchaseDate),
           purchaseDate: new Date(purchaseDate),
-          status: 'recorded',
-          purchaseStatus: 'completed'
-        });
+          status: 'recorded' as const,
+          purchaseStatus: 'completed' as const
+        };
+
+        // Add purchase record to database
+        await addPurchase(purchaseRecord);
+
+        // Update stock levels using the service - create a typed record with required fields
+        const stockUpdateRecord = {
+          ...purchaseRecord,
+          id: '', // Will be set by Firebase
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        await PurchaseStockService.updateStockOnPurchase(
+          stockUpdateRecord,
+          currentUser.companyId
+        );
       }
 
       // Redirect to Purchase Management page
@@ -227,14 +269,23 @@ const PurchaseForm = () => {
         <CardContent className="space-y-6">
           <div className="grid grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="supplierName">Supplier Name</Label>
-              <Input
-                id="supplierName"
-                value={supplierName}
-                onChange={(e) => setSupplierName(e.target.value)}
-                placeholder="Enter supplier name"
-                required
+              <Label htmlFor="supplier">Supplier</Label>
+              <SearchableDropdown
+                items={supplierOptions.map(opt => opt.label)}
+                value={supplierOptions.find(opt => opt.value === selectedSupplierId)?.label || ''}
+                onValueChange={(value) => {
+                  const selectedOption = supplierOptions.find(opt => opt.label === value);
+                  if (selectedOption) {
+                    handleSupplierSelect(selectedOption.value);
+                  }
+                }}
+                placeholder="Select supplier"
               />
+              {selectedSupplierId && (
+                <div className="text-sm text-gray-600">
+                  Country: {supplierCountry} | Currency: {supplierCurrency}
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="purchaseDate">Purchase Date</Label>

@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { PurchaseStockService } from '@/services/purchaseStockService';
 import type { Supplier, Purchase, Expense, InventoryItem } from '@/types/firestore';
 
 export interface Invoice {
@@ -878,7 +879,24 @@ export const usePurchases = () => {
   };
 
   const deletePurchase = async (id: string) => {
+    if (!currentUser?.companyId) {
+      throw new Error('User company ID not found');
+    }
+
     try {
+      // First get the purchase record to update stock
+      const purchaseDoc = await getDoc(doc(db, 'purchase_records', id));
+      if (purchaseDoc.exists()) {
+        const purchaseRecord = { id: purchaseDoc.id, ...purchaseDoc.data() } as Expense;
+        
+        // Update stock before deleting the record
+        await PurchaseStockService.updateStockOnPurchaseDelete(
+          purchaseRecord,
+          currentUser.companyId
+        );
+      }
+
+      // Delete the purchase record
       await deleteDoc(doc(db, 'purchase_records', id));
     } catch (err) {
       console.error('Error deleting purchase:', err);
