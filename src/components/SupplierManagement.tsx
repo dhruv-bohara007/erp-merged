@@ -1,9 +1,9 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -20,7 +20,11 @@ import {
   FileText,
   Globe,
   TrendingUp,
-  Package
+  Package,
+  Users,
+  ShoppingCart,
+  DollarSign,
+  Activity
 } from 'lucide-react';
 import { useSuppliers, usePurchases } from '@/hooks/useFirestore';
 import { useToast } from '@/hooks/use-toast';
@@ -28,6 +32,7 @@ import { useCompanyData } from '@/hooks/useCompanyData';
 import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 import { countries } from '@/data/countries';
 import { countriesWithTaxInfo } from '@/data/countriesWithTax';
+import { countryPhoneCodes } from '@/data/countryPhoneCodes';
 import type { Supplier } from '@/types/firestore';
 
 const SupplierManagement = () => {
@@ -41,7 +46,6 @@ const SupplierManagement = () => {
     name: '',
     email: '',
     phone: '',
-    address: '',
     city: '',
     state: '',
     pincode: '',
@@ -91,6 +95,45 @@ const SupplierManagement = () => {
     };
   });
 
+  // Calculate summary data
+  const totalSuppliers = suppliers.length;
+  const activeSuppliers = suppliers.filter(s => s.status === 'active').length;
+  const totalPurchaseValue = supplierStats.reduce((sum, supplier) => sum + supplier.totalPurchases, 0);
+  const totalOrders = supplierStats.reduce((sum, supplier) => sum + supplier.activePurchases, 0);
+
+  // Get phone code for country
+  const getPhoneCodeForCountry = (countryCode: string) => {
+    const phoneData = Object.entries(countryPhoneCodes).find(([code, data]) => code === countryCode);
+    return phoneData ? phoneData[1].code : '+1';
+  };
+
+  // Get tax label for country
+  const getTaxLabel = (country: string) => {
+    const countryInfo = countriesWithTaxInfo.find(c => c.value === country);
+    return countryInfo?.primaryTaxLabel || 'Tax ID';
+  };
+
+  // Handle country change for new supplier
+  const handleNewSupplierCountryChange = (countryCode: string) => {
+    const phoneCode = getPhoneCodeForCountry(countryCode);
+    setNewSupplier({
+      ...newSupplier,
+      country: countryCode,
+      phone: phoneCode + ' '
+    });
+  };
+
+  // Handle country change for editing supplier
+  const handleEditSupplierCountryChange = (countryCode: string) => {
+    if (!editingSupplier) return;
+    const phoneCode = getPhoneCodeForCountry(countryCode);
+    setEditingSupplier({
+      ...editingSupplier,
+      country: countryCode,
+      phone: phoneCode + ' '
+    });
+  };
+
   const handleAddSupplier = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -99,7 +142,6 @@ const SupplierManagement = () => {
         name: '',
         email: '',
         phone: '',
-        address: '',
         city: '',
         state: '',
         pincode: '',
@@ -152,11 +194,6 @@ const SupplierManagement = () => {
         });
       }
     }
-  };
-
-  const getTaxLabel = (country: string) => {
-    const countryInfo = countriesWithTaxInfo.find(c => c.value === country);
-    return countryInfo?.label || 'Tax ID';
   };
 
   if (loading) {
@@ -224,19 +261,10 @@ const SupplierManagement = () => {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="phone">Phone*</Label>
-                  <Input
-                    id="phone"
-                    value={newSupplier.phone}
-                    onChange={(e) => setNewSupplier({...newSupplier, phone: e.target.value})}
-                    required
-                  />
-                </div>
-                <div>
                   <Label htmlFor="country">Country*</Label>
                   <Select 
                     value={newSupplier.country} 
-                    onValueChange={(value) => setNewSupplier({...newSupplier, country: value})}
+                    onValueChange={handleNewSupplierCountryChange}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -249,6 +277,16 @@ const SupplierManagement = () => {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div>
+                  <Label htmlFor="phone">Phone*</Label>
+                  <Input
+                    id="phone"
+                    value={newSupplier.phone}
+                    onChange={(e) => setNewSupplier({...newSupplier, phone: e.target.value})}
+                    placeholder={`${getPhoneCodeForCountry(newSupplier.country)} 123456789`}
+                    required
+                  />
                 </div>
                 <div>
                   <Label htmlFor="city">City*</Label>
@@ -289,15 +327,6 @@ const SupplierManagement = () => {
                   />
                 </div>
               </div>
-              <div>
-                <Label htmlFor="address">Address*</Label>
-                <Textarea
-                  id="address"
-                  value={newSupplier.address}
-                  onChange={(e) => setNewSupplier({...newSupplier, address: e.target.value})}
-                  required
-                />
-              </div>
               <div className="flex justify-end space-x-2">
                 <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>
                   Cancel
@@ -307,6 +336,61 @@ const SupplierManagement = () => {
             </form>
           </DialogContent>
         </Dialog>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Suppliers</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalSuppliers}</div>
+            <p className="text-xs text-muted-foreground">
+              {activeSuppliers} active
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Suppliers</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{activeSuppliers}</div>
+            <p className="text-xs text-muted-foreground">
+              {totalSuppliers > 0 ? Math.round((activeSuppliers / totalSuppliers) * 100) : 0}% of total
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Purchase Value</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(totalPurchaseValue)}</div>
+            <p className="text-xs text-muted-foreground">
+              Across all suppliers
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
+            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalOrders}</div>
+            <p className="text-xs text-muted-foreground">
+              Completed purchases
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Search */}
@@ -466,19 +550,10 @@ const SupplierManagement = () => {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="edit-phone">Phone*</Label>
-                  <Input
-                    id="edit-phone"
-                    value={editingSupplier.phone}
-                    onChange={(e) => setEditingSupplier({...editingSupplier, phone: e.target.value})}
-                    required
-                  />
-                </div>
-                <div>
                   <Label htmlFor="edit-country">Country*</Label>
                   <Select 
                     value={editingSupplier.country} 
-                    onValueChange={(value) => setEditingSupplier({...editingSupplier, country: value})}
+                    onValueChange={handleEditSupplierCountryChange}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -491,6 +566,16 @@ const SupplierManagement = () => {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div>
+                  <Label htmlFor="edit-phone">Phone*</Label>
+                  <Input
+                    id="edit-phone"
+                    value={editingSupplier.phone}
+                    onChange={(e) => setEditingSupplier({...editingSupplier, phone: e.target.value})}
+                    placeholder={`${getPhoneCodeForCountry(editingSupplier.country)} 123456789`}
+                    required
+                  />
                 </div>
                 <div>
                   <Label htmlFor="edit-city">City*</Label>
@@ -545,15 +630,6 @@ const SupplierManagement = () => {
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-              <div>
-                <Label htmlFor="edit-address">Address*</Label>
-                <Textarea
-                  id="edit-address"
-                  value={editingSupplier.address}
-                  onChange={(e) => setEditingSupplier({...editingSupplier, address: e.target.value})}
-                  required
-                />
               </div>
               <div className="flex justify-end space-x-2">
                 <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>
