@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,8 @@ import {
   Flag,
   MessageCircle,
   X,
-  CalendarIcon
+  CalendarIcon,
+  ChevronDown
 } from 'lucide-react';
 import { collection, getDocs, query, where, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -49,15 +51,30 @@ interface FlagRequestData {
   unit: string;
   quantity: string;
   reason: string;
+  priority: string;
   requestedDate: Date | undefined;
+}
+
+interface PendingRequest {
+  id: string;
+  itemName: string;
+  productCategory: string;
+  productVersion: string;
+  status: 'pending';
+  priority: 'low' | 'medium' | 'high';
+  createdAt: Date;
 }
 
 const EmployeeInventory = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [stockDetails, setStockDetails] = useState<StockDetailsData[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [showFlagForm, setShowFlagForm] = useState(false);
+  const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<StockDetailsData | null>(null);
+  const [selectedPriority, setSelectedPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [flagRequestData, setFlagRequestData] = useState<FlagRequestData>({
     productCategory: '',
     itemName: '',
@@ -66,6 +83,7 @@ const EmployeeInventory = () => {
     unit: '',
     quantity: '',
     reason: '',
+    priority: 'medium',
     requestedDate: undefined
   });
   
@@ -103,15 +121,50 @@ const EmployeeInventory = () => {
     }
   };
 
+  // Fetch pending purchase requests for this company
+  const fetchPendingRequests = async () => {
+    if (!currentUser?.companyId) return [];
+
+    try {
+      const purchaseRequestsCollection = collection(db, 'purchase_requests');
+      const q = query(
+        purchaseRequestsCollection,
+        where('companyId', '==', currentUser.companyId),
+        where('status', '==', 'pending')
+      );
+      const snapshot = await getDocs(q);
+      
+      return snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          itemName: data.itemName,
+          productCategory: data.productCategory,
+          productVersion: data.productVersion,
+          status: data.status,
+          priority: data.priority || 'medium',
+          createdAt: data.createdAt?.toDate() || new Date()
+        };
+      }) as PendingRequest[];
+    } catch (error) {
+      console.error('Error fetching pending requests:', error);
+      return [];
+    }
+  };
+
   useEffect(() => {
-    const loadStockDetails = async () => {
+    const loadData = async () => {
       setLoading(true);
-      const displayedStock = await fetchDisplayedStockDetails();
+      const [displayedStock, requests] = await Promise.all([
+        fetchDisplayedStockDetails(),
+        fetchPendingRequests()
+      ]);
       setStockDetails(displayedStock);
+      setPendingRequests(requests);
       setLoading(false);
     };
 
-    loadStockDetails();
+    loadData();
   }, [currentUser?.companyId]);
 
   const categories = ['all', ...Array.from(new Set(stockDetails.map(item => item.productCategory)))];
@@ -136,6 +189,15 @@ const EmployeeInventory = () => {
     }
   };
 
+  // Check if item has pending request
+  const getItemPendingRequest = (item: StockDetailsData) => {
+    return pendingRequests.find(req => 
+      req.itemName === item.itemName &&
+      req.productCategory === item.productCategory &&
+      req.productVersion === item.productVersion
+    );
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'normal': return 'text-green-600';
@@ -154,18 +216,37 @@ const EmployeeInventory = () => {
     }
   };
 
-  const handleFlagLowStock = (item: StockDetailsData) => {
-    const status = getItemStatus(item);
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high': return 'text-red-600';
+      case 'medium': return 'text-yellow-600';
+      case 'low': return 'text-green-600';
+      default: return 'text-gray-600';
+    }
+  };
+
+  const handleFlagLowClick = (item: StockDetailsData) => {
+    setSelectedItem(item);
+    setShowPriorityDropdown(true);
+  };
+
+  const handlePrioritySelect = (priority: 'low' | 'medium' | 'high') => {
+    if (!selectedItem) return;
+    
+    const status = getItemStatus(selectedItem);
+    setSelectedPriority(priority);
     setFlagRequestData({
-      productCategory: item.productCategory,
-      itemName: item.itemName,
-      productVersion: item.productVersion,
+      productCategory: selectedItem.productCategory,
+      itemName: selectedItem.itemName,
+      productVersion: selectedItem.productVersion,
       status: status,
+      priority: priority,
       unit: '',
       quantity: '',
       reason: '',
       requestedDate: undefined
     });
+    setShowPriorityDropdown(false);
     setShowFlagForm(true);
   };
 
@@ -180,7 +261,7 @@ const EmployeeInventory = () => {
     }
 
     try {
-      await addDoc(collection(db, 'purchase_requests'), {
+      const newRequest = {
         companyId: currentUser.companyId,
         employeeName: currentUser.displayName || currentUser.email?.split('@')[0] || 'Unknown',
         employeeEmail: currentUser.email,
@@ -192,27 +273,33 @@ const EmployeeInventory = () => {
         unit: flagRequestData.unit,
         requestedDate: flagRequestData.requestedDate,
         reason: flagRequestData.reason,
+        priority: flagRequestData.priority,
         status: 'pending',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
-      });
+      };
+
+      await addDoc(collection(db, 'purchase_requests'), newRequest);
+
+      // Add to local state for immediate UI update
+      const newPendingRequest: PendingRequest = {
+        id: Date.now().toString(), // temporary ID
+        itemName: flagRequestData.itemName,
+        productCategory: flagRequestData.productCategory,
+        productVersion: flagRequestData.productVersion,
+        status: 'pending',
+        priority: flagRequestData.priority as 'low' | 'medium' | 'high',
+        createdAt: new Date()
+      };
+
+      setPendingRequests(prev => [...prev, newPendingRequest]);
 
       toast({
         title: "Request Sent",
         description: `Purchase request sent to admin for: ${flagRequestData.itemName}`
       });
       
-      setShowFlagForm(false);
-      setFlagRequestData({
-        productCategory: '',
-        itemName: '',
-        productVersion: '',
-        status: '',
-        unit: '',
-        quantity: '',
-        reason: '',
-        requestedDate: undefined
-      });
+      handleCancelRequest();
     } catch (error) {
       console.error('Error sending request:', error);
       toast({
@@ -225,6 +312,8 @@ const EmployeeInventory = () => {
 
   const handleCancelRequest = () => {
     setShowFlagForm(false);
+    setShowPriorityDropdown(false);
+    setSelectedItem(null);
     setFlagRequestData({
       productCategory: '',
       itemName: '',
@@ -233,6 +322,7 @@ const EmployeeInventory = () => {
       unit: '',
       quantity: '',
       reason: '',
+      priority: 'medium',
       requestedDate: undefined
     });
   };
@@ -332,6 +422,7 @@ const EmployeeInventory = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredInventory.map((item) => {
             const status = getItemStatus(item);
+            const pendingRequest = getItemPendingRequest(item);
             return (
               <Card key={item.id} className={`border-l-4 ${
                 status === 'critical' ? 'border-l-red-500' :
@@ -353,6 +444,19 @@ const EmployeeInventory = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
+                    {/* Pending Request Alert */}
+                    {pendingRequest && status !== 'normal' && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <div className="flex items-center gap-2">
+                          <Flag className="h-4 w-4 text-blue-600" />
+                          <span className="text-sm font-medium text-blue-800">Request Pending</span>
+                        </div>
+                        <p className="text-xs text-blue-600 mt-1">
+                          Purchase request submitted with {pendingRequest.priority} priority
+                        </p>
+                      </div>
+                    )}
+
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600">Current Stock:</span>
                       <span className={`font-semibold ${getStatusColor(status)}`}>
@@ -379,16 +483,19 @@ const EmployeeInventory = () => {
                           Chat History
                         </Button>
                       </ChatHistoryModal>
-                      {(status === 'low' || status === 'critical') && (
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => handleFlagLowStock(item)}
-                          className="flex-1"
-                        >
-                          <Flag className="w-3 h-3 mr-1" />
-                          Flag Low
-                        </Button>
+                      {(status === 'low' || status === 'critical') && !pendingRequest && (
+                        <div className="relative flex-1">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleFlagLowClick(item)}
+                            className="w-full"
+                          >
+                            <Flag className="w-3 h-3 mr-1" />
+                            Flag Low
+                            <ChevronDown className="w-3 h-3 ml-1" />
+                          </Button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -406,6 +513,50 @@ const EmployeeInventory = () => {
               <p className="text-gray-500">Try adjusting your search or filter criteria.</p>
             </CardContent>
           </Card>
+        )}
+
+        {/* Priority Selection Dropdown */}
+        {showPriorityDropdown && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-sm mx-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Select Priority Level</h3>
+                <Button variant="ghost" size="sm" onClick={handleCancelRequest}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              <p className="text-sm text-gray-600 mb-4">
+                Choose the priority level for your purchase request:
+              </p>
+
+              <div className="space-y-2">
+                {(['high', 'medium', 'low'] as const).map((priority) => (
+                  <Button
+                    key={priority}
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => handlePrioritySelect(priority)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-3 h-3 rounded-full ${
+                        priority === 'high' ? 'bg-red-500' :
+                        priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
+                      }`}></div>
+                      <div className="text-left">
+                        <div className="font-medium capitalize">{priority}</div>
+                        <div className="text-xs text-gray-500">
+                          {priority === 'high' ? 'Immediate attention needed' :
+                           priority === 'medium' ? 'Standard processing time' :
+                           'Can wait for regular ordering cycle'}
+                        </div>
+                      </div>
+                    </div>
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Flag Low Stock Form Modal */}
@@ -458,13 +609,15 @@ const EmployeeInventory = () => {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Status
+                      Priority
                     </label>
-                    <Input
-                      value={flagRequestData.status}
-                      readOnly
-                      className="bg-gray-50"
-                    />
+                    <div className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-md bg-gray-50">
+                      <div className={`w-2 h-2 rounded-full ${
+                        flagRequestData.priority === 'high' ? 'bg-red-500' :
+                        flagRequestData.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
+                      }`}></div>
+                      <span className="capitalize font-medium">{flagRequestData.priority}</span>
+                    </div>
                   </div>
                 </div>
 
@@ -525,7 +678,7 @@ const EmployeeInventory = () => {
                         mode="single"
                         selected={flagRequestData.requestedDate}
                         onSelect={(date) => setFlagRequestData(prev => ({ ...prev, requestedDate: date }))}
-                        disabled={(date) => date < new Date()}
+                        disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                         initialFocus
                         className="p-3 pointer-events-auto"
                       />
