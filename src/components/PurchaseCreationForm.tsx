@@ -45,6 +45,7 @@ const PurchaseCreationForm = () => {
   const [purchaseData, setPurchaseData] = useState({
     purchaseNumber: `PUR-${Date.now().toString().slice(-6)}`,
     purchaseDate: new Date().toISOString().split('T')[0],
+    dueDate: '',
     supplierId: '',
     notes: '',
     terms: 'Payment due within 30 days of purchase date.',
@@ -371,7 +372,7 @@ const PurchaseCreationForm = () => {
                 />
               </div>
               <div>
-                <Label htmlFor="purchaseDate">Purchase Date</Label>
+                <Label htmlFor="purchaseDate">Issue Date</Label>
                 <Input
                   id="purchaseDate"
                   type="date"
@@ -379,6 +380,15 @@ const PurchaseCreationForm = () => {
                   onChange={(e) => setPurchaseData({...purchaseData, purchaseDate: e.target.value})}
                 />
               </div>
+            </div>
+            <div>
+              <Label htmlFor="dueDate">Due Date</Label>
+              <Input
+                id="dueDate"
+                type="date"
+                value={purchaseData.dueDate || ''}
+                onChange={(e) => setPurchaseData({...purchaseData, dueDate: e.target.value})}
+              />
             </div>
             <div>
               <Label htmlFor="supplier">Select Supplier *</Label>
