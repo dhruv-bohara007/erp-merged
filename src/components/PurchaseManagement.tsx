@@ -17,7 +17,8 @@ import {
   IndianRupee,
   Clock,
   CheckCircle,
-  XCircle
+  XCircle,
+  Trash2
 } from 'lucide-react';
 import { usePurchases } from '@/hooks/useFirestore';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -357,18 +358,19 @@ const PurchaseManagement = () => {
                       <TableHead>Item Name</TableHead>
                       <TableHead>Quantity Bought</TableHead>
                       <TableHead>Unit</TableHead>
-                      <TableHead>Price per Unit</TableHead>
-                      <TableHead>Total Amount</TableHead>
-                      <TableHead>Date</TableHead>
+                       <TableHead>Price per Unit</TableHead>
+                       <TableHead>Total Amount</TableHead>
+                       <TableHead>Date</TableHead>
+                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredPurchases.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                          No purchases found
-                        </TableCell>
-                      </TableRow>
+                     {filteredPurchases.length === 0 ? (
+                       <TableRow>
+                         <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                           No purchases found
+                         </TableCell>
+                       </TableRow>
                     ) : (
                       filteredPurchases.map((purchase) => {
                         const displayItemName = purchase.productCategory && purchase.itemName && purchase.productVersion
@@ -392,15 +394,24 @@ const PurchaseManagement = () => {
                             <TableCell>
                               <div className="font-medium">{formatCurrency(purchase.pricePerUnit || 0)}</div>
                             </TableCell>
-                            <TableCell>
-                              <div className="font-medium">{formatCurrency(purchase.totalAmountAfterTax || purchase.amount || 0)}</div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center text-sm">
-                                <Calendar className="w-3 h-3 mr-1 text-gray-400" />
-                                {(purchase.purchaseDate || purchase.expenseDate)?.toLocaleDateString() || 'N/A'}
-                              </div>
-                            </TableCell>
+                           <TableCell>
+                               <div className="font-medium">{formatCurrency(purchase.totalAmountAfterTax || purchase.amount || 0)}</div>
+                             </TableCell>
+                             <TableCell>
+                               <div className="flex items-center text-sm">
+                                 <Calendar className="w-3 h-3 mr-1 text-gray-400" />
+                                 {(purchase.purchaseDate || purchase.expenseDate)?.toLocaleDateString() || 'N/A'}
+                               </div>
+                             </TableCell>
+                             <TableCell>
+                               <Button
+                                 variant="destructive"
+                                 size="sm"
+                                 onClick={() => handleDeletePurchase(purchase.id)}
+                               >
+                                 <Trash2 className="w-4 h-4" />
+                               </Button>
+                             </TableCell>
                           </TableRow>
                         );
                       })

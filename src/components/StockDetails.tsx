@@ -80,7 +80,7 @@ const StockDetails = () => {
               unit: purchaseData.unit || 'pcs',
               minRequired: 0,
               safeQuantityLimit: 0,
-              displayStatus: 'suspended',
+               displayStatus: 'suspended',
               createdAt: new Date(),
               updatedAt: new Date(),
               lastPurchaseDate: purchaseData.purchaseDate || purchaseData.expenseDate,
@@ -586,17 +586,17 @@ const StockDetails = () => {
                             onClick={() => toggleDisplayStatus(item.id)}
                             className="flex items-center gap-2"
                           >
-                            {item.displayStatus === 'displayed' ? (
-                              <>
-                                <EyeOff className="h-3 w-3" />
-                                Suspend
-                              </>
-                            ) : (
-                              <>
-                                <Eye className="h-3 w-3" />
-                                Display
-                              </>
-                            )}
+                             {item.displayStatus === 'displayed' ? (
+                               <>
+                                 <EyeOff className="h-3 w-3" />
+                                 Suspend
+                               </>
+                             ) : (
+                               <>
+                                 <Eye className="h-3 w-3" />
+                                 Suspend
+                               </>
+                             )}
                           </Button>
                         </div>
                       </TableCell>

@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import SearchableDropdown from '@/components/SearchableDropdown';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import { usePurchases } from '@/hooks/useFirestore';
-import { useProductDefinitions } from '@/hooks/useProductDefinitions';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
 import { useCompanyData } from '@/hooks/useCompanyData';
 import { useAuth } from '@/contexts/AuthContext';
@@ -50,7 +51,6 @@ const UNIT_OPTIONS = [
 const PurchaseForm = () => {
   const navigate = useNavigate();
   const { addPurchase } = usePurchases();
-  const { productDefinitions } = useProductDefinitions();
   const { convertToINR, getCurrencyInfo } = useCurrencyConverter();
   const { currentUser, refreshUser } = useAuth();
   const { companyData } = useCompanyData();
@@ -66,12 +66,34 @@ const PurchaseForm = () => {
   const companyCountry = companyData?.country || 'US';
   const companyCurrency = getCurrencyInfo(companyCountry);
 
-  // Get unique categories, names, and versions for dropdowns
-  const categories = [...new Set(productDefinitions.map(p => p.productCategory).filter(Boolean))];
+  // Fetch stock details to populate dropdowns
+  const [stockDetails, setStockDetails] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchStockDetails = async () => {
+      if (!currentUser?.companyId) return;
+      
+      try {
+        const stockDetailsCollection = collection(db, 'stock_details');
+        const q = query(stockDetailsCollection, where('companyId', '==', currentUser.companyId));
+        const snapshot = await getDocs(q);
+        
+        const stockData = snapshot.docs.map(doc => doc.data());
+        setStockDetails(stockData);
+      } catch (error) {
+        console.error('Error fetching stock details:', error);
+      }
+    };
+
+    fetchStockDetails();
+  }, [currentUser?.companyId]);
+
+  // Get unique categories, names, and versions for dropdowns from stock_details
+  const categories = [...new Set(stockDetails.map(p => p.productCategory).filter(Boolean))];
   const getProductNames = (category: string) => 
-    [...new Set(productDefinitions.filter(p => p.productCategory === category).map(p => p.itemName).filter(Boolean))];
+    [...new Set(stockDetails.filter(p => p.productCategory === category).map(p => p.itemName).filter(Boolean))];
   const getProductVersions = (category: string, name: string) =>
-    [...new Set(productDefinitions.filter(p => p.productCategory === category && p.itemName === name).map(p => p.productVersion).filter(Boolean))];
+    [...new Set(stockDetails.filter(p => p.productCategory === category && p.itemName === name).map(p => p.productVersion).filter(Boolean))];
 
   const addNewItem = () => {
     const newItem: PurchaseItem = {
