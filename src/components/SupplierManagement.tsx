@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -46,6 +45,7 @@ const SupplierManagement = () => {
     name: '',
     email: '',
     phone: '',
+    address: '',
     city: '',
     state: '',
     pincode: '',
@@ -113,35 +113,68 @@ const SupplierManagement = () => {
     return countryInfo?.primaryTaxLabel || 'Tax ID';
   };
 
+  // Generate address from city, state, and country
+  const generateAddress = (city: string, state: string, country: string, pincode: string) => {
+    const countryName = countries.find(c => c.value === country)?.label || country;
+    return `${city}, ${state} ${pincode}, ${countryName}`;
+  };
+
   // Handle country change for new supplier
   const handleNewSupplierCountryChange = (countryCode: string) => {
     const phoneCode = getPhoneCodeForCountry(countryCode);
-    setNewSupplier({
+    const updatedSupplier = {
       ...newSupplier,
       country: countryCode,
       phone: phoneCode + ' '
-    });
+    };
+    updatedSupplier.address = generateAddress(updatedSupplier.city, updatedSupplier.state, countryCode, updatedSupplier.pincode);
+    setNewSupplier(updatedSupplier);
   };
 
   // Handle country change for editing supplier
   const handleEditSupplierCountryChange = (countryCode: string) => {
     if (!editingSupplier) return;
     const phoneCode = getPhoneCodeForCountry(countryCode);
-    setEditingSupplier({
+    const updatedSupplier = {
       ...editingSupplier,
       country: countryCode,
       phone: phoneCode + ' '
-    });
+    };
+    updatedSupplier.address = generateAddress(updatedSupplier.city, updatedSupplier.state, countryCode, updatedSupplier.pincode);
+    setEditingSupplier(updatedSupplier);
+  };
+
+  // Handle field changes that affect address
+  const handleNewSupplierFieldChange = (field: string, value: string) => {
+    const updatedSupplier = { ...newSupplier, [field]: value };
+    if (['city', 'state', 'pincode'].includes(field)) {
+      updatedSupplier.address = generateAddress(updatedSupplier.city, updatedSupplier.state, updatedSupplier.country, updatedSupplier.pincode);
+    }
+    setNewSupplier(updatedSupplier);
+  };
+
+  const handleEditSupplierFieldChange = (field: string, value: string) => {
+    if (!editingSupplier) return;
+    const updatedSupplier = { ...editingSupplier, [field]: value };
+    if (['city', 'state', 'pincode'].includes(field)) {
+      updatedSupplier.address = generateAddress(updatedSupplier.city, updatedSupplier.state, updatedSupplier.country, updatedSupplier.pincode);
+    }
+    setEditingSupplier(updatedSupplier);
   };
 
   const handleAddSupplier = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await addSupplier(newSupplier);
+      const supplierToAdd = {
+        ...newSupplier,
+        address: generateAddress(newSupplier.city, newSupplier.state, newSupplier.country, newSupplier.pincode)
+      };
+      await addSupplier(supplierToAdd);
       setNewSupplier({
         name: '',
         email: '',
         phone: '',
+        address: '',
         city: '',
         state: '',
         pincode: '',
@@ -168,7 +201,11 @@ const SupplierManagement = () => {
     if (!editingSupplier) return;
     
     try {
-      await updateSupplier(editingSupplier.id, editingSupplier);
+      const supplierToUpdate = {
+        ...editingSupplier,
+        address: generateAddress(editingSupplier.city, editingSupplier.state, editingSupplier.country, editingSupplier.pincode)
+      };
+      await updateSupplier(editingSupplier.id, supplierToUpdate);
       setEditingSupplier(null);
       setIsEditModalOpen(false);
       toast({ title: 'Supplier updated successfully!' });
@@ -246,7 +283,7 @@ const SupplierManagement = () => {
                   <Input
                     id="name"
                     value={newSupplier.name}
-                    onChange={(e) => setNewSupplier({...newSupplier, name: e.target.value})}
+                    onChange={(e) => handleNewSupplierFieldChange('name', e.target.value)}
                     required
                   />
                 </div>
@@ -256,7 +293,7 @@ const SupplierManagement = () => {
                     id="email"
                     type="email"
                     value={newSupplier.email}
-                    onChange={(e) => setNewSupplier({...newSupplier, email: e.target.value})}
+                    onChange={(e) => handleNewSupplierFieldChange('email', e.target.value)}
                     required
                   />
                 </div>
@@ -283,7 +320,7 @@ const SupplierManagement = () => {
                   <Input
                     id="phone"
                     value={newSupplier.phone}
-                    onChange={(e) => setNewSupplier({...newSupplier, phone: e.target.value})}
+                    onChange={(e) => handleNewSupplierFieldChange('phone', e.target.value)}
                     placeholder={`${getPhoneCodeForCountry(newSupplier.country)} 123456789`}
                     required
                   />
@@ -293,7 +330,7 @@ const SupplierManagement = () => {
                   <Input
                     id="city"
                     value={newSupplier.city}
-                    onChange={(e) => setNewSupplier({...newSupplier, city: e.target.value})}
+                    onChange={(e) => handleNewSupplierFieldChange('city', e.target.value)}
                     required
                   />
                 </div>
@@ -302,7 +339,7 @@ const SupplierManagement = () => {
                   <Input
                     id="state"
                     value={newSupplier.state}
-                    onChange={(e) => setNewSupplier({...newSupplier, state: e.target.value})}
+                    onChange={(e) => handleNewSupplierFieldChange('state', e.target.value)}
                     required
                   />
                 </div>
@@ -311,7 +348,7 @@ const SupplierManagement = () => {
                   <Input
                     id="pincode"
                     value={newSupplier.pincode}
-                    onChange={(e) => setNewSupplier({...newSupplier, pincode: e.target.value})}
+                    onChange={(e) => handleNewSupplierFieldChange('pincode', e.target.value)}
                     required
                   />
                 </div>
@@ -535,7 +572,7 @@ const SupplierManagement = () => {
                   <Input
                     id="edit-name"
                     value={editingSupplier.name}
-                    onChange={(e) => setEditingSupplier({...editingSupplier, name: e.target.value})}
+                    onChange={(e) => handleEditSupplierFieldChange('name', e.target.value)}
                     required
                   />
                 </div>
@@ -545,7 +582,7 @@ const SupplierManagement = () => {
                     id="edit-email"
                     type="email"
                     value={editingSupplier.email}
-                    onChange={(e) => setEditingSupplier({...editingSupplier, email: e.target.value})}
+                    onChange={(e) => handleEditSupplierFieldChange('email', e.target.value)}
                     required
                   />
                 </div>
@@ -572,7 +609,7 @@ const SupplierManagement = () => {
                   <Input
                     id="edit-phone"
                     value={editingSupplier.phone}
-                    onChange={(e) => setEditingSupplier({...editingSupplier, phone: e.target.value})}
+                    onChange={(e) => handleEditSupplierFieldChange('phone', e.target.value)}
                     placeholder={`${getPhoneCodeForCountry(editingSupplier.country)} 123456789`}
                     required
                   />
@@ -582,7 +619,7 @@ const SupplierManagement = () => {
                   <Input
                     id="edit-city"
                     value={editingSupplier.city}
-                    onChange={(e) => setEditingSupplier({...editingSupplier, city: e.target.value})}
+                    onChange={(e) => handleEditSupplierFieldChange('city', e.target.value)}
                     required
                   />
                 </div>
@@ -591,7 +628,7 @@ const SupplierManagement = () => {
                   <Input
                     id="edit-state"
                     value={editingSupplier.state}
-                    onChange={(e) => setEditingSupplier({...editingSupplier, state: e.target.value})}
+                    onChange={(e) => handleEditSupplierFieldChange('state', e.target.value)}
                     required
                   />
                 </div>
@@ -600,7 +637,7 @@ const SupplierManagement = () => {
                   <Input
                     id="edit-pincode"
                     value={editingSupplier.pincode}
-                    onChange={(e) => setEditingSupplier({...editingSupplier, pincode: e.target.value})}
+                    onChange={(e) => handleEditSupplierFieldChange('pincode', e.target.value)}
                     required
                   />
                 </div>
@@ -619,7 +656,7 @@ const SupplierManagement = () => {
                   <Label htmlFor="edit-status">Status</Label>
                   <Select 
                     value={editingSupplier.status} 
-                    onValueChange={(value: 'active' | 'inactive') => setEditingSupplier({...editingSupplier, status: value})}
+                    onValueChange={(value: 'active' | 'inactive') => handleEditSupplierFieldChange('status', value)}
                   >
                     <SelectTrigger>
                       <SelectValue />
