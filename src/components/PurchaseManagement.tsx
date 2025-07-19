@@ -230,7 +230,10 @@ const PurchaseManagement = () => {
           <h1 className="text-3xl font-bold">{pageContent.title}</h1>
           <p className="text-gray-600 mt-2">{pageContent.description}</p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700">
+        <Button 
+          className="bg-blue-600 hover:bg-blue-700"
+          onClick={() => navigate('/create-purchase-order')}
+        >
           <Plus className="w-4 h-4 mr-2" />
           Create Purchase Order
         </Button>
