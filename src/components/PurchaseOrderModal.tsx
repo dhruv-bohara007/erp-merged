@@ -468,37 +468,11 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({ order, isOpen, 
                   <span className="font-bold">{formatCurrency(order.subtotal || 0, companyCountry)}</span>
                 </div>
                 
-                {/* Subtotal (Supplier) - Calculate if supplier amount and tax rate are available */}
-                {order.supplierAmount && order.taxCalculation?.taxes?.[0]?.rate && (
-                  <div className="flex justify-between text-gray-700 text-lg">
-                    <span className="font-semibold">Subtotal (Supplier - {supplierCurrency.code}):</span>
-                    <span className="font-bold">
-                      {formatCurrency(
-                        order.supplierAmount - ((order.taxCalculation.taxes[0].rate / 100) * order.supplierAmount), 
-                        supplierCountry
-                      )}
-                    </span>
-                  </div>
-                )}
-                
-                {/* Total Tax (Company) - Use totalTaxAmount field */}
+                {/* Total Tax (Company) - Use taxCalculation.totalTaxAmount field */}
                 <div className="flex justify-between text-gray-700 text-lg">
                   <span className="font-semibold">Total Tax (Company - {companyCurrency.code}):</span>
-                  <span className="font-bold">{formatCurrency(order.totalTaxAmount || 0, companyCountry)}</span>
+                  <span className="font-bold">{formatCurrency(order.taxCalculation?.totalTaxAmount || 0, companyCountry)}</span>
                 </div>
-                
-                {/* Total Tax (Supplier) - Calculate if supplier amount and tax rate are available */}
-                {order.supplierAmount && order.taxCalculation?.taxes?.[0]?.rate && (
-                  <div className="flex justify-between text-gray-700 text-lg">
-                    <span className="font-semibold">Total Tax (Supplier - {supplierCurrency.code}):</span>
-                    <span className="font-bold">
-                      {formatCurrency(
-                        (order.taxCalculation.taxes[0].rate / 100) * order.supplierAmount, 
-                        supplierCountry
-                      )}
-                    </span>
-                  </div>
-                )}
                 
                 <Separator className="bg-blue-300 h-0.5" />
                 
@@ -507,13 +481,38 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({ order, isOpen, 
                   <span>Total Amount (Company - {companyCurrency.code}):</span>
                   <span>{formatCurrency(order.currencyAmounts?.companyAmount || order.totalAmount || 0, companyCountry)}</span>
                 </div>
-                
-                {/* Total Amount (Supplier) - Use supplierAmount field */}
-                {order.supplierAmount && (
-                  <div className="flex justify-between text-xl font-bold text-green-600">
-                    <span>Total Amount (Supplier - {supplierCurrency.code}):</span>
-                    <span>{formatCurrency(order.supplierAmount, supplierCountry)}</span>
-                  </div>
+
+                {/* Supplier Currency Section - Only show if different currency */}
+                {order.currencyAmounts?.supplierAmount && showDualCurrency && (
+                  <>
+                    {/* Subtotal (Supplier) - Calculate supplier subtotal */}
+                    <div className="flex justify-between text-gray-700 text-lg">
+                      <span className="font-semibold">Subtotal (Supplier - {supplierCurrency.code}):</span>
+                      <span className="font-bold">
+                        {formatCurrency(
+                          order.currencyAmounts.supplierAmount - ((order.taxCalculation?.taxes?.[0]?.rate / 100 || 0) * order.currencyAmounts.supplierAmount), 
+                          supplierCountry
+                        )}
+                      </span>
+                    </div>
+                    
+                    {/* Total Tax (Supplier) - Calculate supplier tax */}
+                    <div className="flex justify-between text-gray-700 text-lg">
+                      <span className="font-semibold">Total Tax (Supplier - {supplierCurrency.code}):</span>
+                      <span className="font-bold">
+                        {formatCurrency(
+                          (order.taxCalculation?.taxes?.[0]?.rate / 100 || 0) * order.currencyAmounts.supplierAmount, 
+                          supplierCountry
+                        )}
+                      </span>
+                    </div>
+                    
+                    {/* Total Amount (Supplier) */}
+                    <div className="flex justify-between text-xl font-bold text-green-600">
+                      <span>Total Amount (Supplier):</span>
+                      <span>{formatCurrency(order.currencyAmounts.supplierAmount, supplierCountry)}</span>
+                    </div>
+                  </>
                 )}
               </div>
             </CardContent>
