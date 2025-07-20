@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { Trash2, Plus, Loader2, Edit2, Package } from 'lucide-react';
 import { useSuppliers } from '@/hooks/useFirestore';
@@ -63,7 +65,7 @@ const PurchaseCreationForm = () => {
   const [loading, setLoading] = useState(false);
   const [stockDetails, setStockDetails] = useState<any[]>([]);
   const [approvedRequests, setApprovedRequests] = useState<PurchaseRequest[]>([]);
-  const [selectedRequestId, setSelectedRequestId] = useState<string>('');
+  const [selectedRequestIds, setSelectedRequestIds] = useState<string[]>([]);
   const [showRequestDropdown, setShowRequestDropdown] = useState(false);
 
   const [purchaseData, setPurchaseData] = useState({
@@ -324,46 +326,55 @@ const PurchaseCreationForm = () => {
     }));
   };
 
-  // Handle purchase request selection
-  const handleRequestSelection = (requestId: string) => {
-    setSelectedRequestId(requestId);
-    
-    if (requestId) {
-      const selectedRequest = approvedRequests.find(req => req.id === requestId);
-      if (selectedRequest) {
-        // Auto-fill the product details into the first item
-        const newItem: PurchaseFormItem = {
-          productCategory: selectedRequest.productCategory,
-          itemName: selectedRequest.itemName,
-          productVersion: selectedRequest.productVersion,
-          quantity: selectedRequest.quantityRequired,
-          unit: selectedRequest.unit,
-          rate: 0, // Will be auto-filled if the product exists in stock details
-          discount: '0',
-          amount: 0,
-          sourceType: 'available'
-        };
-
-        // Try to get the product price from stock details
-        const price = getProductPrice(selectedRequest.productCategory, selectedRequest.itemName, selectedRequest.productVersion);
-        if (price > 0) {
-          newItem.rate = price;
-          newItem.amount = newItem.quantity * newItem.rate;
-        }
-
-        // Replace the first item with the request data
-        setItems([newItem]);
-        
-        // Switch to available products mode if not already
-        setProductSourceType('available');
-
-        toast({
-          title: "Request Selected",
-          description: `Product details from request ${requestId.slice(0, 8)}... have been auto-filled`,
-        });
-      }
+  // Handle purchase request multi-selection
+  const handleRequestSelection = (requestId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedRequestIds(prev => [...prev, requestId]);
+    } else {
+      setSelectedRequestIds(prev => prev.filter(id => id !== requestId));
     }
   };
+
+  // Auto-fill items when requests are selected
+  useEffect(() => {
+    if (selectedRequestIds.length > 0) {
+      const selectedRequests = approvedRequests.filter(req => selectedRequestIds.includes(req.id));
+      
+      const newItems: PurchaseFormItem[] = selectedRequests.map(request => {
+        const price = getProductPrice(request.productCategory, request.itemName, request.productVersion);
+        const newItem: PurchaseFormItem = {
+          productCategory: request.productCategory,
+          itemName: request.itemName,
+          productVersion: request.productVersion,
+          quantity: request.quantityRequired,
+          unit: request.unit,
+          rate: price || 0,
+          discount: '0',
+          amount: price ? request.quantityRequired * price : 0,
+          sourceType: 'available'
+        };
+        return newItem;
+      });
+
+      if (newItems.length > 0) {
+        setItems(newItems);
+        setProductSourceType('available');
+      }
+    } else {
+      // Reset to default item if no requests selected
+      setItems([{ 
+        productCategory: '', 
+        itemName: '', 
+        productVersion: '', 
+        quantity: 1, 
+        unit: 'pcs',
+        rate: 0, 
+        discount: '0', 
+        amount: 0,
+        sourceType: 'available'
+      }]);
+    }
+  }, [selectedRequestIds, approvedRequests]);
 
   // Currency info
   const companyCurrency = getCurrencyInfo(companyCountry);
@@ -485,53 +496,100 @@ const PurchaseCreationForm = () => {
           <CardContent>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="purchaseRequest">Approved Purchase Requests</Label>
-                <Select value={selectedRequestId} onValueChange={handleRequestSelection}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a purchase request to auto-fill" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {approvedRequests.length === 0 ? (
-                      <SelectItem value="no-requests" disabled>
-                        No approved purchase requests found
-                      </SelectItem>
-                    ) : (
-                      approvedRequests.map((request) => (
-                        <SelectItem key={request.id} value={request.id}>
-                          <div className="flex flex-col">
-                            <span className="font-medium">
-                              {request.itemName} ({request.productCategory})
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              ID: {request.id.slice(0, 8)}... • Qty: {request.quantityRequired} {request.unit} • 
-                              Employee: {request.employeeName} • {request.requestedDate.toLocaleDateString()}
-                            </span>
+                <Label htmlFor="purchaseRequest">Select Approved Purchase Requests</Label>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Select multiple purchase requests to auto-fill as purchase items. 
+                  Each selected request will become a separate item in your purchase order.
+                </p>
+                
+                {approvedRequests.length === 0 ? (
+                  <div className="p-4 border border-dashed rounded-lg text-center text-muted-foreground">
+                    No approved purchase requests found
+                  </div>
+                ) : (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className="w-full justify-between"
+                      >
+                        {selectedRequestIds.length === 0
+                          ? "Select purchase requests..."
+                          : `${selectedRequestIds.length} request(s) selected`}
+                        <Package className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0" style={{ width: 'var(--radix-popover-trigger-width)' }}>
+                      <div className="max-h-80 overflow-y-auto">
+                        {approvedRequests.map((request) => (
+                          <div
+                            key={request.id}
+                            className="flex items-start space-x-3 p-3 hover:bg-accent cursor-pointer border-b border-border/50 last:border-0"
+                            onClick={() => handleRequestSelection(request.id, !selectedRequestIds.includes(request.id))}
+                          >
+                            <Checkbox
+                              checked={selectedRequestIds.includes(request.id)}
+                              onCheckedChange={(checked) => handleRequestSelection(request.id, checked as boolean)}
+                              className="mt-1"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium text-sm text-foreground">
+                                  {request.itemName}
+                                </span>
+                                <span className="text-xs text-muted-foreground font-mono">
+                                  ID: {request.id.slice(0, 8)}...
+                                </span>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                <span className="font-medium">{request.productCategory}</span> • 
+                                v{request.productVersion} • 
+                                {request.quantityRequired} {request.unit}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Requested by: {request.employeeName} • 
+                                {request.requestedDate.toLocaleDateString()}
+                              </p>
+                            </div>
                           </div>
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                )}
               </div>
               
-              {selectedRequestId && (
-                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                  {(() => {
-                    const selectedRequest = approvedRequests.find(req => req.id === selectedRequestId);
-                    return selectedRequest ? (
-                      <div>
-                        <p className="text-sm font-medium text-green-800 mb-2">Selected Request Details:</p>
-                        <div className="text-sm text-green-700 space-y-1">
-                          <p><strong>Product:</strong> {selectedRequest.itemName} ({selectedRequest.productCategory})</p>
-                          <p><strong>Version:</strong> {selectedRequest.productVersion}</p>
-                          <p><strong>Quantity:</strong> {selectedRequest.quantityRequired} {selectedRequest.unit}</p>
-                          <p><strong>Requested by:</strong> {selectedRequest.employeeName}</p>
-                          <p><strong>Reason:</strong> {selectedRequest.reason}</p>
-                          <p><strong>Priority:</strong> {selectedRequest.priority.charAt(0).toUpperCase() + selectedRequest.priority.slice(1)}</p>
+              {selectedRequestIds.length > 0 && (
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm font-medium text-green-800 mb-3">
+                    Selected Requests ({selectedRequestIds.length}):
+                  </p>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {selectedRequestIds.map((requestId, index) => {
+                      const request = approvedRequests.find(req => req.id === requestId);
+                      return request ? (
+                        <div key={requestId} className="flex items-center justify-between bg-white p-2 rounded border border-green-200">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-green-800">
+                              Item {index + 1}: {request.itemName} ({request.productCategory})
+                            </p>
+                            <p className="text-xs text-green-600">
+                              v{request.productVersion} • {request.quantityRequired} {request.unit} • {request.employeeName}
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRequestSelection(requestId, false)}
+                            className="text-green-700 hover:text-green-900 hover:bg-green-100"
+                          >
+                            ×
+                          </Button>
                         </div>
-                      </div>
-                    ) : null;
-                  })()}
+                      ) : null;
+                    })}
+                  </div>
                 </div>
               )}
             </div>
