@@ -235,9 +235,18 @@ const PurchaseRequestsAdmin = () => {
     <div className="p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Purchase Requests</h1>
-          <p className="text-gray-600 mt-2">Review and manage employee purchase requests</p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Purchase Requests</h1>
+            <p className="text-gray-600 mt-2">Review and manage employee purchase requests</p>
+          </div>
+          <Button 
+            className="bg-blue-600 hover:bg-blue-700"
+            onClick={() => window.location.href = '/create-purchase-order?fromRequest=true'}
+          >
+            <Package className="w-4 h-4 mr-2" />
+            Create PO from Request
+          </Button>
         </div>
 
         {/* Summary Cards */}
@@ -335,6 +344,7 @@ const PurchaseRequestsAdmin = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Request ID</TableHead>
                   <TableHead>Employee</TableHead>
                   <TableHead>Product Details</TableHead>
                   <TableHead>Quantity</TableHead>
@@ -349,6 +359,11 @@ const PurchaseRequestsAdmin = () => {
               <TableBody>
                 {filteredRequests.map((request) => (
                   <TableRow key={request.id}>
+                    <TableCell>
+                      <div className="font-mono text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                        {request.id.slice(0, 8)}...
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <div>
                         <p className="font-medium">{request.employeeName}</p>

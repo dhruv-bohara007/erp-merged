@@ -7,12 +7,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, Plus, Loader2, Edit2 } from 'lucide-react';
+import { Trash2, Plus, Loader2, Edit2, Package } from 'lucide-react';
 import { useSuppliers } from '@/hooks/useFirestore';
 import { useCompanyData } from '@/hooks/useCompanyData';
 import { useTaxCalculations } from '@/hooks/useTaxCalculations';
 import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -31,6 +31,25 @@ interface PurchaseFormItem {
   sourceType: 'available' | 'manual';
 }
 
+interface PurchaseRequest {
+  id: string;
+  companyId: string;
+  employeeName: string;
+  employeeEmail: string;
+  productCategory: string;
+  itemName: string;
+  productVersion: string;
+  stockStatus: string;
+  quantityRequired: number;
+  unit: string;
+  requestedDate: Date;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  priority: 'low' | 'medium' | 'high';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 const PurchaseCreationForm = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -39,9 +58,13 @@ const PurchaseCreationForm = () => {
   const { calculateTaxes, getTaxDisplayName } = useTaxCalculations();
   const { convertToINR, convertFromINR, formatCurrency, getCurrencyInfo, loading: currencyLoading } = useCurrencyConverter();
   const { currentUser } = useAuth();
+  const [searchParams] = useSearchParams();
   
   const [loading, setLoading] = useState(false);
   const [stockDetails, setStockDetails] = useState<any[]>([]);
+  const [approvedRequests, setApprovedRequests] = useState<PurchaseRequest[]>([]);
+  const [selectedRequestId, setSelectedRequestId] = useState<string>('');
+  const [showRequestDropdown, setShowRequestDropdown] = useState(false);
 
   const [purchaseData, setPurchaseData] = useState({
     purchaseNumber: `PUR-${Date.now().toString().slice(-6)}`,
@@ -77,6 +100,12 @@ const PurchaseCreationForm = () => {
     INRToSupplierRate: 1
   });
 
+  // Check if coming from purchase request page
+  useEffect(() => {
+    const fromRequest = searchParams.get('fromRequest');
+    setShowRequestDropdown(fromRequest === 'true');
+  }, [searchParams]);
+
   // Fetch stock details from Firestore
   useEffect(() => {
     const fetchStockDetails = async () => {
@@ -96,6 +125,48 @@ const PurchaseCreationForm = () => {
 
     fetchStockDetails();
   }, [currentUser?.companyId]);
+
+  // Fetch approved purchase requests when coming from request page
+  useEffect(() => {
+    const fetchApprovedRequests = async () => {
+      if (!currentUser?.companyId || !showRequestDropdown) return;
+      
+      try {
+        const requestsCollection = collection(db, 'purchase_requests');
+        const q = query(
+          requestsCollection, 
+          where('companyId', '==', currentUser.companyId),
+          where('status', '==', 'approved')
+        );
+        const snapshot = await getDocs(q);
+        
+        const fetchedRequests = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            ...data,
+            id: doc.id,
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate() || new Date(),
+            requestedDate: data.requestedDate?.toDate() || new Date(),
+            priority: data.priority || 'medium'
+          };
+        }) as PurchaseRequest[];
+
+        // Sort by creation date (newest first)
+        fetchedRequests.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+        setApprovedRequests(fetchedRequests);
+      } catch (error) {
+        console.error('Error fetching approved purchase requests:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load approved purchase requests",
+          variant: "destructive"
+        });
+      }
+    };
+
+    fetchApprovedRequests();
+  }, [currentUser?.companyId, showRequestDropdown, toast]);
 
   // Get categories, names, and versions from stock_details
   const availableCategories = [...new Set(stockDetails.map(p => p.productCategory))];
@@ -253,6 +324,47 @@ const PurchaseCreationForm = () => {
     }));
   };
 
+  // Handle purchase request selection
+  const handleRequestSelection = (requestId: string) => {
+    setSelectedRequestId(requestId);
+    
+    if (requestId) {
+      const selectedRequest = approvedRequests.find(req => req.id === requestId);
+      if (selectedRequest) {
+        // Auto-fill the product details into the first item
+        const newItem: PurchaseFormItem = {
+          productCategory: selectedRequest.productCategory,
+          itemName: selectedRequest.itemName,
+          productVersion: selectedRequest.productVersion,
+          quantity: selectedRequest.quantityRequired,
+          unit: selectedRequest.unit,
+          rate: 0, // Will be auto-filled if the product exists in stock details
+          discount: '0',
+          amount: 0,
+          sourceType: 'available'
+        };
+
+        // Try to get the product price from stock details
+        const price = getProductPrice(selectedRequest.productCategory, selectedRequest.itemName, selectedRequest.productVersion);
+        if (price > 0) {
+          newItem.rate = price;
+          newItem.amount = newItem.quantity * newItem.rate;
+        }
+
+        // Replace the first item with the request data
+        setItems([newItem]);
+        
+        // Switch to available products mode if not already
+        setProductSourceType('available');
+
+        toast({
+          title: "Request Selected",
+          description: `Product details from request ${requestId.slice(0, 8)}... have been auto-filled`,
+        });
+      }
+    }
+  };
+
   // Currency info
   const companyCurrency = getCurrencyInfo(companyCountry);
   const supplierCurrency = getCurrencyInfo(supplierCountry);
@@ -357,6 +469,75 @@ const PurchaseCreationForm = () => {
           </Button>
         </div>
       </div>
+
+      {/* Purchase Request Selection (Only shown when fromRequest=true) */}
+      {showRequestDropdown && (
+        <Card className="border-blue-200 bg-blue-50/50">
+          <CardHeader>
+            <CardTitle className="text-blue-900 flex items-center gap-2">
+              <Package className="w-5 h-5" />
+              Select Approved Purchase Request
+            </CardTitle>
+            <p className="text-blue-700 text-sm">
+              Choose an approved purchase request to auto-fill product details into the purchase order.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="purchaseRequest">Approved Purchase Requests</Label>
+                <Select value={selectedRequestId} onValueChange={handleRequestSelection}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a purchase request to auto-fill" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {approvedRequests.length === 0 ? (
+                      <SelectItem value="" disabled>
+                        No approved purchase requests found
+                      </SelectItem>
+                    ) : (
+                      approvedRequests.map((request) => (
+                        <SelectItem key={request.id} value={request.id}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">
+                              {request.itemName} ({request.productCategory})
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              ID: {request.id.slice(0, 8)}... • Qty: {request.quantityRequired} {request.unit} • 
+                              Employee: {request.employeeName} • {request.requestedDate.toLocaleDateString()}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {selectedRequestId && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                  {(() => {
+                    const selectedRequest = approvedRequests.find(req => req.id === selectedRequestId);
+                    return selectedRequest ? (
+                      <div>
+                        <p className="text-sm font-medium text-green-800 mb-2">Selected Request Details:</p>
+                        <div className="text-sm text-green-700 space-y-1">
+                          <p><strong>Product:</strong> {selectedRequest.itemName} ({selectedRequest.productCategory})</p>
+                          <p><strong>Version:</strong> {selectedRequest.productVersion}</p>
+                          <p><strong>Quantity:</strong> {selectedRequest.quantityRequired} {selectedRequest.unit}</p>
+                          <p><strong>Requested by:</strong> {selectedRequest.employeeName}</p>
+                          <p><strong>Reason:</strong> {selectedRequest.reason}</p>
+                          <p><strong>Priority:</strong> {selectedRequest.priority.charAt(0).toUpperCase() + selectedRequest.priority.slice(1)}</p>
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Purchase Details */}
