@@ -62,7 +62,7 @@ interface PurchaseRequest {
   itemName: string;
   productCategory: string;
   productVersion: string;
-  status: 'pending' | 'approved' | 'rejected' | 'PO Created';
+  status: 'pending' | 'approved' | 'rejected';
   priority: 'low' | 'medium' | 'high';
   quantityRequired: number;
   createdAt: Date;
@@ -458,45 +458,48 @@ const EmployeeInventory = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {/* Request Status and Quantity Display */}
+                    {/* Request Status Alerts */}
                     {itemRequest && (
                       <div className={`border rounded-lg p-3 ${
                         itemRequest.status === 'pending' ? 'bg-blue-50 border-blue-200' :
                         itemRequest.status === 'approved' ? 'bg-green-50 border-green-200' :
-                        itemRequest.status === 'PO Created' ? 'bg-purple-50 border-purple-200' :
                         'bg-red-50 border-red-200'
                       }`}>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            {itemRequest.status === 'pending' && (
-                              <>
-                                <Flag className="h-4 w-4 text-blue-600" />
-                                <span className="text-sm font-medium text-blue-800">Request Pending</span>
-                              </>
-                            )}
-                            {itemRequest.status === 'approved' && (
-                              <>
-                                <CheckCircle className="h-4 w-4 text-green-600" />
-                                <span className="text-sm font-medium text-green-800">Request Approved</span>
-                              </>
-                            )}
-                            {itemRequest.status === 'PO Created' && (
-                              <>
-                                <Package className="h-4 w-4 text-purple-600" />
-                                <span className="text-sm font-medium text-purple-800">PO Created</span>
-                              </>
-                            )}
-                            {itemRequest.status === 'rejected' && (
-                              <>
-                                <XCircle className="h-4 w-4 text-red-600" />
-                                <span className="text-sm font-medium text-red-800">Request Rejected</span>
-                              </>
-                            )}
-                          </div>
-                          <Badge variant="outline" className="text-xs">
-                            Qty: {itemRequest.quantityRequired}
-                          </Badge>
+                        <div className="flex items-center gap-2">
+                          {itemRequest.status === 'pending' && (
+                            <>
+                              <Flag className="h-4 w-4 text-blue-600" />
+                              <span className="text-sm font-medium text-blue-800">Request Pending</span>
+                            </>
+                          )}
+                          {itemRequest.status === 'approved' && (
+                            <>
+                              <CheckCircle className="h-4 w-4 text-green-600" />
+                              <span className="text-sm font-medium text-green-800">Request Approved</span>
+                            </>
+                          )}
+                          {itemRequest.status === 'rejected' && (
+                            <>
+                              <XCircle className="h-4 w-4 text-red-600" />
+                              <span className="text-sm font-medium text-red-800">Request Rejected</span>
+                            </>
+                          )}
                         </div>
+                        <p className="text-xs mt-1 ${
+                          itemRequest.status === 'pending' ? 'text-blue-600' :
+                          itemRequest.status === 'approved' ? 'text-green-600' :
+                          'text-red-600'
+                        }">
+                          {itemRequest.status === 'pending' && 
+                            `Purchase request submitted with ${itemRequest.priority} priority`
+                          }
+                          {itemRequest.status === 'approved' && 
+                            `Previous purchase request of ${itemRequest.quantityRequired} was approved by admin.`
+                          }
+                          {itemRequest.status === 'rejected' && 
+                            `Previous purchase request of ${itemRequest.quantityRequired} was rejected by admin.`
+                          }
+                        </p>
                       </div>
                     )}
 
@@ -528,29 +531,17 @@ const EmployeeInventory = () => {
                       </ChatHistoryModal>
                       {(status === 'low' || status === 'critical') && (
                         <div className="relative flex-1">
-                          {(!itemRequest || itemRequest.status === 'rejected') ? (
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => handleFlagLowClick(item)}
-                              className="w-full"
-                            >
-                              <Flag className="w-3 h-3 mr-1" />
-                              Flag Low
-                              <ChevronDown className="w-3 h-3 ml-1" />
-                            </Button>
-                          ) : (
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              className="w-full"
-                              disabled
-                            >
-                              <Flag className="w-3 h-3 mr-1" />
-                              Flag Low
-                              <ChevronDown className="w-3 h-3 ml-1" />
-                            </Button>
-                          )}
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleFlagLowClick(item)}
+                            className="w-full"
+                            disabled={isRequestDisabled}
+                          >
+                            <Flag className="w-3 h-3 mr-1" />
+                            Flag Low
+                            <ChevronDown className="w-3 h-3 ml-1" />
+                          </Button>
                         </div>
                       )}
                     </div>
