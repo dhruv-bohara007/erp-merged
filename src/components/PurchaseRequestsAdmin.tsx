@@ -44,7 +44,7 @@ interface PurchaseRequest {
   unit: string;
   requestedDate: Date;
   reason: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'PO Created';
   priority: 'low' | 'medium' | 'high';
   createdAt: Date;
   updatedAt: Date;
@@ -190,6 +190,7 @@ const PurchaseRequestsAdmin = () => {
       case 'pending': return 'secondary';
       case 'approved': return 'default';
       case 'rejected': return 'destructive';
+      case 'PO Created': return 'outline';
       default: return 'secondary';
     }
   };
@@ -330,6 +331,7 @@ const PurchaseRequestsAdmin = () => {
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
                 <option value="rejected">Rejected</option>
+                <option value="PO Created">PO Created</option>
               </select>
             </div>
           </CardContent>
@@ -374,7 +376,7 @@ const PurchaseRequestsAdmin = () => {
                       <div>
                         <p className="font-medium">{request.itemName}</p>
                         <p className="text-sm text-gray-500">{request.productCategory}</p>
-                        <p className="text-xs text-gray-400">v{request.productVersion}</p>
+                        <p className="text-xs text-gray-400">{request.productVersion}</p>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -491,6 +493,11 @@ const PurchaseRequestsAdmin = () => {
                       {request.status === 'rejected' && (
                         <Badge variant="destructive">
                           Rejected
+                        </Badge>
+                      )}
+                      {request.status === 'PO Created' && (
+                        <Badge variant="outline" className="bg-blue-100 text-blue-800">
+                          PO Created
                         </Badge>
                       )}
                     </TableCell>

@@ -179,6 +179,16 @@ const EmployeeInventory = () => {
     return matchesSearch && matchesCategory;
   });
 
+  // Get product price from stock details
+  const getProductPrice = (category: string, name: string, version: string): number => {
+    const product = stockDetails.find(p => 
+      p.productCategory === category && 
+      p.itemName === name && 
+      p.productVersion === version
+    );
+    return (product as any)?.pricePerUnit || 0;
+  };
+
   // Calculate status based on new logic
   const getItemStatus = (item: StockDetailsData) => {
     const { currentStock, minRequired = 0, safeQuantityLimit = 0 } = item;
@@ -258,6 +268,9 @@ const EmployeeInventory = () => {
     }
 
     try {
+      // Get pricePerUnit from stock_details
+      const pricePerUnit = getProductPrice(flagRequestData.productCategory, flagRequestData.itemName, flagRequestData.productVersion);
+
       const newRequest = {
         companyId: currentUser.companyId,
         employeeName: currentUser.displayName || currentUser.email?.split('@')[0] || 'Unknown',
@@ -271,6 +284,7 @@ const EmployeeInventory = () => {
         requestedDate: flagRequestData.requestedDate,
         reason: flagRequestData.reason,
         priority: flagRequestData.priority,
+        pricePerUnit: pricePerUnit, // Add pricePerUnit from stock_details
         status: 'pending',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
@@ -434,7 +448,7 @@ const EmployeeInventory = () => {
                       <CardTitle className="text-lg">{item.itemName}</CardTitle>
                       <p className="text-sm text-gray-500">{item.productCategory}</p>
                       {item.productVersion && item.productVersion !== 'N/A' && (
-                        <p className="text-xs text-gray-400">v{item.productVersion}</p>
+                        <p className="text-xs text-gray-400">{item.productVersion}</p>
                       )}
                     </div>
                     <Badge variant={getStatusBadgeVariant(status)}>

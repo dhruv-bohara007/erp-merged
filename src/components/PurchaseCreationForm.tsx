@@ -341,16 +341,20 @@ const PurchaseCreationForm = () => {
       const selectedRequests = approvedRequests.filter(req => selectedRequestIds.includes(req.id));
       
       const newItems: PurchaseFormItem[] = selectedRequests.map(request => {
-        const price = getProductPrice(request.productCategory, request.itemName, request.productVersion);
+        // Use pricePerUnit from the request if available, otherwise get from stock_details
+        const priceFromRequest = (request as any).pricePerUnit || 0;
+        const priceFromStock = getProductPrice(request.productCategory, request.itemName, request.productVersion);
+        const finalPrice = priceFromRequest || priceFromStock;
+        
         const newItem: PurchaseFormItem = {
           productCategory: request.productCategory,
           itemName: request.itemName,
           productVersion: request.productVersion,
           quantity: request.quantityRequired,
           unit: request.unit,
-          rate: price || 0,
+          rate: finalPrice,
           discount: '0',
-          amount: price ? request.quantityRequired * price : 0,
+          amount: finalPrice ? request.quantityRequired * finalPrice : 0,
           sourceType: 'available'
         };
         return newItem;
@@ -440,6 +444,21 @@ const PurchaseCreationForm = () => {
 
       // Save to purchase_orders collection
       await addDoc(collection(db, 'purchase_orders'), purchaseOrderData);
+
+      // Update selected purchase requests status to 'PO Created' if the order is completed
+      if (status === 'completed' && selectedRequestIds.length > 0) {
+        const { doc, updateDoc } = await import('firebase/firestore');
+        
+        const updatePromises = selectedRequestIds.map(async (requestId) => {
+          const requestRef = doc(db, 'purchase_requests', requestId);
+          return updateDoc(requestRef, {
+            status: 'PO Created',
+            updatedAt: new Date()
+          });
+        });
+        
+        await Promise.all(updatePromises);
+      }
 
       toast({
         title: "Success",
