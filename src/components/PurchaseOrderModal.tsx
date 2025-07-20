@@ -535,12 +535,28 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({ order, isOpen, 
                     <div style="font-size: 13px; line-height: 1.2;"><strong>Country:</strong> ${getCountryName(supplierCountry)}</div>
                   </div>
 
-                  ${order.supplier?.taxInfo?.id ? `
-                    <div class="info-section">
-                      <div class="section-title">🏛️ Tax Information</div>
-                      <div style="font-size: 13px; line-height: 1.2;"><strong>Tax ID:</strong> ${order.supplier.taxInfo.id}</div>
-                    </div>
-                  ` : ''}
+                   ${order.supplier?.taxInfo?.id ? `
+                     <div class="info-section">
+                       <div class="section-title">🏛️ Tax Information</div>
+                       <div style="font-size: 13px; line-height: 1.2;"><strong>Tax ID:</strong> ${order.supplier.taxInfo.id}</div>
+                     </div>
+                   ` : ''}
+
+                   <!-- Exchange Rate and Tax Rate Information -->
+                   ${order.currencyAmounts || order.taxCalculation ? `
+                     <div class="info-section" style="background: #f0f9ff; border-color: #0ea5e9;">
+                       <div class="section-title" style="color: #0369a1;">📊 Rates Used</div>
+                       ${order.currencyAmounts?.companyToINRRate && order.currencyAmounts.companyToINRRate !== 1 ? `
+                         <div style="font-size: 13px; line-height: 1.2;"><strong>Company to INR Rate:</strong> 1 ${companyCurrency.code} = ₹${order.currencyAmounts.companyToINRRate.toFixed(4)}</div>
+                       ` : ''}
+                       ${order.currencyAmounts?.INRToSupplierRate && order.currencyAmounts.INRToSupplierRate !== 1 ? `
+                         <div style="font-size: 13px; line-height: 1.2;"><strong>INR to Supplier Rate:</strong> ₹1 = ${order.currencyAmounts.INRToSupplierRate.toFixed(4)} ${supplierCurrency.code}</div>
+                       ` : ''}
+                       ${order.taxCalculation?.taxes?.[0]?.rate ? `
+                         <div style="font-size: 13px; line-height: 1.2;"><strong>Tax Rate Used:</strong> ${order.taxCalculation.taxes[0].rate}%</div>
+                       ` : ''}
+                     </div>
+                   ` : ''}
                 </div>
               </div>
             </div>
@@ -555,13 +571,14 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({ order, isOpen, 
               <div class="card-content">
                 <table class="items-table">
                    <thead>
-                     <tr>
-                       <th>Description</th>
-                       <th>Quantity</th>
-                       <th>Rate</th>
-                       <th>Discount</th>
-                       <th>Amount</th>
-                     </tr>
+                       <tr>
+                        <th>Description</th>
+                        <th>Quantity</th>
+                        <th>Unit</th>
+                        <th>Rate</th>
+                        <th>Discount</th>
+                        <th>Amount</th>
+                      </tr>
                    </thead>
                   <tbody>
                      ${order.items?.map((item: any) => {
@@ -571,14 +588,15 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({ order, isOpen, 
                        const itemAmountAfterDiscount = itemSubtotal - discountAmount;
                        
                        return `
-                          <tr>
-                            <td>
-                              <strong>${item.productCategory && item.itemName && item.productVersion 
-                                ? `${item.productCategory} - ${item.itemName} (${item.productVersion})`
-                                : (item.description || item.itemName || 'N/A')}</strong>
-                              ${item.details ? `<br><small style="color: #6b7280;">${item.details}</small>` : ''}
-                            </td>
-                           <td style="text-align: center;">${item.quantity || 0}</td>
+                           <tr>
+                             <td>
+                               <strong>${item.productCategory && item.itemName && item.productVersion 
+                                 ? `${item.productCategory} - ${item.itemName} (${item.productVersion})`
+                                 : (item.description || item.itemName || 'N/A')}</strong>
+                               ${item.details ? `<br><small style="color: #6b7280;">${item.details}</small>` : ''}
+                             </td>
+                            <td style="text-align: center;">${item.quantity || 0}</td>
+                            <td style="text-align: center;">${item.unit || 'pcs'}</td>
                            <td style="text-align: right;">
                              ${formatCurrency(item.rate || 0, companyCountry)}
                              ${showDualCurrency ? `
@@ -608,7 +626,7 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({ order, isOpen, 
                            </td>
                          </tr>
                        `;
-                     }).join('') || '<tr><td colspan="5" style="text-align: center; color: #6b7280;">No items</td></tr>'}
+                     }).join('') || '<tr><td colspan="6" style="text-align: center; color: #6b7280;">No items</td></tr>'}
                   </tbody>
                 </table>
 
@@ -1062,13 +1080,14 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({ order, isOpen, 
               <div className="overflow-x-auto">
                 <Table>
                    <TableHeader>
-                     <TableRow className="bg-gray-50">
-                       <TableHead className="font-bold text-gray-900">Description</TableHead>
-                       <TableHead className="font-bold text-gray-900 text-center">Quantity</TableHead>
-                       <TableHead className="font-bold text-gray-900 text-right">Rate</TableHead>
-                       <TableHead className="font-bold text-gray-900 text-center">Discount</TableHead>
-                       <TableHead className="font-bold text-gray-900 text-right">Amount</TableHead>
-                     </TableRow>
+                      <TableRow className="bg-gray-50">
+                        <TableHead className="font-bold text-gray-900">Description</TableHead>
+                        <TableHead className="font-bold text-gray-900 text-center">Quantity</TableHead>
+                        <TableHead className="font-bold text-gray-900 text-center">Unit</TableHead>
+                        <TableHead className="font-bold text-gray-900 text-right">Rate</TableHead>
+                        <TableHead className="font-bold text-gray-900 text-center">Discount</TableHead>
+                        <TableHead className="font-bold text-gray-900 text-right">Amount</TableHead>
+                      </TableRow>
                    </TableHeader>
                   <TableBody>
                      {order.items?.length > 0 ? order.items.map((item: any, index: number) => {
@@ -1086,10 +1105,13 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({ order, isOpen, 
                                   : (item.description || item.itemName)}
                               </div>
                               {item.details && <div className="text-sm text-gray-600">{item.details}</div>}
+                             </TableCell>
+                            <TableCell className="text-center text-gray-700 font-medium">
+                              {item.quantity}
                             </TableCell>
-                           <TableCell className="text-center text-gray-700 font-medium">
-                             {item.quantity}
-                           </TableCell>
+                            <TableCell className="text-center text-gray-700 font-medium">
+                              {item.unit || 'pcs'}
+                            </TableCell>
                            <TableCell className="text-right text-gray-700">
                              <div className="font-semibold">{formatCurrency(item.rate || 0, companyCountry)}</div>
                              {showDualCurrency && (
@@ -1126,11 +1148,11 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({ order, isOpen, 
                          </TableRow>
                        );
                      }) : (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                          No items found
-                        </TableCell>
-                      </TableRow>
+                       <TableRow>
+                         <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                           No items found
+                         </TableCell>
+                       </TableRow>
                     )}
                   </TableBody>
                 </Table>

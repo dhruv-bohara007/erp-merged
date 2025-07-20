@@ -24,6 +24,7 @@ interface PurchaseFormItem {
   itemName: string;
   productVersion: string;
   quantity: number;
+  unit: string;
   rate: number;
   discount: string;
   amount: number;
@@ -47,7 +48,7 @@ const PurchaseCreationForm = () => {
     purchaseDate: new Date().toISOString().split('T')[0],
     dueDate: '',
     supplierId: '',
-    notes: 'Prices exclude applicable local taxes, import duties, delivery charges, and customs fees. These are the responsibility of the buyer.',
+    notes: 'Prices exclude applicable local taxes, import duties, delivery charges, and customs fees.',
     terms: 'Payment due within 30 days of purchase date.',
   });
 
@@ -58,6 +59,7 @@ const PurchaseCreationForm = () => {
       itemName: '', 
       productVersion: '', 
       quantity: 1, 
+      unit: 'pcs',
       rate: 0, 
       discount: '0', 
       amount: 0,
@@ -207,6 +209,7 @@ const PurchaseCreationForm = () => {
       itemName: '',
       productVersion: '',
       quantity: 1,
+      unit: 'pcs',
       rate: 0,
       discount: '0',
       amount: 0,
@@ -567,7 +570,7 @@ const PurchaseCreationForm = () => {
 
                 {productSourceType === 'available' ? (
                   // Available Products Mode
-                  <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
                     <div className="md:col-span-2">
                       <Label className="text-sm font-medium text-foreground mb-2 block">Product Category *</Label>
                       <SearchableDropdown
@@ -605,6 +608,34 @@ const PurchaseCreationForm = () => {
                         onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
                         className="bg-background"
                       />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-foreground mb-2 block">Unit *</Label>
+                      <Select value={item.unit} onValueChange={(value) => updateItem(index, 'unit', value)}>
+                        <SelectTrigger className="bg-background">
+                          <SelectValue placeholder="Select unit" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pcs">Pieces</SelectItem>
+                          <SelectItem value="kg">Kilograms</SelectItem>
+                          <SelectItem value="g">Grams</SelectItem>
+                          <SelectItem value="lbs">Pounds</SelectItem>
+                          <SelectItem value="oz">Ounces</SelectItem>
+                          <SelectItem value="l">Liters</SelectItem>
+                          <SelectItem value="ml">Milliliters</SelectItem>
+                          <SelectItem value="m">Meters</SelectItem>
+                          <SelectItem value="cm">Centimeters</SelectItem>
+                          <SelectItem value="ft">Feet</SelectItem>
+                          <SelectItem value="in">Inches</SelectItem>
+                          <SelectItem value="box">Box</SelectItem>
+                          <SelectItem value="pack">Pack</SelectItem>
+                          <SelectItem value="set">Set</SelectItem>
+                          <SelectItem value="pair">Pair</SelectItem>
+                          <SelectItem value="dozen">Dozen</SelectItem>
+                          <SelectItem value="each">Each</SelectItem>
+                          <SelectItem value="unit">Unit</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
                       <Label className="text-sm font-medium text-foreground mb-2 block flex items-center gap-2">
@@ -660,7 +691,7 @@ const PurchaseCreationForm = () => {
                   </div>
                 ) : (
                   // Manual Entry Mode
-                  <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
                     <div className="md:col-span-2">
                       <Label className="text-sm font-medium text-foreground mb-2 block">Product Category *</Label>
                       <Input
@@ -698,6 +729,34 @@ const PurchaseCreationForm = () => {
                         onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
                         className="bg-background"
                       />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-foreground mb-2 block">Unit *</Label>
+                      <Select value={item.unit} onValueChange={(value) => updateItem(index, 'unit', value)}>
+                        <SelectTrigger className="bg-background">
+                          <SelectValue placeholder="Select unit" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pcs">Pieces</SelectItem>
+                          <SelectItem value="kg">Kilograms</SelectItem>
+                          <SelectItem value="g">Grams</SelectItem>
+                          <SelectItem value="lbs">Pounds</SelectItem>
+                          <SelectItem value="oz">Ounces</SelectItem>
+                          <SelectItem value="l">Liters</SelectItem>
+                          <SelectItem value="ml">Milliliters</SelectItem>
+                          <SelectItem value="m">Meters</SelectItem>
+                          <SelectItem value="cm">Centimeters</SelectItem>
+                          <SelectItem value="ft">Feet</SelectItem>
+                          <SelectItem value="in">Inches</SelectItem>
+                          <SelectItem value="box">Box</SelectItem>
+                          <SelectItem value="pack">Pack</SelectItem>
+                          <SelectItem value="set">Set</SelectItem>
+                          <SelectItem value="pair">Pair</SelectItem>
+                          <SelectItem value="dozen">Dozen</SelectItem>
+                          <SelectItem value="each">Each</SelectItem>
+                          <SelectItem value="unit">Unit</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
                       <Label className="text-sm font-medium text-foreground mb-2 block">
