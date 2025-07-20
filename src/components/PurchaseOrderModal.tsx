@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -461,59 +460,61 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({ order, isOpen, 
 
               <Separator className="my-8 bg-gray-400 h-0.5" />
 
+              {/* Updated Price Summary Section to match invoice view format */}
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-8 rounded-xl border-2 border-blue-200 space-y-4">
-                {/* Subtotal in Company Currency */}
+                {/* Subtotal (Company) */}
                 <div className="flex justify-between text-gray-700 text-lg">
                   <span className="font-semibold">Subtotal (Company - {companyCurrency.code}):</span>
-                  <div className="text-right">
-                    <div className="font-bold">{formatCurrency(order.subtotal || 0, companyCountry)}</div>
-                  </div>
+                  <span className="font-bold">{formatCurrency(order.subtotal || 0, companyCountry)}</span>
                 </div>
                 
-                {/* Tax Details in Company Currency */}
-                <div className="flex justify-between text-gray-700 text-lg">
-                  <span className="font-semibold">Total Tax (Company - {companyCurrency.code}):</span>
-                  <div className="text-right">
-                    <div className="font-bold">{formatCurrency(order.totalTaxAmount || 0, companyCountry)}</div>
-                  </div>
-                </div>
-                
-                {/* Total Amount (Supplier) */}
-                <div className="flex justify-between text-gray-700 text-lg">
-                  <span className="font-semibold">Total Amount (Supplier):</span>
-                  <div className="text-right">
-                    <div className="font-bold">{formatCurrency(order.supplierAmount || 0, supplierCountry)}</div>
-                  </div>
-                </div>
-                
-                {/* Tax Details in Supplier Currency - Calculated */}
-                {order.taxCalculation?.taxes?.[0]?.rate && order.supplierAmount && (
+                {/* Subtotal (Supplier) - Calculate if supplier amount and tax rate are available */}
+                {order.supplierAmount && order.taxCalculation?.taxes?.[0]?.rate && (
                   <div className="flex justify-between text-gray-700 text-lg">
-                    <span className="font-semibold">Total Tax (Supplier - {supplierCurrency.code}):</span>
-                    <div className="text-right">
-                      <div className="font-bold">{formatCurrency((order.taxCalculation.taxes[0].rate / 100) * order.supplierAmount, supplierCountry)}</div>
-                    </div>
+                    <span className="font-semibold">Subtotal (Supplier - {supplierCurrency.code}):</span>
+                    <span className="font-bold">
+                      {formatCurrency(
+                        order.supplierAmount - ((order.taxCalculation.taxes[0].rate / 100) * order.supplierAmount), 
+                        supplierCountry
+                      )}
+                    </span>
                   </div>
                 )}
                 
-                {/* Subtotal in Supplier Currency - Calculated */}
-                {order.taxCalculation?.taxes?.[0]?.rate && order.supplierAmount && (
+                {/* Total Tax (Company) - Use totalTaxAmount field */}
+                <div className="flex justify-between text-gray-700 text-lg">
+                  <span className="font-semibold">Total Tax (Company - {companyCurrency.code}):</span>
+                  <span className="font-bold">{formatCurrency(order.totalTaxAmount || 0, companyCountry)}</span>
+                </div>
+                
+                {/* Total Tax (Supplier) - Calculate if supplier amount and tax rate are available */}
+                {order.supplierAmount && order.taxCalculation?.taxes?.[0]?.rate && (
                   <div className="flex justify-between text-gray-700 text-lg">
-                    <span className="font-semibold">Subtotal (Supplier - {supplierCurrency.code}):</span>
-                    <div className="text-right">
-                      <div className="font-bold">{formatCurrency(order.supplierAmount - ((order.taxCalculation.taxes[0].rate / 100) * order.supplierAmount), supplierCountry)}</div>
-                    </div>
+                    <span className="font-semibold">Total Tax (Supplier - {supplierCurrency.code}):</span>
+                    <span className="font-bold">
+                      {formatCurrency(
+                        (order.taxCalculation.taxes[0].rate / 100) * order.supplierAmount, 
+                        supplierCountry
+                      )}
+                    </span>
                   </div>
                 )}
                 
                 <Separator className="bg-blue-300 h-0.5" />
                 
-                <div className="flex justify-between text-xl font-bold text-blue-900">
+                {/* Total Amount (Company) */}
+                <div className="flex justify-between text-xl font-bold text-green-600">
                   <span>Total Amount (Company - {companyCurrency.code}):</span>
-                  <div className="text-right">
-                    <div>{formatCurrency(order.currencyAmounts?.companyAmount || order.totalAmount || 0, companyCountry)}</div>
-                  </div>
+                  <span>{formatCurrency(order.currencyAmounts?.companyAmount || order.totalAmount || 0, companyCountry)}</span>
                 </div>
+                
+                {/* Total Amount (Supplier) - Use supplierAmount field */}
+                {order.supplierAmount && (
+                  <div className="flex justify-between text-xl font-bold text-green-600">
+                    <span>Total Amount (Supplier - {supplierCurrency.code}):</span>
+                    <span>{formatCurrency(order.supplierAmount, supplierCountry)}</span>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
