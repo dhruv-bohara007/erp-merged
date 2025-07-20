@@ -403,7 +403,11 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({ order, isOpen, 
                        return (
                          <TableRow key={index} className="hover:bg-gray-50">
                             <TableCell className="font-medium text-gray-900">
-                              <div className="font-semibold">{item.description || item.itemName}</div>
+                              <div className="font-semibold">
+                                {item.productCategory && item.itemName && item.productVersion 
+                                  ? `${item.productCategory} - ${item.itemName} (${item.productVersion})`
+                                  : (item.description || item.itemName)}
+                              </div>
                               {item.details && <div className="text-sm text-gray-600">{item.details}</div>}
                             </TableCell>
                            <TableCell className="text-center text-gray-700 font-medium">
@@ -466,14 +470,6 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({ order, isOpen, 
                   </div>
                 </div>
                 
-                {/* Subtotal in Supplier Currency */}
-                <div className="flex justify-between text-gray-700 text-lg">
-                  <span className="font-semibold">Subtotal (Supplier - {supplierCurrency.code}):</span>
-                  <div className="text-right">
-                    <div className="font-bold">{formatCurrency(order.supplierSubtotal || convertINRToSupplier(convertCompanyToINR(order.subtotal || 0)), supplierCountry)}</div>
-                  </div>
-                </div>
-                
                 {/* Tax Details in Company Currency */}
                 <div className="flex justify-between text-gray-700 text-lg">
                   <span className="font-semibold">Total Tax (Company - {companyCurrency.code}):</span>
@@ -482,31 +478,42 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({ order, isOpen, 
                   </div>
                 </div>
                 
-                {/* Tax Details in Supplier Currency */}
+                {/* Total Amount (Supplier) */}
                 <div className="flex justify-between text-gray-700 text-lg">
-                  <span className="font-semibold">Total Tax (Supplier - {supplierCurrency.code}):</span>
+                  <span className="font-semibold">Total Amount (Supplier):</span>
                   <div className="text-right">
-                    <div className="font-bold">{formatCurrency(order.supplierTaxAmount || convertINRToSupplier(convertCompanyToINR(order.totalTaxAmount || 0)), supplierCountry)}</div>
+                    <div className="font-bold">{formatCurrency(order.supplierAmount || 0, supplierCountry)}</div>
                   </div>
                 </div>
+                
+                {/* Tax Details in Supplier Currency - Calculated */}
+                {order.taxCalculation?.taxes?.[0]?.rate && order.supplierAmount && (
+                  <div className="flex justify-between text-gray-700 text-lg">
+                    <span className="font-semibold">Total Tax (Supplier - {supplierCurrency.code}):</span>
+                    <div className="text-right">
+                      <div className="font-bold">{formatCurrency((order.taxCalculation.taxes[0].rate / 100) * order.supplierAmount, supplierCountry)}</div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Subtotal in Supplier Currency - Calculated */}
+                {order.taxCalculation?.taxes?.[0]?.rate && order.supplierAmount && (
+                  <div className="flex justify-between text-gray-700 text-lg">
+                    <span className="font-semibold">Subtotal (Supplier - {supplierCurrency.code}):</span>
+                    <div className="text-right">
+                      <div className="font-bold">{formatCurrency(order.supplierAmount - ((order.taxCalculation.taxes[0].rate / 100) * order.supplierAmount), supplierCountry)}</div>
+                    </div>
+                  </div>
+                )}
                 
                 <Separator className="bg-blue-300 h-0.5" />
                 
                 <div className="flex justify-between text-xl font-bold text-blue-900">
-                  <span>Total Amount ({companyCurrency.code}):</span>
+                  <span>Total Amount (Company - {companyCurrency.code}):</span>
                   <div className="text-right">
                     <div>{formatCurrency(order.currencyAmounts?.companyAmount || order.totalAmount || 0, companyCountry)}</div>
                   </div>
                 </div>
-                
-                {showDualCurrency && (
-                  <div className="flex justify-between text-lg font-semibold text-blue-700">
-                    <span>Total Amount ({supplierCurrency.code}):</span>
-                    <div className="text-right">
-                      <div>{formatCurrency(order.currencyAmounts?.clientAmount || convertINRToSupplier(order.totalAmountINR || 0), supplierCountry)}</div>
-                    </div>
-                  </div>
-                )}
               </div>
             </CardContent>
           </Card>
