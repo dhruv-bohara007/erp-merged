@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   CheckCircle, 
   XCircle, 
@@ -10,14 +11,16 @@ import {
   Search,
   Package,
   TrendingUp,
-  AlertTriangle
+  AlertTriangle,
+  ShoppingCart
 } from 'lucide-react';
-import { collection, getDocs, query, where, doc, updateDoc, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, updateDoc, orderBy, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Input } from '@/components/ui/input';
+import { useNavigate } from 'react-router-dom';
 
 interface PurchaseRequest {
   id: string;
@@ -42,9 +45,12 @@ const PurchaseRequests = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedRequests, setSelectedRequests] = useState<string[]>([]);
+  const [bulkMode, setBulkMode] = useState(false);
   
   const { currentUser } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const fetchPurchaseRequests = async () => {
     if (!currentUser?.companyId) return;
@@ -115,6 +121,74 @@ const PurchaseRequests = () => {
     }
   };
 
+  const handleBulkCreatePurchaseOrders = async () => {
+    if (selectedRequests.length === 0) {
+      toast({
+        title: "No requests selected",
+        description: "Please select at least one approved request",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Get the selected requests data
+      const selectedRequestsData = requests.filter(req => 
+        selectedRequests.includes(req.id) && req.status === 'approved'
+      );
+
+      // Convert to purchase items format
+      const purchaseItems = selectedRequestsData.map(req => ({
+        productCategory: req.productCategory,
+        itemName: req.itemName,
+        productVersion: req.productVersion,
+        quantity: req.quantityRequired,
+        unit: req.unit,
+        rate: 0, // Will need to be filled by user
+        discount: '0',
+        amount: 0,
+        sourceType: 'manual' as const
+      }));
+
+      // Delete the selected requests from Firestore
+      await Promise.all(
+        selectedRequests.map(requestId => 
+          deleteDoc(doc(db, 'purchase_requests', requestId))
+        )
+      );
+
+      // Update local state
+      setRequests(prev => prev.filter(req => !selectedRequests.includes(req.id)));
+      setSelectedRequests([]);
+      setBulkMode(false);
+
+      // Navigate to purchase creation form with pre-filled data
+      navigate('/purchases?section=create-purchase-order', {
+        state: { prefilledItems: purchaseItems }
+      });
+
+      toast({
+        title: "Purchase Order Creation",
+        description: `${selectedRequestsData.length} requests have been added to the purchase order`,
+      });
+    } catch (error) {
+      console.error('Error creating bulk purchase orders:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create purchase orders",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleSelectRequest = (requestId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedRequests(prev => [...prev, requestId]);
+    } else {
+      setSelectedRequests(prev => prev.filter(id => id !== requestId));
+    }
+  };
+
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'pending': return 'secondary';
@@ -144,6 +218,8 @@ const PurchaseRequests = () => {
     return matchesSearch && matchesStatus;
   });
 
+  const approvedFilteredRequests = filteredRequests.filter(req => req.status === 'approved');
+
   // Calculate summary statistics
   const totalRequests = requests.length;
   const pendingRequests = requests.filter(r => r.status === 'pending').length;
@@ -164,10 +240,46 @@ const PurchaseRequests = () => {
   return (
     <div className="p-6">
       <div className="max-w-7xl mx-auto space-y-4">
-        {/* Header - Removed "New Request" button */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Purchase Requests</h1>
-          <p className="text-gray-600 mt-2">Review and manage employee purchase requests</p>
+        {/* Header with bulk actions */}
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Purchase Requests</h1>
+            <p className="text-gray-600 mt-2">Review and manage employee purchase requests</p>
+          </div>
+          
+          {approvedFilteredRequests.length > 0 && (
+            <div className="flex gap-2">
+              {!bulkMode ? (
+                <Button 
+                  onClick={() => setBulkMode(true)}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <ShoppingCart className="w-4 h-4 mr-2" />
+                  Create Multiple Purchase Orders
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={handleBulkCreatePurchaseOrders}
+                    disabled={selectedRequests.length === 0}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <ShoppingCart className="w-4 h-4 mr-2" />
+                    Create Purchase Orders ({selectedRequests.length})
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      setBulkMode(false);
+                      setSelectedRequests([]);
+                    }}
+                    variant="outline"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Summary Cards - Moved upward */}
@@ -205,7 +317,7 @@ const PurchaseRequests = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Approved</p>
-                  <p className="text-2xl font-bold text-green-600">{approvedRequests}</p>
+                   <p className="text-2xl font-bold text-green-600">{approvedRequests}</p>
                 </div>
                 <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
                   <CheckCircle className="h-4 w-4 text-green-600" />
@@ -262,6 +374,16 @@ const PurchaseRequests = () => {
             <Card key={request.id} className="border-l-4 border-l-blue-500">
               <CardContent className="pt-6">
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                  {/* Checkbox for bulk selection (only for approved requests) */}
+                  {bulkMode && request.status === 'approved' && (
+                    <div className="lg:col-span-4 flex items-center gap-2 pb-4">
+                      <Checkbox
+                        checked={selectedRequests.includes(request.id)}
+                        onCheckedChange={(checked) => handleSelectRequest(request.id, checked as boolean)}
+                      />
+                      <span className="text-sm text-gray-600">Select for purchase order creation</span>
+                    </div>
+                  )}
                   {/* Employee Info */}
                   <div>
                     <h3 className="font-semibold text-lg mb-2">Employee Details</h3>

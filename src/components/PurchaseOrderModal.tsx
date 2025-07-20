@@ -753,6 +753,9 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({ order, isOpen, 
               <Download className="w-4 h-4 mr-2" />
               Download PDF
             </Button>
+            <Button variant="outline" size="sm" onClick={onClose}>
+              <X className="w-4 h-4" />
+            </Button>
           </div>
         </DialogHeader>
         
