@@ -155,19 +155,10 @@ Terms: ${order.terms || 'N/A'}
 
   return (
     <div className="space-y-6">
-      {/* Header with Create Purchase Order button */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Purchase Order</h1>
-          <p className="text-gray-600 mt-2">Manage and track purchase orders from suppliers</p>
-        </div>
-        <Button 
-          className="bg-blue-600 hover:bg-blue-700"
-          onClick={() => navigate('/create-purchase-order')}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Create Purchase Order
-        </Button>
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold">Purchase Order</h1>
+        <p className="text-gray-600 mt-2">Manage and track purchase orders from suppliers</p>
       </div>
 
       {/* Purchase Orders Table */}

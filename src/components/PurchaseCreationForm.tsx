@@ -788,22 +788,6 @@ const PurchaseCreationForm = () => {
             </Button>
           </div>
           
-          {/* Product Source Selector */}
-          <div className="mt-4 p-4 bg-background rounded-lg border">
-            <Label className="text-sm font-medium mb-3 block">Select Product Source</Label>
-            <Select value={productSourceType} onValueChange={(value: 'available' | 'manual') => {
-              setProductSourceType(value);
-              setItems(items.map(item => ({ ...item, sourceType: value })));
-            }}>
-              <SelectTrigger className="w-64">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="available">From Available Products</SelectItem>
-                <SelectItem value="manual">Manual Entry</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
         </CardHeader>
         <CardContent className="p-6">
           <div className="space-y-6">
