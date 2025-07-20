@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, Plus, Loader2 } from 'lucide-react';
+import { Trash2, Plus, Loader2, Edit2 } from 'lucide-react';
 import { useSuppliers } from '@/hooks/useFirestore';
 import { useCompanyData } from '@/hooks/useCompanyData';
 import { useTaxCalculations } from '@/hooks/useTaxCalculations';
@@ -47,7 +47,7 @@ const PurchaseCreationForm = () => {
     purchaseDate: new Date().toISOString().split('T')[0],
     dueDate: '',
     supplierId: '',
-    notes: '',
+    notes: 'Prices exclude applicable local taxes, import duties, delivery charges, and customs fees. These are the responsibility of the buyer.',
     terms: 'Payment due within 30 days of purchase date.',
   });
 
@@ -607,8 +607,24 @@ const PurchaseCreationForm = () => {
                       />
                     </div>
                     <div>
-                      <Label className="text-sm font-medium text-foreground mb-2 block">
+                      <Label className="text-sm font-medium text-foreground mb-2 block flex items-center gap-2">
                         Rate ({companyCurrency.symbol})
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-4 w-4 p-0 text-muted-foreground hover:text-foreground"
+                          onClick={() => {
+                            const rateInput = document.querySelector(`input[data-rate-index="${index}"]`) as HTMLInputElement;
+                            if (rateInput) {
+                              rateInput.readOnly = false;
+                              rateInput.className = "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
+                              rateInput.focus();
+                            }
+                          }}
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </Button>
                       </Label>
                       <Input
                         type="text"
@@ -616,6 +632,13 @@ const PurchaseCreationForm = () => {
                         readOnly
                         className="bg-muted text-muted-foreground"
                         placeholder="Auto-filled"
+                        data-rate-index={index}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
+                            updateItem(index, 'rate', value === '' ? 0 : Number(value));
+                          }
+                        }}
                       />
                     </div>
                     <div>

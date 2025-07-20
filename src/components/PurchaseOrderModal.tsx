@@ -144,7 +144,7 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({ order, isOpen, 
                 )}
                 {order.currencyAmounts?.supplierAmount ? (
                   <p className="text-sm text-gray-500 font-medium">
-                    Company ({companyCurrency.code}) / Client ({supplierCurrency.code})
+                    Company ({companyCurrency.code}) / Supplier ({supplierCurrency.code})
                   </p>
                 ) : (
                   <p className="text-sm text-gray-500 font-medium">Total Amount</p>
