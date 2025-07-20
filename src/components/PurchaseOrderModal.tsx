@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Calendar, MapPin, Mail, Phone, Building, FileText, Globe, CreditCard, ExternalLink } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Calendar, MapPin, Mail, Phone, Building, FileText, Globe, CreditCard, ExternalLink, Download, X } from 'lucide-react';
 import { useCompanyData } from '@/hooks/useCompanyData';
 import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 import { countryPhoneCodes } from '@/data/countryPhoneCodes';
@@ -97,6 +98,20 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({ order, isOpen, 
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto">
         
+        {/* Header with Download PDF and Close buttons */}
+        <DialogHeader className="flex flex-row items-center justify-between p-6 border-b">
+          <DialogTitle className="text-2xl font-bold">Purchase Order Details</DialogTitle>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm">
+              <Download className="w-4 h-4 mr-2" />
+              Download PDF
+            </Button>
+            <Button variant="ghost" size="icon" onClick={onClose}>
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        </DialogHeader>
+        
         {/* Purchase Order Header */}
         <Card className="border-2 border-gray-200 shadow-xl rounded-xl">
           <CardHeader className="bg-gradient-to-r from-slate-50 to-gray-50 border-b-2 border-gray-200 rounded-t-xl p-8">
@@ -120,27 +135,25 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({ order, isOpen, 
                 </div>
               </div>
               
-              {/* Total Amount Display */}
-              {showDualCurrency ? (
-                <div className="bg-white p-8 rounded-xl border-2 border-gray-200 shadow-lg text-right">
-                  <p className="text-4xl font-bold text-green-600 mb-2">
-                    {getDisplayAmount(order.totalAmount || 0)}
-                  </p>
-                  <p className="text-2xl text-gray-600 mb-4">
-                    (≈ {formatCurrency(order.supplierAmount || convertINRToSupplier(order.totalAmountINR || 0), supplierCountry)})
-                  </p>
-                  <p className="text-sm text-gray-500 font-medium">
-                    Company ({companyCurrency.code}) / Supplier ({supplierCurrency.code})
-                  </p>
-                </div>
-              ) : (
-                <div className="bg-white p-8 rounded-xl border-2 border-gray-200 shadow-lg text-right">
-                  <p className="text-4xl font-bold text-green-600 mb-2">
-                    {getDisplayAmount(order.totalAmount || 0)}
-                  </p>
+              {/* Total Amount Display - Always show dual currency like invoice view */}
+              <div className="bg-white p-8 rounded-xl border-2 border-gray-200 shadow-lg text-right">
+                <p className="text-4xl font-bold text-green-600 mb-2">
+                  {formatCurrency(order.currencyAmounts?.companyAmount || order.totalAmount || 0, companyCountry)}
+                </p>
+                {showDualCurrency && (
+                  <>
+                    <p className="text-2xl text-gray-600 mb-4">
+                      (≈ {formatCurrency(order.currencyAmounts?.supplierAmount || convertINRToSupplier(order.totalAmountINR || 0), supplierCountry)})
+                    </p>
+                    <p className="text-sm text-gray-500 font-medium">
+                      Company ({companyCurrency.code}) / Supplier ({supplierCurrency.code})
+                    </p>
+                  </>
+                )}
+                {!showDualCurrency && (
                   <p className="text-sm text-gray-500 font-medium">Total Amount</p>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </CardHeader>
         </Card>
@@ -315,6 +328,9 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({ order, isOpen, 
                   {order.supplier?.city && (
                     <p>City: {order.supplier.city}</p>
                   )}
+                  {order.supplier?.pincode && (
+                    <p>Pincode: {order.supplier.pincode}</p>
+                  )}
                   {!order.supplier?.address && !order.supplier?.city && (
                     <p>Address information not available</p>
                   )}
@@ -341,7 +357,7 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({ order, isOpen, 
                   {order.supplier.taxInfo.id && (
                     <div className="p-3 bg-white rounded-lg border">
                       <span className="font-semibold text-gray-700 text-base">
-                        {order.supplier.taxInfo.type || 'Tax ID'}: 
+                        Tax ID: 
                       </span>
                       <span className="ml-2 text-gray-900 font-mono bg-gray-100 px-3 py-1 rounded border text-lg">
                         {order.supplier.taxInfo.id}
@@ -370,6 +386,20 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({ order, isOpen, 
                     {order.dueDate?.toLocaleDateString() || 'N/A'}
                   </span>
                 </div>
+                
+                {/* Exchange Rate Section */}
+                {showDualCurrency && order.conversionRate && (
+                  <div className="mt-6 pt-4 border-t border-gray-300">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-700 font-medium text-base">
+                        Exchange Rate:
+                      </span>
+                      <span className="font-semibold text-gray-900 text-base">
+                        1 {companyCurrency.code} = {(order.conversionRate.companyToINR * order.conversionRate.INRToClient).toFixed(4)} {supplierCurrency.code}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
