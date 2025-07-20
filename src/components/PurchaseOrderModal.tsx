@@ -106,9 +106,6 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({ order, isOpen, 
               <Download className="w-4 h-4 mr-2" />
               Download PDF
             </Button>
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="w-4 h-4" />
-            </Button>
           </div>
         </DialogHeader>
         
@@ -140,17 +137,16 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({ order, isOpen, 
                 <p className="text-4xl font-bold text-green-600 mb-2">
                   {formatCurrency(order.currencyAmounts?.companyAmount || order.totalAmount || 0, companyCountry)}
                 </p>
-                {showDualCurrency && (
-                  <>
-                    <p className="text-2xl text-gray-600 mb-4">
-                      (≈ {formatCurrency(order.currencyAmounts?.supplierAmount || convertINRToSupplier(order.totalAmountINR || 0), supplierCountry)})
-                    </p>
-                    <p className="text-sm text-gray-500 font-medium">
-                      Company ({companyCurrency.code}) / Supplier ({supplierCurrency.code})
-                    </p>
-                  </>
+                {order.currencyAmounts?.supplierAmount && (
+                  <p className="text-2xl text-gray-600 mb-4">
+                    {formatCurrency(order.currencyAmounts.supplierAmount, supplierCountry)}
+                  </p>
                 )}
-                {!showDualCurrency && (
+                {order.currencyAmounts?.supplierAmount ? (
+                  <p className="text-sm text-gray-500 font-medium">
+                    Company ({companyCurrency.code}) / Client ({supplierCurrency.code})
+                  </p>
+                ) : (
                   <p className="text-sm text-gray-500 font-medium">Total Amount</p>
                 )}
               </div>
@@ -388,16 +384,39 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({ order, isOpen, 
                 </div>
                 
                 {/* Exchange Rate Section */}
-                {showDualCurrency && order.conversionRate && (
-                  <div className="mt-6 pt-4 border-t border-gray-300">
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-700 font-medium text-base">
-                        Exchange Rate:
-                      </span>
-                      <span className="font-semibold text-gray-900 text-base">
-                        1 {companyCurrency.code} = {(order.conversionRate.companyToINR * order.conversionRate.INRToClient).toFixed(4)} {supplierCurrency.code}
-                      </span>
-                    </div>
+                {order.currencyAmounts && (
+                  <div className="mt-6 pt-4 border-t border-gray-300 space-y-3">
+                    {order.currencyAmounts.companyToINRRate && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-700 font-medium text-base">
+                          Company to INR Rate:
+                        </span>
+                        <span className="font-semibold text-gray-900 text-base">
+                          1 {companyCurrency.code} = {order.currencyAmounts.companyToINRRate.toFixed(4)} INR
+                        </span>
+                      </div>
+                    )}
+                    {order.currencyAmounts.INRToSupplierRate && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-700 font-medium text-base">
+                          INR to Supplier Rate:
+                        </span>
+                        <span className="font-semibold text-gray-900 text-base">
+                          1 INR = {order.currencyAmounts.INRToSupplierRate.toFixed(4)} {supplierCurrency.code}
+                        </span>
+                      </div>
+                    )}
+                    {/* Tax Rate Display */}
+                    {order.taxCalculation?.taxes?.[0]?.rate && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-700 font-medium text-base">
+                          Tax Rate Used:
+                        </span>
+                        <span className="font-semibold text-gray-900 text-base">
+                          {order.taxCalculation.taxes[0].rate}%
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
