@@ -12,7 +12,7 @@ import { useSuppliers } from '@/hooks/useFirestore';
 import { useCompanyData } from '@/hooks/useCompanyData';
 import { useTaxCalculations } from '@/hooks/useTaxCalculations';
 import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -33,7 +33,6 @@ interface PurchaseFormItem {
 
 const PurchaseCreationForm = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { toast } = useToast();
   const { suppliers } = useSuppliers();
   const { companyData } = useCompanyData();
@@ -77,15 +76,6 @@ const PurchaseCreationForm = () => {
     companyToINRRate: 1,
     INRToSupplierRate: 1
   });
-
-  // Handle pre-filled items from location state
-  useEffect(() => {
-    if (location.state?.prefilledItems) {
-      setItems(location.state.prefilledItems);
-      // Clear the state to prevent re-setting on subsequent renders
-      window.history.replaceState({}, document.title);
-    }
-  }, [location.state]);
 
   // Fetch stock details from Firestore
   useEffect(() => {
