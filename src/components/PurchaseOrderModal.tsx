@@ -482,8 +482,8 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({ order, isOpen, 
                   <span>{formatCurrency(order.currencyAmounts?.companyAmount || order.totalAmount || 0, companyCountry)}</span>
                 </div>
 
-                {/* Supplier Currency Section - Only show if different currency */}
-                {order.currencyAmounts?.supplierAmount && showDualCurrency && (
+                {/* Supplier Currency Section - Show when supplier amount exists */}
+                {order.currencyAmounts?.supplierAmount && (
                   <>
                     {/* Subtotal (Supplier) - Calculate supplier subtotal */}
                     <div className="flex justify-between text-gray-700 text-lg">
