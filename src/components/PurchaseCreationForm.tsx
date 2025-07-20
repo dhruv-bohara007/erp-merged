@@ -492,7 +492,7 @@ const PurchaseCreationForm = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {approvedRequests.length === 0 ? (
-                      <SelectItem value="" disabled>
+                      <SelectItem value="no-requests" disabled>
                         No approved purchase requests found
                       </SelectItem>
                     ) : (
