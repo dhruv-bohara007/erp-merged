@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,7 @@ const EmployeeDashboard = () => {
   const { currentUser } = useAuth();
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [inventoryData, setInventoryData] = useState([]);
+  const [stockDetailsData, setStockDetailsData] = useState([]);
   const [purchaseRequests, setPurchaseRequests] = useState([]);
   const [purchaseHistory, setPurchaseHistory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -43,10 +45,61 @@ const EmployeeDashboard = () => {
   const [historySortBy, setHistorySortBy] = useState('date');
   const [historyCurrentPage, setHistoryCurrentPage] = useState(0);
 
-  // Fetch inventory/stock data
+  // Fetch stock details from Firestore
   useEffect(() => {
     if (!currentUser?.companyId) {
       setLoading(false);
+      return;
+    }
+
+    console.log('Fetching stock details for company:', currentUser.companyId);
+
+    const q = query(
+      collection(db, 'stock_details'),
+      where('companyId', '==', currentUser.companyId)
+    );
+
+    const unsubscribe = onSnapshot(q,
+      (snapshot) => {
+        console.log('Stock details snapshot received:', snapshot.docs.length, 'documents');
+        const stockDetails = snapshot.docs.map(doc => {
+          const data = doc.data();
+          const currentStock = data.currentStock || 0;
+          const minRequired = data.minRequired || data.reorderLevel || 5;
+          const safeQuantityLimit = data.safeQuantityLimit || data.maxThreshold || 100;
+          
+          let status = 'normal';
+          if (currentStock === 0) {
+            status = 'critical';
+          } else if (currentStock <= minRequired) {
+            status = 'low';
+          }
+
+          return {
+            id: doc.id,
+            name: `${data.productCategory || 'Item'}-${data.itemName || 'Unknown'} ${data.productVersion || ''}`.trim(),
+            currentStock,
+            minRequired,
+            safeQuantityLimit,
+            status: data.stock_status || status
+          };
+        });
+        setStockDetailsData(stockDetails);
+        setLoading(false);
+      },
+      (err) => {
+        console.error('Error fetching stock details:', err);
+        setError('Failed to load stock details data');
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [currentUser?.companyId]);
+
+  // Fetch inventory/stock data for backward compatibility
+  useEffect(() => {
+    if (!currentUser?.companyId) {
       return;
     }
 
@@ -81,12 +134,10 @@ const EmployeeDashboard = () => {
           };
         });
         setInventoryData(inventory);
-        setLoading(false);
       },
       (err) => {
         console.error('Error fetching inventory:', err);
         setError('Failed to load inventory data');
-        setLoading(false);
       }
     );
 
@@ -117,6 +168,7 @@ const EmployeeDashboard = () => {
             id: doc.id,
             itemName: data.itemName || data.productName || 'N/A',
             quantity: data.quantity || 0,
+            unit: data.unit || '',
             reason: data.reason || data.notes || 'No reason provided',
             status: data.status || 'pending',
             requestDate: data.createdAt?.toDate()?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0]
@@ -159,6 +211,7 @@ const EmployeeDashboard = () => {
             id: doc.id,
             itemName: data.itemName || data.productName || 'N/A',
             quantity: data.quantity || 0,
+            unit: data.unit || '',
             purchaseDate: data.purchaseDate?.toDate()?.toISOString().split('T')[0] || 
                           data.createdAt?.toDate()?.toISOString().split('T')[0] || 
                           new Date().toISOString().split('T')[0]
@@ -202,8 +255,17 @@ const EmployeeDashboard = () => {
     }
   };
 
-  // Filter and sort inventory data with pagination
-  const filteredInventory = inventoryData
+  const getRequestStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pending': return <Clock className="w-4 h-4 text-blue-600" />;
+      case 'approved': return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case 'rejected': return <XCircle className="w-4 h-4 text-red-600" />;
+      default: return <Clock className="w-4 h-4 text-gray-600" />;
+    }
+  };
+
+  // Filter and sort inventory data with pagination - use stockDetailsData for new columns
+  const filteredInventory = stockDetailsData
     .filter(item => 
       item.name.toLowerCase().includes(searchTerm.toLowerCase())
     )
@@ -427,13 +489,13 @@ const EmployeeDashboard = () => {
                         <div key={request.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                              {request.status === 'pending' && <Clock className="w-4 h-4 text-blue-600" />}
-                              {request.status === 'approved' && <CheckCircle className="w-4 h-4 text-green-600" />}
-                              {request.status === 'rejected' && <XCircle className="w-4 h-4 text-red-600" />}
+                              {getRequestStatusIcon(request.status)}
                             </div>
                             <div>
                               <p className="font-medium text-gray-900">{request.itemName}</p>
-                              <p className="text-sm text-gray-500">Qty: {request.quantity} | {request.requestDate}</p>
+                              <p className="text-sm text-gray-500">
+                                Qty: {request.quantity} {request.unit} | {request.requestDate}
+                              </p>
                             </div>
                           </div>
                           <Badge variant={getRequestStatusBadge(request.status)}>
@@ -487,7 +549,7 @@ const EmployeeDashboard = () => {
           </Card>
         </div>
 
-        {/* Purchase History */}
+        {/* Recent Purchase History */}
         <Card>
           <CardHeader>
             <CardTitle>Recent Purchase History</CardTitle>
@@ -548,7 +610,9 @@ const EmployeeDashboard = () => {
                           </div>
                           <div>
                             <p className="font-medium text-gray-900">{purchase.itemName}</p>
-                            <p className="text-sm text-gray-500">Qty: {purchase.quantity} | {purchase.purchaseDate}</p>
+                            <p className="text-sm text-gray-500">
+                              Qty: {purchase.quantity} {purchase.unit} | {purchase.purchaseDate}
+                            </p>
                           </div>
                         </div>
                         <Badge variant="default">Delivered</Badge>
@@ -599,7 +663,7 @@ const EmployeeDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Updated Inventory Overview Table with Pagination */}
+        {/* Updated Inventory Overview Table with New Columns */}
         <Card>
           <CardHeader>
             <CardTitle>Inventory Overview</CardTitle>
@@ -633,7 +697,8 @@ const EmployeeDashboard = () => {
                       <tr className="border-b">
                         <th className="text-left p-2">Item Name</th>
                         <th className="text-left p-2">Current Stock</th>
-                        <th className="text-left p-2">Min Threshold</th>
+                        <th className="text-left p-2">Min Required</th>
+                        <th className="text-left p-2">Safe Quantity Limit</th>
                         <th className="text-left p-2">Status</th>
                       </tr>
                     </thead>
@@ -642,7 +707,8 @@ const EmployeeDashboard = () => {
                         <tr key={item.id} className="border-b hover:bg-gray-50">
                           <td className="p-2 font-medium">{item.name}</td>
                           <td className="p-2">{item.currentStock}</td>
-                          <td className="p-2">{item.minThreshold}</td>
+                          <td className="p-2">{item.minRequired}</td>
+                          <td className="p-2">{item.safeQuantityLimit}</td>
                           <td className="p-2">
                             <span className={`capitalize ${getStatusColor(item.status)}`}>
                               {item.status}

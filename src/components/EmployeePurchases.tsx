@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,12 @@ const EmployeePurchases = () => {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  
+  // New state for purchase history search and pagination
+  const [historySearchTerm, setHistorySearchTerm] = useState('');
+  const [historySortBy, setHistorySortBy] = useState('date');
+  const [historyCurrentPage, setHistoryCurrentPage] = useState(1);
+  
   const itemsPerPage = 5;
 
   // Fetch purchase requests from Firestore - simplified query to avoid index requirements
@@ -85,7 +92,7 @@ const EmployeePurchases = () => {
     return () => unsubscribe();
   }, [currentUser?.companyId, currentUser?.email]);
 
-  // Fetch purchase history from Firestore - simplified query
+  // Fetch all purchase history from Firestore
   useEffect(() => {
     if (!currentUser?.companyId) {
       return;
@@ -117,8 +124,7 @@ const EmployeePurchases = () => {
           const dateA = new Date(a.purchaseDate).getTime();
           const dateB = new Date(b.purchaseDate).getTime();
           return dateB - dateA;
-        })
-        .slice(0, 20);
+        });
         
         setPurchaseHistory(history);
       },
@@ -202,7 +208,40 @@ const EmployeePurchases = () => {
     };
   };
 
-  const limitedPurchaseHistory = purchaseHistory.slice(0, 5);
+  // Filter and paginate purchase history
+  const getFilteredPurchaseHistory = () => {
+    let filtered = purchaseHistory;
+    
+    // Apply search filter
+    if (historySearchTerm) {
+      const searchLower = historySearchTerm.toLowerCase();
+      filtered = filtered.filter(purchase => 
+        (purchase.productCategory || '').toLowerCase().includes(searchLower) ||
+        (purchase.itemName || purchase.productName || '').toLowerCase().includes(searchLower) ||
+        (purchase.productVersion || '').toLowerCase().includes(searchLower)
+      );
+    }
+    
+    // Apply sorting
+    filtered.sort((a, b) => {
+      if (historySortBy === 'date') {
+        const dateA = new Date(a.purchaseDate).getTime();
+        const dateB = new Date(b.purchaseDate).getTime();
+        return dateB - dateA; // Newest first
+      }
+      return 0;
+    });
+    
+    // Apply pagination
+    const startIndex = (historyCurrentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    
+    return {
+      items: filtered.slice(startIndex, endIndex),
+      totalItems: filtered.length,
+      totalPages: Math.ceil(filtered.length / itemsPerPage)
+    };
+  };
 
   const renderRequestItem = (request: any) => (
     <div key={request.id} className="border rounded-lg p-4 hover:bg-gray-50">
@@ -241,25 +280,39 @@ const EmployeePurchases = () => {
     </div>
   );
 
-  const renderHistoryItem = (purchase: any) => (
-    <div key={purchase.id} className="border rounded-lg p-4 hover:bg-gray-50">
-      <div className="flex items-start justify-between mb-2">
-        <div>
-          <h4 className="font-medium text-gray-900">{purchase.itemName || purchase.productName || 'N/A'}</h4>
-          <p className="text-sm text-gray-500">
-            Qty: {purchase.quantity || 'N/A'} | ₹{(purchase.cost || 0).toLocaleString()}
-          </p>
+  const renderHistoryItem = (purchase: any) => {
+    const displayItemName = purchase.productCategory && purchase.itemName && purchase.productVersion
+      ? `${purchase.productCategory}-${purchase.itemName} ${purchase.productVersion}`
+      : purchase.itemName || purchase.productName || 'N/A';
+    
+    return (
+      <div key={purchase.id} className="border rounded-lg p-4 hover:bg-gray-50">
+        <div className="flex items-start justify-between mb-2">
+          <div>
+            <h4 className="font-medium text-gray-900">{displayItemName}</h4>
+            <div className="space-y-1 mt-1">
+              <p className="text-sm text-gray-600">
+                <span className="font-medium">Category:</span> {purchase.productCategory || 'N/A'}
+              </p>
+              <p className="text-sm text-gray-600">
+                <span className="font-medium">Version:</span> {purchase.productVersion || 'N/A'}
+              </p>
+              <p className="text-sm text-gray-600">
+                <span className="font-medium">Quantity:</span> {purchase.quantity || 'N/A'} {purchase.unit || ''}
+              </p>
+            </div>
+          </div>
+          <Badge variant="default">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            {purchase.status}
+          </Badge>
         </div>
-        <Badge variant="default">
-          <CheckCircle className="w-3 h-3 mr-1" />
-          {purchase.status}
-        </Badge>
+        <div className="flex items-center justify-between text-xs text-gray-500">
+          <span>Delivered: {purchase.purchaseDate}</span>
+        </div>
       </div>
-      <div className="flex items-center justify-between text-xs text-gray-500">
-        <span>Delivered: {purchase.purchaseDate}</span>
-      </div>
-    </div>
-  );
+    );
+  };
 
   const renderPaginationForTab = (tabData: any) => {
     if (tabData.totalPages <= 1) return null;
@@ -297,6 +350,42 @@ const EmployeePurchases = () => {
     );
   };
 
+  const renderHistoryPagination = (historyData: any) => {
+    if (historyData.totalPages <= 1) return null;
+
+    return (
+      <Pagination className="mt-4">
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious 
+              onClick={() => setHistoryCurrentPage(Math.max(1, historyCurrentPage - 1))}
+              className={historyCurrentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+            />
+          </PaginationItem>
+          
+          {Array.from({ length: historyData.totalPages }, (_, i) => i + 1).map((page) => (
+            <PaginationItem key={page}>
+              <PaginationLink
+                onClick={() => setHistoryCurrentPage(page)}
+                isActive={historyCurrentPage === page}
+                className="cursor-pointer"
+              >
+                {page}
+              </PaginationLink>
+            </PaginationItem>
+          ))}
+          
+          <PaginationItem>
+            <PaginationNext 
+              onClick={() => setHistoryCurrentPage(Math.min(historyData.totalPages, historyCurrentPage + 1))}
+              className={historyCurrentPage === historyData.totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+            />
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
+    );
+  };
+
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto space-y-6">
@@ -326,6 +415,8 @@ const EmployeePurchases = () => {
       </div>
     );
   }
+
+  const historyData = getFilteredPurchaseHistory();
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -482,15 +573,42 @@ const EmployeePurchases = () => {
         {/* Purchase History */}
         <Card>
           <CardHeader>
-            <CardTitle>Recent Purchase History</CardTitle>
+            <CardTitle>Purchase History</CardTitle>
+            <div className="flex gap-4 items-center mt-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  placeholder="Search purchase history..."
+                  value={historySearchTerm}
+                  onChange={(e) => {
+                    setHistorySearchTerm(e.target.value);
+                    setHistoryCurrentPage(1);
+                  }}
+                  className="pl-10"
+                />
+              </div>
+              <select
+                value={historySortBy}
+                onChange={(e) => {
+                  setHistorySortBy(e.target.value);
+                  setHistoryCurrentPage(1);
+                }}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+              >
+                <option value="date">Sort by Date</option>
+              </select>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {limitedPurchaseHistory.length === 0 ? (
-                <p className="text-center text-gray-500 py-8">No purchase history found</p>
+              {historyData.items.length === 0 ? (
+                <p className="text-center text-gray-500 py-8">
+                  {historySearchTerm ? 'No matching purchase history found' : 'No purchase history found'}
+                </p>
               ) : (
-                limitedPurchaseHistory.map(renderHistoryItem)
+                historyData.items.map(renderHistoryItem)
               )}
+              {renderHistoryPagination(historyData)}
             </div>
           </CardContent>
         </Card>
