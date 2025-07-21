@@ -21,7 +21,7 @@ import {
   CheckCircle,
   XCircle
 } from 'lucide-react';
-import { collection, getDocs, query, where, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -43,6 +43,12 @@ interface StockDetailsData {
   displayStatus: 'displayed' | 'suspended';
   createdAt: Date;
   updatedAt: Date;
+  // New fields for purchase request status tracking
+  pendingQuantity?: number;
+  approvedQuantity?: number;
+  poCreatedQuantity?: number;
+  rejectedQuantity?: number;
+  lastRequestStatus?: 'pending' | 'approved' | 'po_created' | 'rejected';
 }
 
 interface FlagRequestData {
@@ -115,7 +121,11 @@ const EmployeeInventory = () => {
           updatedAt: data.updatedAt?.toDate() || new Date(),
           lastPurchaseDate: data.lastPurchaseDate?.toDate(),
           minRequired: data.minRequired !== undefined ? data.minRequired : 0,
-          safeQuantityLimit: data.safeQuantityLimit !== undefined ? data.safeQuantityLimit : 0
+          safeQuantityLimit: data.safeQuantityLimit !== undefined ? data.safeQuantityLimit : 0,
+          pendingQuantity: data.pendingQuantity || 0,
+          approvedQuantity: data.approvedQuantity || 0,
+          poCreatedQuantity: data.poCreatedQuantity || 0,
+          rejectedQuantity: data.rejectedQuantity || 0
         };
       }) as StockDetailsData[];
     } catch (error) {
@@ -202,6 +212,12 @@ const EmployeeInventory = () => {
     }
   };
 
+  // Check if Flag Low button should be disabled
+  const isFlagLowDisabled = (item: StockDetailsData) => {
+    const status = item.lastRequestStatus;
+    return status === 'pending' || status === 'approved' || status === 'po_created';
+  };
+
   // Get the most recent request for an item
   const getItemRequest = (item: StockDetailsData) => {
     const itemRequests = allRequests.filter(req => 
@@ -257,6 +273,54 @@ const EmployeeInventory = () => {
     setShowFlagForm(true);
   };
 
+  // Update stock_details after successful purchase request
+  const updateStockDetailsAfterRequest = async (requestData: any) => {
+    try {
+      const stockDetailsCollection = collection(db, 'stock_details');
+      const q = query(
+        stockDetailsCollection,
+        where('companyId', '==', currentUser?.companyId),
+        where('productCategory', '==', requestData.productCategory),
+        where('itemName', '==', requestData.itemName),
+        where('productVersion', '==', requestData.productVersion)
+      );
+      
+      const snapshot = await getDocs(q);
+      
+      if (!snapshot.empty) {
+        const stockDoc = snapshot.docs[0];
+        const stockData = stockDoc.data();
+        
+        // Update quantities based on status
+        const updateData: any = {
+          lastRequestStatus: requestData.status,
+          updatedAt: new Date()
+        };
+        
+        // Add to pending quantity
+        if (requestData.status === 'pending') {
+          updateData.pendingQuantity = (stockData.pendingQuantity || 0) + requestData.quantityRequired;
+        }
+        
+        await updateDoc(doc(db, 'stock_details', stockDoc.id), updateData);
+        
+        // Update local state
+        setStockDetails(prev => prev.map(item => 
+          item.id === stockDoc.id 
+            ? { 
+                ...item, 
+                lastRequestStatus: requestData.status as any,
+                pendingQuantity: updateData.pendingQuantity || item.pendingQuantity,
+                updatedAt: new Date()
+              }
+            : item
+        ));
+      }
+    } catch (error) {
+      console.error('Error updating stock details:', error);
+    }
+  };
+
   const handleSendRequest = async () => {
     if (!currentUser?.companyId || !flagRequestData.quantity || !flagRequestData.reason || !flagRequestData.unit || !flagRequestData.requestedDate) {
       toast({
@@ -284,7 +348,7 @@ const EmployeeInventory = () => {
         requestedDate: flagRequestData.requestedDate,
         reason: flagRequestData.reason,
         priority: flagRequestData.priority,
-        pricePerUnit: pricePerUnit, // Add pricePerUnit from stock_details
+        pricePerUnit: pricePerUnit,
         status: 'pending',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
@@ -292,9 +356,15 @@ const EmployeeInventory = () => {
 
       await addDoc(collection(db, 'purchase_requests'), newRequest);
 
+      // Update stock_details with new request data
+      await updateStockDetailsAfterRequest({
+        ...newRequest,
+        quantityRequired: parseInt(flagRequestData.quantity)
+      });
+
       // Add to local state for immediate UI update
       const newPurchaseRequest: PurchaseRequest = {
-        id: Date.now().toString(), // temporary ID
+        id: Date.now().toString(),
         itemName: flagRequestData.itemName,
         productCategory: flagRequestData.productCategory,
         productVersion: flagRequestData.productVersion,
@@ -435,7 +505,7 @@ const EmployeeInventory = () => {
           {filteredInventory.map((item) => {
             const status = getItemStatus(item);
             const itemRequest = getItemRequest(item);
-            const isRequestDisabled = itemRequest?.status === 'approved';
+            const isRequestDisabled = isFlagLowDisabled(item);
             
             return (
               <Card key={item.id} className={`border-l-4 ${
@@ -458,48 +528,40 @@ const EmployeeInventory = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {/* Request Status Alerts */}
-                    {itemRequest && (
+                    {/* Request Status Display */}
+                    {item.lastRequestStatus && (
                       <div className={`border rounded-lg p-3 ${
-                        itemRequest.status === 'pending' ? 'bg-blue-50 border-blue-200' :
-                        itemRequest.status === 'approved' ? 'bg-green-50 border-green-200' :
+                        item.lastRequestStatus === 'pending' ? 'bg-yellow-50 border-yellow-200' :
+                        item.lastRequestStatus === 'approved' ? 'bg-green-50 border-green-200' :
+                        item.lastRequestStatus === 'po_created' ? 'bg-blue-50 border-blue-200' :
                         'bg-red-50 border-red-200'
                       }`}>
                         <div className="flex items-center gap-2">
-                          {itemRequest.status === 'pending' && (
+                          {item.lastRequestStatus === 'pending' && (
                             <>
-                              <Flag className="h-4 w-4 text-blue-600" />
-                              <span className="text-sm font-medium text-blue-800">Request Pending</span>
+                              <Flag className="h-4 w-4 text-yellow-600" />
+                              <span className="text-sm font-medium text-yellow-800">Request Pending</span>
                             </>
                           )}
-                          {itemRequest.status === 'approved' && (
+                          {item.lastRequestStatus === 'approved' && (
                             <>
                               <CheckCircle className="h-4 w-4 text-green-600" />
                               <span className="text-sm font-medium text-green-800">Request Approved</span>
                             </>
                           )}
-                          {itemRequest.status === 'rejected' && (
+                          {item.lastRequestStatus === 'po_created' && (
+                            <>
+                              <CheckCircle className="h-4 w-4 text-blue-600" />
+                              <span className="text-sm font-medium text-blue-800">PO Created</span>
+                            </>
+                          )}
+                          {item.lastRequestStatus === 'rejected' && (
                             <>
                               <XCircle className="h-4 w-4 text-red-600" />
                               <span className="text-sm font-medium text-red-800">Request Rejected</span>
                             </>
                           )}
                         </div>
-                        <p className="text-xs mt-1 ${
-                          itemRequest.status === 'pending' ? 'text-blue-600' :
-                          itemRequest.status === 'approved' ? 'text-green-600' :
-                          'text-red-600'
-                        }">
-                          {itemRequest.status === 'pending' && 
-                            `Purchase request submitted with ${itemRequest.priority} priority`
-                          }
-                          {itemRequest.status === 'approved' && 
-                            `Previous purchase request of ${itemRequest.quantityRequired} was approved by admin.`
-                          }
-                          {itemRequest.status === 'rejected' && 
-                            `Previous purchase request of ${itemRequest.quantityRequired} was rejected by admin.`
-                          }
-                        </p>
                       </div>
                     )}
 
@@ -516,6 +578,29 @@ const EmployeeInventory = () => {
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600">Safe Limit:</span>
                       <span className="font-medium">{item.safeQuantityLimit || 0} {item.unit}</span>
+                    </div>
+                    
+                    {/* Request Quantities */}
+                    <div className="border-t pt-3 space-y-2">
+                      <div className="text-xs font-medium text-gray-600 mb-2">Request Quantities:</div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-yellow-600">Pending:</span>
+                          <span className="font-medium">{item.pendingQuantity || 0}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-green-600">Approved:</span>
+                          <span className="font-medium">{item.approvedQuantity || 0}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-blue-600">PO Created:</span>
+                          <span className="font-medium">{item.poCreatedQuantity || 0}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-red-600">Rejected:</span>
+                          <span className="font-medium">{item.rejectedQuantity || 0}</span>
+                        </div>
+                      </div>
                     </div>
                     
                     <div className="flex gap-2 pt-2">

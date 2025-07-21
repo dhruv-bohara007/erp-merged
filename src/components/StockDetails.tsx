@@ -37,6 +37,12 @@ interface StockDetailsData {
   displayStatus: 'displayed' | 'suspended';
   createdAt: Date;
   updatedAt: Date;
+  // New fields for purchase request status tracking
+  pendingQuantity?: number;
+  approvedQuantity?: number;
+  poCreatedQuantity?: number;
+  rejectedQuantity?: number;
+  lastRequestStatus?: 'pending' | 'approved' | 'po_created' | 'rejected';
 }
 
 const StockDetails = () => {
@@ -52,7 +58,7 @@ const StockDetails = () => {
   const { currentUser } = useAuth();
   const { toast } = useToast();
 
-  // Generate stock details from purchase_records only
+  // Generate stock details from purchase_records and update with purchase_requests data
   const generateStockDetails = async () => {
     if (!currentUser?.companyId) return;
 
@@ -80,11 +86,15 @@ const StockDetails = () => {
               unit: purchaseData.unit || 'pcs',
               minRequired: 0,
               safeQuantityLimit: 0,
-               displayStatus: 'suspended',
+              displayStatus: 'suspended',
               createdAt: new Date(),
               updatedAt: new Date(),
               lastPurchaseDate: purchaseData.purchaseDate || purchaseData.expenseDate,
-              pricePerUnit: purchaseData.pricePerUnit || 0
+              pricePerUnit: purchaseData.pricePerUnit || 0,
+              pendingQuantity: 0,
+              approvedQuantity: 0,
+              poCreatedQuantity: 0,
+              rejectedQuantity: 0
             };
           }
           
@@ -99,28 +109,71 @@ const StockDetails = () => {
           }
         }
       });
+
+      // Get purchase requests data and aggregate by status
+      const purchaseRequestsCollection = collection(db, 'purchase_requests');
+      const requestsQuery = query(purchaseRequestsCollection, where('companyId', '==', currentUser.companyId));
+      const requestsSnapshot = await getDocs(requestsQuery);
+      
+      requestsSnapshot.docs.forEach(doc => {
+        const requestData = doc.data();
+        if (requestData.itemName && requestData.productCategory && requestData.productVersion) {
+          const key = `${requestData.productCategory}-${requestData.itemName}-${requestData.productVersion}`;
+          
+          if (stockData[key]) {
+            const quantity = requestData.quantityRequired || 0;
+            const status = requestData.status;
+            
+            // Aggregate quantities by status
+            switch (status) {
+              case 'pending':
+                stockData[key].pendingQuantity = (stockData[key].pendingQuantity || 0) + quantity;
+                break;
+              case 'approved':
+                stockData[key].approvedQuantity = (stockData[key].approvedQuantity || 0) + quantity;
+                break;
+              case 'po_created':
+                stockData[key].poCreatedQuantity = (stockData[key].poCreatedQuantity || 0) + quantity;
+                break;
+              case 'rejected':
+                stockData[key].rejectedQuantity = (stockData[key].rejectedQuantity || 0) + quantity;
+                break;
+            }
+            
+            // Update last request status (most recent)
+            const requestDate = requestData.createdAt?.toDate() || new Date();
+            if (!stockData[key].lastRequestStatus || requestDate > (stockData[key].updatedAt || new Date())) {
+              stockData[key].lastRequestStatus = status;
+            }
+          }
+        }
+      });
     } catch (error) {
       console.error('Error fetching purchase records:', error);
     }
 
-    // Save to stock_details collection with merge to preserve existing min_required and safe_quantity_limit values
+    // Save to stock_details collection with merge to preserve existing values
     const stockDetailsCollection = collection(db, 'stock_details');
     
     for (const stockItem of Object.values(stockData)) {
       try {
-        // Only update if item doesn't exist, to preserve existing minRequired and safeQuantityLimit
         const docRef = doc(stockDetailsCollection, stockItem.id);
         const existingDoc = await getDocs(query(collection(db, 'stock_details'), where('id', '==', stockItem.id)));
         
         if (existingDoc.empty) {
           await setDoc(docRef, stockItem);
         } else {
-          // Only update stock quantities, not the limits
+          // Update stock quantities and request data
           await updateDoc(docRef, {
             currentStock: stockItem.currentStock,
             updatedAt: stockItem.updatedAt,
             lastPurchaseDate: stockItem.lastPurchaseDate,
-            pricePerUnit: stockItem.pricePerUnit
+            pricePerUnit: stockItem.pricePerUnit,
+            pendingQuantity: stockItem.pendingQuantity,
+            approvedQuantity: stockItem.approvedQuantity,
+            poCreatedQuantity: stockItem.poCreatedQuantity,
+            rejectedQuantity: stockItem.rejectedQuantity,
+            lastRequestStatus: stockItem.lastRequestStatus
           });
         }
       } catch (error) {
@@ -148,9 +201,12 @@ const StockDetails = () => {
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
           lastPurchaseDate: data.lastPurchaseDate?.toDate(),
-          // Use actual values from Firestore, fallback to 0 only if undefined
           minRequired: data.minRequired !== undefined ? data.minRequired : 0,
-          safeQuantityLimit: data.safeQuantityLimit !== undefined ? data.safeQuantityLimit : 0
+          safeQuantityLimit: data.safeQuantityLimit !== undefined ? data.safeQuantityLimit : 0,
+          pendingQuantity: data.pendingQuantity || 0,
+          approvedQuantity: data.approvedQuantity || 0,
+          poCreatedQuantity: data.poCreatedQuantity || 0,
+          rejectedQuantity: data.rejectedQuantity || 0
         };
       }) as StockDetailsData[];
     } catch (error) {
@@ -163,18 +219,13 @@ const StockDetails = () => {
     const loadStockDetails = async () => {
       setLoading(true);
       
-      // First try to fetch existing stock details
-      let existingStockDetails = await fetchStockDetails();
-      
-      // Always regenerate stock details from purchase_records
-      if (existingStockDetails.length === 0 || true) {
-        const newStockDetails = await generateStockDetails();
-        if (newStockDetails) {
-          existingStockDetails = await fetchStockDetails(); // Refetch to get persisted data with actual values
-        }
+      // Always regenerate stock details from purchase_records and purchase_requests
+      const newStockDetails = await generateStockDetails();
+      if (newStockDetails) {
+        const existingStockDetails = await fetchStockDetails();
+        setStockDetails(existingStockDetails);
       }
       
-      setStockDetails(existingStockDetails);
       setLoading(false);
     };
 
@@ -195,7 +246,6 @@ const StockDetails = () => {
     const safeQuantityLimitValue = fieldType === 'safeQuantityLimit'
       ? Number(editingFields[itemId].safeQuantityLimit || 0)
       : Number(item.safeQuantityLimit || 0);
-
 
     // Validation: Safe Quantity Limit should be less than or equal to Min Required
     if (safeQuantityLimitValue > minRequiredValue) {
@@ -337,7 +387,6 @@ const StockDetails = () => {
     }
     
     const actualValue = item[fieldType];
-    // Fix: Return actual value if it exists and is not null/undefined, otherwise return empty string for better UX
     return actualValue !== undefined && actualValue !== null ? actualValue.toString() : '';
   };
 
@@ -464,6 +513,11 @@ const StockDetails = () => {
                   <TableHead>Price Per Unit</TableHead>
                   <TableHead>Min Required</TableHead>
                   <TableHead>Safe Quantity Limit</TableHead>
+                  <TableHead>Request Status</TableHead>
+                  <TableHead>Pending Qty</TableHead>
+                  <TableHead>Approved Qty</TableHead>
+                  <TableHead>PO Created Qty</TableHead>
+                  <TableHead>Rejected Qty</TableHead>
                   <TableHead>Last Updated</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -471,7 +525,7 @@ const StockDetails = () => {
               <TableBody>
                 {sortedStockDetails.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={14} className="text-center py-8 text-gray-500">
                       No stock items found
                     </TableCell>
                   </TableRow>
@@ -584,6 +638,33 @@ const StockDetails = () => {
                         </div>
                       </TableCell>
                       <TableCell>
+                        <div className="flex items-center">
+                          {item.lastRequestStatus && (
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              item.lastRequestStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              item.lastRequestStatus === 'approved' ? 'bg-green-100 text-green-800' :
+                              item.lastRequestStatus === 'po_created' ? 'bg-blue-100 text-blue-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {item.lastRequestStatus === 'po_created' ? 'PO Created' : 
+                               item.lastRequestStatus.charAt(0).toUpperCase() + item.lastRequestStatus.slice(1)}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">{item.pendingQuantity || 0}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">{item.approvedQuantity || 0}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">{item.poCreatedQuantity || 0}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">{item.rejectedQuantity || 0}</div>
+                      </TableCell>
+                      <TableCell>
                         <div className="flex items-center text-sm">
                           <Calendar className="w-3 h-3 mr-1 text-gray-400" />
                           {item.updatedAt?.toLocaleDateString() || 'N/A'}
@@ -606,7 +687,7 @@ const StockDetails = () => {
                              ) : (
                                <>
                                  <Eye className="h-3 w-3" />
-                                 Suspend
+                                 Display
                                </>
                              )}
                           </Button>

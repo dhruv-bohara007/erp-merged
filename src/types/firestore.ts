@@ -1,3 +1,4 @@
+
 import { Timestamp } from 'firebase/firestore';
 
 export interface Company {
@@ -317,4 +318,10 @@ export interface StockDetailsData {
   displayStatus: 'displayed' | 'suspended';
   createdAt: Date;
   updatedAt: Date;
+  // New fields for purchase request status tracking
+  pendingQuantity?: number;
+  approvedQuantity?: number;
+  poCreatedQuantity?: number;
+  rejectedQuantity?: number;
+  lastRequestStatus?: 'pending' | 'approved' | 'po_created' | 'rejected';
 }
