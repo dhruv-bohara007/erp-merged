@@ -265,6 +265,10 @@ service cloud.firestore {
       allow read: if isEmployeeUser() && getUserData().companyId != null &&
         (resource == null || resource.data.companyId == getUserData().companyId);
       
+      // Additional read access for employees accessing via employeeEmail field
+      allow read: if isEmployeeUser() && getUserData().email != null &&
+        (resource == null || resource.data.employeeEmail == getUserData().email);
+      
       allow read, write: if isSuperAdmin();
     }
 
