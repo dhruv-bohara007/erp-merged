@@ -18,7 +18,9 @@ import {
   CalendarIcon,
   ChevronDown,
   CheckCircle,
-  XCircle
+  XCircle,
+  Clock,
+  ShoppingCart
 } from 'lucide-react';
 import { collection, getDocs, query, where, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -538,7 +540,7 @@ const EmployeeInventory = () => {
                         <div className="flex items-center gap-2">
                           {item.lastRequestStatus === 'pending' && (
                             <>
-                              <Flag className="h-4 w-4 text-yellow-600" />
+                              <Clock className="h-4 w-4 text-yellow-600" />
                               <span className="text-sm font-medium text-yellow-800">Request Pending</span>
                             </>
                           )}
@@ -550,7 +552,7 @@ const EmployeeInventory = () => {
                           )}
                           {item.lastRequestStatus === 'po_created' && (
                             <>
-                              <CheckCircle className="h-4 w-4 text-blue-600" />
+                              <ShoppingCart className="h-4 w-4 text-blue-600" />
                               <span className="text-sm font-medium text-blue-800">PO Created</span>
                             </>
                           )}
@@ -579,13 +581,40 @@ const EmployeeInventory = () => {
                       <span className="font-medium">{item.safeQuantityLimit || 0} {item.unit}</span>
                     </div>
                     
-                    {/* Show only pending quantity if there's a pending request */}
-                    {(item.pendingQuantity || 0) > 0 && (
-                      <div className="border-t pt-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Pending Request:</span>
-                          <span className="font-medium text-yellow-600">{item.pendingQuantity || 0} {item.unit}</span>
-                        </div>
+                    {/* Display quantities based on status */}
+                    {((item.pendingQuantity || 0) > 0 || (item.approvedQuantity || 0) > 0 || (item.poCreatedQuantity || 0) > 0 || (item.rejectedQuantity || 0) > 0) && (
+                      <div className="border-t pt-3 space-y-2">
+                        {/* Show pending quantity if there's a pending request */}
+                        {(item.pendingQuantity || 0) > 0 && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-600">Pending Request:</span>
+                            <span className="font-medium text-yellow-600">{item.pendingQuantity || 0} {item.unit}</span>
+                          </div>
+                        )}
+                        
+                        {/* Show approved quantity if there's an approved request */}
+                        {(item.approvedQuantity || 0) > 0 && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-600">Approved Quantity:</span>
+                            <span className="font-medium text-green-600">{item.approvedQuantity || 0} {item.unit}</span>
+                          </div>
+                        )}
+                        
+                        {/* Show PO created quantity if there's a PO created */}
+                        {(item.poCreatedQuantity || 0) > 0 && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-600">PO Created Quantity:</span>
+                            <span className="font-medium text-blue-600">{item.poCreatedQuantity || 0} {item.unit}</span>
+                          </div>
+                        )}
+                        
+                        {/* Show rejected quantity if there's a rejected request */}
+                        {(item.rejectedQuantity || 0) > 0 && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-600">Rejected Quantity:</span>
+                            <span className="font-medium text-red-600">{item.rejectedQuantity || 0} {item.unit}</span>
+                          </div>
+                        )}
                       </div>
                     )}
                     
