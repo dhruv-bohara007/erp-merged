@@ -13,7 +13,9 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  Search
+  Search,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { collection, query, where, onSnapshot, limit } from 'firebase/firestore';
@@ -29,6 +31,7 @@ const EmployeeDashboard = () => {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('name');
+  const [currentPage, setCurrentPage] = useState(0);
 
   // Fetch inventory/stock data
   useEffect(() => {
@@ -189,8 +192,8 @@ const EmployeeDashboard = () => {
     }
   };
 
-  // Filter and sort inventory data
-  const filteredAndSortedInventory = inventoryData
+  // Filter and sort inventory data with pagination
+  const filteredInventory = inventoryData
     .filter(item => 
       item.name.toLowerCase().includes(searchTerm.toLowerCase())
     )
@@ -206,8 +209,31 @@ const EmployeeDashboard = () => {
         default:
           return 0;
       }
-    })
-    .slice(0, 5); // Display only 5 items
+    });
+
+  const itemsPerPage = 5;
+  const totalPages = Math.ceil(filteredInventory.length / itemsPerPage);
+  const currentInventoryItems = filteredInventory.slice(
+    currentPage * itemsPerPage,
+    (currentPage + 1) * itemsPerPage
+  );
+
+  const nextPage = () => {
+    if (currentPage < totalPages - 1) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const prevPage = () => {
+    if (currentPage > 0) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  // Reset pagination when search or sort changes
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [searchTerm, sortBy]);
 
   if (loading) {
     return (
@@ -385,7 +411,7 @@ const EmployeeDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Updated Inventory Overview Table */}
+        {/* Updated Inventory Overview Table with Pagination */}
         <Card>
           <CardHeader>
             <CardTitle>Inventory Overview</CardTitle>
@@ -412,31 +438,67 @@ const EmployeeDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              {filteredAndSortedInventory.length > 0 ? (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-2">Item Name</th>
-                      <th className="text-left p-2">Current Stock</th>
-                      <th className="text-left p-2">Min Threshold</th>
-                      <th className="text-left p-2">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredAndSortedInventory.map((item) => (
-                      <tr key={item.id} className="border-b hover:bg-gray-50">
-                        <td className="p-2 font-medium">{item.name}</td>
-                        <td className="p-2">{item.currentStock}</td>
-                        <td className="p-2">{item.minThreshold}</td>
-                        <td className="p-2">
-                          <span className={`capitalize ${getStatusColor(item.status)}`}>
-                            {item.status}
-                          </span>
-                        </td>
+              {currentInventoryItems.length > 0 ? (
+                <>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-2">Item Name</th>
+                        <th className="text-left p-2">Current Stock</th>
+                        <th className="text-left p-2">Min Threshold</th>
+                        <th className="text-left p-2">Status</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {currentInventoryItems.map((item) => (
+                        <tr key={item.id} className="border-b hover:bg-gray-50">
+                          <td className="p-2 font-medium">{item.name}</td>
+                          <td className="p-2">{item.currentStock}</td>
+                          <td className="p-2">{item.minThreshold}</td>
+                          <td className="p-2">
+                            <span className={`capitalize ${getStatusColor(item.status)}`}>
+                              {item.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  
+                  {/* Pagination Controls */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="text-sm text-gray-500">
+                        Showing {currentPage * itemsPerPage + 1} to{' '}
+                        {Math.min((currentPage + 1) * itemsPerPage, filteredInventory.length)} of{' '}
+                        {filteredInventory.length} items
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={prevPage}
+                          disabled={currentPage === 0}
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                          Previous
+                        </Button>
+                        <span className="text-sm text-gray-500">
+                          Page {currentPage + 1} of {totalPages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={nextPage}
+                          disabled={currentPage === totalPages - 1}
+                        >
+                          Next
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
               ) : (
                 <p className="text-center text-gray-500 py-8">No inventory data available</p>
               )}

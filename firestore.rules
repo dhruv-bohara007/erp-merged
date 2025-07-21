@@ -261,10 +261,9 @@ service cloud.firestore {
       allow create: if isEmployeeUser() && getUserData().companyId != null &&
         request.resource.data.companyId == getUserData().companyId;
       
-      // Employees can read their own purchase requests
+      // Employees can read purchase requests from their company or their own requests
       allow read: if isEmployeeUser() && getUserData().companyId != null &&
-        (resource == null || (resource.data.companyId == getUserData().companyId && 
-         resource.data.employeeEmail == getUserData().email));
+        (resource == null || resource.data.companyId == getUserData().companyId);
       
       allow read, write: if isSuperAdmin();
     }
