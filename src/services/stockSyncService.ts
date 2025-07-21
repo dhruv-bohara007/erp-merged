@@ -1,5 +1,6 @@
+
+import { collection, getDocs, query, where, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, writeBatch, doc } from 'firebase/firestore';
 
 export interface StockSyncResult {
   success: boolean;
@@ -8,120 +9,61 @@ export interface StockSyncResult {
   errors?: string[];
 }
 
-export interface ProductKey {
-  productCategory: string;
-  itemName: string;
-  productVersion: string;
-  unit: string;
-  price: number;
-}
-
-export interface StockData {
-  productCategory: string;
-  itemName: string;
-  productVersion: string;
-  unit: string;
-  price: number;
-  totalQuantity: number;
-  inventoryQuantity: number;
-  purchaseQuantity: number;
-  lastUpdated: Date;
-}
-
+// Sync stock details with purchase records
 export const syncStockDetails = async (companyId: string): Promise<StockSyncResult> => {
   try {
-    // Query inventory collection
-    const inventoryQuery = query(
-      collection(db, 'inventory'),
-      where('companyId', '==', companyId)
-    );
-    const inventorySnapshot = await getDocs(inventoryQuery);
-
-    // Query purchase_records collection
-    const purchaseQuery = query(
-      collection(db, 'purchase_records'),
-      where('companyId', '==', companyId)
-    );
-    const purchaseSnapshot = await getDocs(purchaseQuery);
-
-    // Create a map to aggregate quantities by product key
-    const productMap = new Map<string, StockData>();
-
-    // Process inventory records
-    inventorySnapshot.forEach((doc) => {
-      const data = doc.data();
-      const price = data.rate || data.unitPrice || 0;
-      const key = `${data.productCategory}|${data.itemName}|${data.productVersion}|${data.unit}|${price}`;
-      
-      if (productMap.has(key)) {
-        const existing = productMap.get(key)!;
-        existing.inventoryQuantity += data.quantity || 0;
-        existing.totalQuantity += data.quantity || 0;
-      } else {
-        productMap.set(key, {
-          productCategory: data.productCategory,
-          itemName: data.itemName,
-          productVersion: data.productVersion,
-          unit: data.unit,
-          price: price,
-          totalQuantity: data.quantity || 0,
-          inventoryQuantity: data.quantity || 0,
-          purchaseQuantity: 0,
-          lastUpdated: new Date()
-        });
-      }
-    });
-
-    // Process purchase records
-    purchaseSnapshot.forEach((doc) => {
-      const data = doc.data();
-      const price = data.pricePerUnit || 0;
-      const key = `${data.productCategory}|${data.itemName}|${data.productVersion}|${data.unit}|${price}`;
-      
-      if (productMap.has(key)) {
-        const existing = productMap.get(key)!;
-        existing.purchaseQuantity += data.quantity || 0;
-        existing.totalQuantity += data.quantity || 0;
-      } else {
-        productMap.set(key, {
-          productCategory: data.productCategory,
-          itemName: data.itemName,
-          productVersion: data.productVersion,
-          unit: data.unit,
-          price: price,
-          totalQuantity: data.quantity || 0,
-          inventoryQuantity: 0,
-          purchaseQuantity: data.quantity || 0,
-          lastUpdated: new Date()
-        });
-      }
-    });
-
-    // Batch write to stock_details collection
     const batch = writeBatch(db);
     let processedProducts = 0;
 
-    productMap.forEach((stockData, key) => {
-      const docId = `${companyId}_${key}`;
-      const stockRef = doc(db, 'stock_details', docId);
+    // Get all purchase records for the company
+    const purchaseRecordsQuery = query(
+      collection(db, 'purchase_records'),
+      where('companyId', '==', companyId)
+    );
+    const purchaseRecordsSnapshot = await getDocs(purchaseRecordsQuery);
+
+    // Get all stock details for the company
+    const stockDetailsQuery = query(
+      collection(db, 'stock_details'),
+      where('companyId', '==', companyId)
+    );
+    const stockDetailsSnapshot = await getDocs(stockDetailsQuery);
+
+    // Process each purchase record
+    purchaseRecordsSnapshot.docs.forEach(purchaseDoc => {
+      const purchaseData = purchaseDoc.data();
       
-      batch.set(stockRef, {
-        ...stockData,
-        companyId,
-        id: docId
+      // Find matching stock detail
+      const matchingStockDoc = stockDetailsSnapshot.docs.find(stockDoc => {
+        const stockData = stockDoc.data();
+        return stockData.productCategory === purchaseData.productCategory &&
+               stockData.itemName === purchaseData.itemName &&
+               stockData.productVersion === purchaseData.productVersion;
       });
-      
-      processedProducts++;
+
+      if (matchingStockDoc) {
+        const stockData = matchingStockDoc.data();
+        const newStock = (stockData.currentStock || 0) + (purchaseData.quantity || 0);
+        
+        const stockRef = doc(db, 'stock_details', matchingStockDoc.id);
+        batch.update(stockRef, {
+          currentStock: newStock,
+          lastPurchaseDate: purchaseData.purchaseDate || new Date(),
+          pricePerUnit: purchaseData.pricePerUnit || stockData.pricePerUnit,
+          updatedAt: new Date()
+        });
+        
+        processedProducts++;
+      }
     });
 
     await batch.commit();
 
     return {
       success: true,
-      message: `Successfully synchronized ${processedProducts} products`,
+      message: `Successfully synced ${processedProducts} products with stock details`,
       processedProducts
     };
-
   } catch (error) {
     console.error('Error syncing stock details:', error);
     return {
@@ -130,5 +72,73 @@ export const syncStockDetails = async (companyId: string): Promise<StockSyncResu
       processedProducts: 0,
       errors: [error instanceof Error ? error.message : 'Unknown error']
     };
+  }
+};
+
+// Sync purchase request status with stock details
+export const syncPurchaseRequestStatus = async (
+  companyId: string,
+  productCategory: string,
+  itemName: string,
+  productVersion: string,
+  status: string,
+  quantityRequired: number,
+  oldQuantityRequired?: number
+): Promise<void> => {
+  try {
+    // Find the matching stock detail
+    const stockDetailsQuery = query(
+      collection(db, 'stock_details'),
+      where('companyId', '==', companyId),
+      where('productCategory', '==', productCategory),
+      where('itemName', '==', itemName),
+      where('productVersion', '==', productVersion)
+    );
+    
+    const stockDetailsSnapshot = await getDocs(stockDetailsQuery);
+    
+    if (!stockDetailsSnapshot.empty) {
+      const stockDoc = stockDetailsSnapshot.docs[0];
+      const stockData = stockDoc.data();
+      
+      // Calculate new pending quantity
+      let newPendingQuantity = stockData.pendingQuantity || 0;
+      
+      // If quantity changed, update pending quantity
+      if (oldQuantityRequired !== undefined && oldQuantityRequired !== quantityRequired) {
+        newPendingQuantity = newPendingQuantity - oldQuantityRequired + quantityRequired;
+      }
+      
+      // Update quantities based on status
+      let approvedQuantity = stockData.approvedQuantity || 0;
+      let poCreatedQuantity = stockData.poCreatedQuantity || 0;
+      let rejectedQuantity = stockData.rejectedQuantity || 0;
+      
+      // If status changed from pending to approved/rejected/po_created
+      if (status === 'approved') {
+        newPendingQuantity = Math.max(0, newPendingQuantity - quantityRequired);
+        approvedQuantity += quantityRequired;
+      } else if (status === 'rejected') {
+        newPendingQuantity = Math.max(0, newPendingQuantity - quantityRequired);
+        rejectedQuantity += quantityRequired;
+      } else if (status === 'PO Created') {
+        // Move from approved to PO created
+        approvedQuantity = Math.max(0, approvedQuantity - quantityRequired);
+        poCreatedQuantity += quantityRequired;
+      }
+      
+      const stockRef = doc(db, 'stock_details', stockDoc.id);
+      await updateDoc(stockRef, {
+        lastRequestStatus: status,
+        pendingQuantity: newPendingQuantity,
+        approvedQuantity: approvedQuantity,
+        poCreatedQuantity: poCreatedQuantity,
+        rejectedQuantity: rejectedQuantity,
+        updatedAt: new Date()
+      });
+    }
+  } catch (error) {
+    console.error('Error syncing purchase request status:', error);
+    throw error;
   }
 };

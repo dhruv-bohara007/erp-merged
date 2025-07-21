@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,6 +29,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import ChatHistoryModal from '@/components/ChatHistoryModal';
+import { syncPurchaseRequestStatus } from '@/services/stockSyncService';
 
 interface PurchaseRequest {
   id: string;
@@ -107,11 +107,24 @@ const PurchaseRequestsAdmin = () => {
 
   const handleUpdateStatus = async (requestId: string, newStatus: 'approved' | 'rejected') => {
     try {
+      const request = requests.find(r => r.id === requestId);
+      if (!request) return;
+
       const requestRef = doc(db, 'purchase_requests', requestId);
       await updateDoc(requestRef, {
         status: newStatus,
         updatedAt: new Date()
       });
+
+      // Sync with stock_details
+      await syncPurchaseRequestStatus(
+        request.companyId,
+        request.productCategory,
+        request.itemName,
+        request.productVersion,
+        newStatus,
+        request.quantityRequired
+      );
 
       setRequests(prev => prev.map(req => 
         req.id === requestId 
@@ -134,6 +147,17 @@ const PurchaseRequestsAdmin = () => {
   };
 
   const handleQuantityEdit = (requestId: string, currentQuantity: number) => {
+    const request = requests.find(r => r.id === requestId);
+    // Disable editing if request is approved, rejected, or PO created
+    if (request && ['approved', 'rejected', 'PO Created'].includes(request.status)) {
+      toast({
+        title: "Cannot Edit",
+        description: "Cannot edit quantity for approved, rejected, or PO created requests",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setEditingQuantity(requestId);
     setEditValue(currentQuantity.toString());
   };
@@ -150,11 +174,27 @@ const PurchaseRequestsAdmin = () => {
     }
 
     try {
+      const request = requests.find(r => r.id === requestId);
+      if (!request) return;
+
+      const oldQuantity = request.quantityRequired;
+      
       const requestRef = doc(db, 'purchase_requests', requestId);
       await updateDoc(requestRef, {
         quantityRequired: newQuantity,
         updatedAt: new Date()
       });
+
+      // Sync with stock_details
+      await syncPurchaseRequestStatus(
+        request.companyId,
+        request.productCategory,
+        request.itemName,
+        request.productVersion,
+        request.status,
+        newQuantity,
+        oldQuantity
+      );
 
       // Update local state immediately
       setRequests(prev => prev.map(req => 
@@ -231,6 +271,11 @@ const PurchaseRequestsAdmin = () => {
       </div>
     );
   }
+
+  // Check if quantity editing should be disabled
+  const isQuantityEditDisabled = (request: PurchaseRequest) => {
+    return ['approved', 'rejected', 'PO Created'].includes(request.status);
+  };
 
   return (
     <div className="p-6">
@@ -412,6 +457,7 @@ const PurchaseRequestsAdmin = () => {
                             size="sm"
                             variant="ghost"
                             onClick={() => handleQuantityEdit(request.id, request.quantityRequired)}
+                            disabled={isQuantityEditDisabled(request)}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>

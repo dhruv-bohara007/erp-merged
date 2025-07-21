@@ -228,6 +228,11 @@ service cloud.firestore {
         resource.data.companyId == getUserData().companyId &&
         request.resource.data.companyId == resource.data.companyId;
       
+      // Admins can update stock details for purchase request synchronization
+      allow update: if isCompanyAdmin() && getUserData().companyId != null &&
+        resource.data.companyId == getUserData().companyId &&
+        request.resource.data.companyId == resource.data.companyId;
+      
       allow read, write: if isSuperAdmin();
     }
 

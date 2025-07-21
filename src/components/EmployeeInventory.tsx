@@ -504,7 +504,6 @@ const EmployeeInventory = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredInventory.map((item) => {
             const status = getItemStatus(item);
-            const itemRequest = getItemRequest(item);
             const isRequestDisabled = isFlagLowDisabled(item);
             
             return (
@@ -528,7 +527,7 @@ const EmployeeInventory = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {/* Request Status Display */}
+                    {/* Request Status Display - Only show if there's a last request status */}
                     {item.lastRequestStatus && (
                       <div className={`border rounded-lg p-3 ${
                         item.lastRequestStatus === 'pending' ? 'bg-yellow-50 border-yellow-200' :
@@ -580,28 +579,15 @@ const EmployeeInventory = () => {
                       <span className="font-medium">{item.safeQuantityLimit || 0} {item.unit}</span>
                     </div>
                     
-                    {/* Request Quantities */}
-                    <div className="border-t pt-3 space-y-2">
-                      <div className="text-xs font-medium text-gray-600 mb-2">Request Quantities:</div>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="flex justify-between">
-                          <span className="text-yellow-600">Pending:</span>
-                          <span className="font-medium">{item.pendingQuantity || 0}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-green-600">Approved:</span>
-                          <span className="font-medium">{item.approvedQuantity || 0}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-blue-600">PO Created:</span>
-                          <span className="font-medium">{item.poCreatedQuantity || 0}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-red-600">Rejected:</span>
-                          <span className="font-medium">{item.rejectedQuantity || 0}</span>
+                    {/* Show only pending quantity if there's a pending request */}
+                    {(item.pendingQuantity || 0) > 0 && (
+                      <div className="border-t pt-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Pending Request:</span>
+                          <span className="font-medium text-yellow-600">{item.pendingQuantity || 0} {item.unit}</span>
                         </div>
                       </div>
-                    </div>
+                    )}
                     
                     <div className="flex gap-2 pt-2">
                       <ChatHistoryModal
