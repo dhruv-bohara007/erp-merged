@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -134,15 +133,16 @@ const EmployeeInventory = () => {
     }
   };
 
-  // Fetch all purchase requests for this company
+  // Fetch purchase requests for the current employee only
   const fetchAllRequests = async () => {
-    if (!currentUser?.companyId) return [];
+    if (!currentUser?.companyId || !currentUser?.email) return [];
 
     try {
       const purchaseRequestsCollection = collection(db, 'purchase_requests');
       const q = query(
         purchaseRequestsCollection,
-        where('companyId', '==', currentUser.companyId)
+        where('companyId', '==', currentUser.companyId),
+        where('employeeEmail', '==', currentUser.email)
       );
       const snapshot = await getDocs(q);
       
@@ -160,7 +160,7 @@ const EmployeeInventory = () => {
         };
       }) as PurchaseRequest[];
     } catch (error) {
-      console.error('Error fetching all requests:', error);
+      console.error('Error fetching employee requests:', error);
       return [];
     }
   };
