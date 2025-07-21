@@ -108,7 +108,11 @@ const EmployeeDashboard = () => {
             status: data.status || 'pending',
             requestDate: data.createdAt?.toDate()?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0]
           };
-        }).sort((a, b) => new Date(b.requestDate) - new Date(a.requestDate));
+        }).sort((a, b) => {
+          const dateA = new Date(a.requestDate).getTime();
+          const dateB = new Date(b.requestDate).getTime();
+          return dateB - dateA; // Descending order (newest first)
+        });
         setPurchaseRequests(requests);
       },
       (err) => {
@@ -146,7 +150,11 @@ const EmployeeDashboard = () => {
                           data.createdAt?.toDate()?.toISOString().split('T')[0] || 
                           new Date().toISOString().split('T')[0]
           };
-        }).sort((a, b) => new Date(b.purchaseDate) - new Date(a.purchaseDate));
+        }).sort((a, b) => {
+          const dateA = new Date(a.purchaseDate).getTime();
+          const dateB = new Date(b.purchaseDate).getTime();
+          return dateB - dateA; // Descending order (newest first)
+        });
         setPurchaseHistory(history);
       },
       (err) => {

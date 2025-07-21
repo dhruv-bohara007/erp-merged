@@ -44,6 +44,7 @@ const EmployeePurchases = () => {
           return {
             id: doc.id,
             ...data,
+            companyId: data.companyId, // Include companyId for filtering
             requestDate: data.createdAt?.toDate()?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
             approvedDate: data.approvedAt?.toDate()?.toISOString().split('T')[0],
             rejectedDate: data.rejectedAt?.toDate()?.toISOString().split('T')[0],
@@ -52,7 +53,11 @@ const EmployeePurchases = () => {
         })
         // Filter by company and sort in memory
         .filter(req => req.companyId === currentUser.companyId)
-        .sort((a, b) => new Date(b.requestDate) - new Date(a.requestDate));
+        .sort((a, b) => {
+          const dateA = new Date(a.requestDate).getTime();
+          const dateB = new Date(b.requestDate).getTime();
+          return dateB - dateA; // Descending order (newest first)
+        });
         
         setPurchaseRequests(requests);
         setLoading(false);
@@ -97,7 +102,11 @@ const EmployeePurchases = () => {
           };
         })
         // Sort in memory instead of using orderBy
-        .sort((a, b) => new Date(b.purchaseDate) - new Date(a.purchaseDate))
+        .sort((a, b) => {
+          const dateA = new Date(a.purchaseDate).getTime();
+          const dateB = new Date(b.purchaseDate).getTime();
+          return dateB - dateA; // Descending order (newest first)
+        })
         .slice(0, 20); // Limit to recent 20 records
         
         setPurchaseHistory(history);
