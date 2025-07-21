@@ -1,4 +1,5 @@
-import { useState } from 'react';
+
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,86 +11,100 @@ import {
   XCircle,
   Eye
 } from 'lucide-react';
-
-// Mock data - replace with real hooks later
-const mockPurchaseRequests = [
-  { 
-    id: '1', 
-    itemName: 'USB Drives', 
-    quantity: 10, 
-    reason: 'Stock depleted - urgent requirement for new project', 
-    status: 'pending', 
-    requestDate: '2024-01-15',
-    estimatedCost: 500,
-    priority: 'high'
-  },
-  { 
-    id: '2', 
-    itemName: 'Laptops', 
-    quantity: 3, 
-    reason: 'New hires joining next week', 
-    status: 'approved', 
-    requestDate: '2024-01-14',
-    estimatedCost: 150000,
-    priority: 'high',
-    approvedDate: '2024-01-16'
-  },
-  { 
-    id: '3', 
-    itemName: 'Office Supplies', 
-    quantity: 1, 
-    reason: 'Monthly refill for stationery', 
-    status: 'rejected', 
-    requestDate: '2024-01-13',
-    estimatedCost: 2000,
-    priority: 'low',
-    rejectedDate: '2024-01-15',
-    rejectionReason: 'Budget constraints this month'
-  },
-  { 
-    id: '4', 
-    itemName: 'Printer Paper', 
-    quantity: 20, 
-    reason: 'Current stock running low', 
-    status: 'sent', 
-    requestDate: '2024-01-12',
-    estimatedCost: 1000,
-    priority: 'medium',
-    sentDate: '2024-01-17'
-  },
-  { 
-    id: '5', 
-    itemName: 'Monitors', 
-    quantity: 2, 
-    reason: 'Additional screens for developers', 
-    status: 'approved', 
-    requestDate: '2024-01-11',
-    estimatedCost: 30000,
-    priority: 'medium',
-    approvedDate: '2024-01-13'
-  },
-  { 
-    id: '6', 
-    itemName: 'Keyboards', 
-    quantity: 5, 
-    reason: 'Replacement for damaged keyboards', 
-    status: 'pending', 
-    requestDate: '2024-01-10',
-    estimatedCost: 2500,
-    priority: 'low'
-  },
-];
-
-const mockPurchaseHistory = [
-  { id: '1', itemName: 'Office Chairs', quantity: 5, purchaseDate: '2024-01-10', cost: 25000, status: 'delivered' },
-  { id: '2', itemName: 'Printer Paper', quantity: 20, purchaseDate: '2024-01-08', cost: 1000, status: 'delivered' },
-  { id: '3', itemName: 'Stationery Kit', quantity: 10, purchaseDate: '2024-01-05', cost: 3000, status: 'delivered' },
-  { id: '4', itemName: 'Desk Lamps', quantity: 8, purchaseDate: '2024-01-03', cost: 4000, status: 'delivered' },
-  { id: '5', itemName: 'Whiteboards', quantity: 3, purchaseDate: '2024-01-01', cost: 15000, status: 'delivered' },
-  { id: '6', itemName: 'Coffee Machine', quantity: 1, purchaseDate: '2023-12-28', cost: 12000, status: 'delivered' },
-];
+import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useAuth } from '@/contexts/AuthContext';
 
 const EmployeePurchases = () => {
+  const { currentUser } = useAuth();
+  const [purchaseRequests, setPurchaseRequests] = useState([]);
+  const [purchaseHistory, setPurchaseHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch purchase requests from Firestore
+  useEffect(() => {
+    if (!currentUser?.companyId || !currentUser?.email) {
+      setLoading(false);
+      return;
+    }
+
+    console.log('Fetching purchase requests for user:', currentUser.email);
+
+    const q = query(
+      collection(db, 'purchase_requests'),
+      where('companyId', '==', currentUser.companyId),
+      where('employeeEmail', '==', currentUser.email),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, 
+      (snapshot) => {
+        console.log('Purchase requests snapshot received:', snapshot.docs.length, 'documents');
+        const requests = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            requestDate: data.createdAt?.toDate()?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
+            approvedDate: data.approvedAt?.toDate()?.toISOString().split('T')[0],
+            rejectedDate: data.rejectedAt?.toDate()?.toISOString().split('T')[0],
+            sentDate: data.sentAt?.toDate()?.toISOString().split('T')[0]
+          };
+        });
+        setPurchaseRequests(requests);
+        setLoading(false);
+      },
+      (err) => {
+        console.error('Error fetching purchase requests:', err);
+        setError('Failed to load purchase requests');
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [currentUser?.companyId, currentUser?.email]);
+
+  // Fetch purchase history from Firestore
+  useEffect(() => {
+    if (!currentUser?.companyId) {
+      return;
+    }
+
+    console.log('Fetching purchase history for company:', currentUser.companyId);
+
+    const q = query(
+      collection(db, 'purchase_records'),
+      where('companyId', '==', currentUser.companyId),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q,
+      (snapshot) => {
+        console.log('Purchase history snapshot received:', snapshot.docs.length, 'documents');
+        const history = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            purchaseDate: data.purchaseDate?.toDate()?.toISOString().split('T')[0] || 
+                          data.createdAt?.toDate()?.toISOString().split('T')[0] || 
+                          new Date().toISOString().split('T')[0],
+            cost: data.totalAmountAfterTax || data.totalAmountINR || data.amount || 0,
+            status: data.purchaseStatus || 'delivered'
+          };
+        });
+        setPurchaseHistory(history.slice(0, 20)); // Limit to recent 20 records
+      },
+      (err) => {
+        console.error('Error fetching purchase history:', err);
+        setError('Failed to load purchase history');
+      }
+    );
+
+    return () => unsubscribe();
+  }, [currentUser?.companyId]);
+
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'pending': return 'secondary';
@@ -121,29 +136,31 @@ const EmployeePurchases = () => {
 
   // Filter and limit functions
   const filterRequestsByStatus = (status: string) => {
-    return mockPurchaseRequests.filter(req => req.status === status).slice(0, 5);
+    return purchaseRequests.filter(req => req.status === status).slice(0, 5);
   };
 
-  const limitedPurchaseHistory = mockPurchaseHistory.slice(0, 5);
+  const limitedPurchaseHistory = purchaseHistory.slice(0, 5);
 
   const renderRequestItem = (request: any) => (
     <div key={request.id} className="border rounded-lg p-4 hover:bg-gray-50">
       <div className="flex items-start justify-between mb-2">
         <div>
-          <h4 className="font-medium text-gray-900">{request.itemName}</h4>
-          <p className="text-sm text-gray-500">Qty: {request.quantity} | ₹{request.estimatedCost.toLocaleString()}</p>
+          <h4 className="font-medium text-gray-900">{request.itemName || request.productName || 'N/A'}</h4>
+          <p className="text-sm text-gray-500">
+            Qty: {request.quantity || 'N/A'} | ₹{(request.estimatedCost || request.totalAmount || 0).toLocaleString()}
+          </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className={`text-xs font-medium ${getPriorityColor(request.priority)}`}>
-            {request.priority.toUpperCase()}
+          <span className={`text-xs font-medium ${getPriorityColor(request.priority || 'medium')}`}>
+            {(request.priority || 'MEDIUM').toUpperCase()}
           </span>
-          <Badge variant={getStatusBadgeVariant(request.status)}>
-            {getStatusIcon(request.status)}
-            <span className="ml-1">{request.status}</span>
+          <Badge variant={getStatusBadgeVariant(request.status || 'pending')}>
+            {getStatusIcon(request.status || 'pending')}
+            <span className="ml-1">{request.status || 'pending'}</span>
           </Badge>
         </div>
       </div>
-      <p className="text-sm text-gray-600 mb-2">{request.reason}</p>
+      <p className="text-sm text-gray-600 mb-2">{request.reason || request.notes || 'No reason provided'}</p>
       <div className="flex items-center justify-between text-xs text-gray-500">
         <span>Requested: {request.requestDate}</span>
         <Button size="sm" variant="outline">
@@ -158,8 +175,10 @@ const EmployeePurchases = () => {
     <div key={purchase.id} className="border rounded-lg p-4 hover:bg-gray-50">
       <div className="flex items-start justify-between mb-2">
         <div>
-          <h4 className="font-medium text-gray-900">{purchase.itemName}</h4>
-          <p className="text-sm text-gray-500">Qty: {purchase.quantity} | ₹{purchase.cost.toLocaleString()}</p>
+          <h4 className="font-medium text-gray-900">{purchase.itemName || purchase.productName || 'N/A'}</h4>
+          <p className="text-sm text-gray-500">
+            Qty: {purchase.quantity || 'N/A'} | ₹{(purchase.cost || 0).toLocaleString()}
+          </p>
         </div>
         <Badge variant="default">
           <CheckCircle className="w-3 h-3 mr-1" />
@@ -176,9 +195,39 @@ const EmployeePurchases = () => {
     </div>
   );
 
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading purchase data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="text-center text-red-600 py-8">
+          <p>Error: {error}</p>
+          <Button 
+            onClick={() => window.location.reload()} 
+            className="mt-4"
+            variant="outline"
+          >
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      {/* Summary Cards - Moved to top */}
+      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -186,7 +235,7 @@ const EmployeePurchases = () => {
             <ShoppingCart className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockPurchaseRequests.length}</div>
+            <div className="text-2xl font-bold">{purchaseRequests.length}</div>
           </CardContent>
         </Card>
 
@@ -197,7 +246,7 @@ const EmployeePurchases = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">
-              {mockPurchaseRequests.filter(req => req.status === 'pending').length}
+              {purchaseRequests.filter(req => req.status === 'pending').length}
             </div>
           </CardContent>
         </Card>
@@ -209,7 +258,7 @@ const EmployeePurchases = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {mockPurchaseRequests.filter(req => req.status === 'approved').length}
+              {purchaseRequests.filter(req => req.status === 'approved').length}
             </div>
           </CardContent>
         </Card>
@@ -221,7 +270,7 @@ const EmployeePurchases = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              {mockPurchaseRequests.filter(req => req.status === 'rejected').length}
+              {purchaseRequests.filter(req => req.status === 'rejected').length}
             </div>
           </CardContent>
         </Card>
@@ -244,19 +293,35 @@ const EmployeePurchases = () => {
               </TabsList>
               
               <TabsContent value="all" className="space-y-4 mt-4">
-                {mockPurchaseRequests.slice(0, 5).map(renderRequestItem)}
+                {purchaseRequests.length === 0 ? (
+                  <p className="text-center text-gray-500 py-8">No purchase requests found</p>
+                ) : (
+                  purchaseRequests.slice(0, 5).map(renderRequestItem)
+                )}
               </TabsContent>
               
               <TabsContent value="pending" className="space-y-4 mt-4">
-                {filterRequestsByStatus('pending').map(renderRequestItem)}
+                {filterRequestsByStatus('pending').length === 0 ? (
+                  <p className="text-center text-gray-500 py-8">No pending requests</p>
+                ) : (
+                  filterRequestsByStatus('pending').map(renderRequestItem)
+                )}
               </TabsContent>
               
               <TabsContent value="approved" className="space-y-4 mt-4">
-                {filterRequestsByStatus('approved').map(renderRequestItem)}
+                {filterRequestsByStatus('approved').length === 0 ? (
+                  <p className="text-center text-gray-500 py-8">No approved requests</p>
+                ) : (
+                  filterRequestsByStatus('approved').map(renderRequestItem)
+                )}
               </TabsContent>
               
               <TabsContent value="rejected" className="space-y-4 mt-4">
-                {filterRequestsByStatus('rejected').map(renderRequestItem)}
+                {filterRequestsByStatus('rejected').length === 0 ? (
+                  <p className="text-center text-gray-500 py-8">No rejected requests</p>
+                ) : (
+                  filterRequestsByStatus('rejected').map(renderRequestItem)
+                )}
               </TabsContent>
             </Tabs>
           </CardContent>
@@ -275,11 +340,19 @@ const EmployeePurchases = () => {
               </TabsList>
               
               <TabsContent value="recent" className="space-y-4 mt-4">
-                {limitedPurchaseHistory.map(renderHistoryItem)}
+                {limitedPurchaseHistory.length === 0 ? (
+                  <p className="text-center text-gray-500 py-8">No purchase history found</p>
+                ) : (
+                  limitedPurchaseHistory.map(renderHistoryItem)
+                )}
               </TabsContent>
               
               <TabsContent value="all" className="space-y-4 mt-4">
-                {mockPurchaseHistory.slice(0, 5).map(renderHistoryItem)}
+                {purchaseHistory.length === 0 ? (
+                  <p className="text-center text-gray-500 py-8">No purchase history found</p>
+                ) : (
+                  purchaseHistory.slice(0, 10).map(renderHistoryItem)
+                )}
               </TabsContent>
             </Tabs>
           </CardContent>

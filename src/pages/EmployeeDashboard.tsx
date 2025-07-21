@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,40 +16,155 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-
-// Mock data - replace with real data hooks later
-const mockInventoryData = [
-  { id: '1', name: 'Office Chairs', currentStock: 15, minThreshold: 10, status: 'normal' },
-  { id: '2', name: 'Laptops', currentStock: 3, minThreshold: 5, status: 'low' },
-  { id: '3', name: 'Printers', currentStock: 2, minThreshold: 3, status: 'low' },
-  { id: '4', name: 'Paper Reams', currentStock: 25, minThreshold: 20, status: 'normal' },
-  { id: '5', name: 'USB Drives', currentStock: 1, minThreshold: 8, status: 'critical' },
-];
-
-const mockPurchaseRequests = [
-  { id: '1', itemName: 'USB Drives', quantity: 10, reason: 'Stock depleted', status: 'pending', requestDate: '2024-01-15' },
-  { id: '2', itemName: 'Laptops', quantity: 3, reason: 'New hires', status: 'approved', requestDate: '2024-01-14' },
-  { id: '3', itemName: 'Office Supplies', quantity: 1, reason: 'Monthly refill', status: 'rejected', requestDate: '2024-01-13' },
-];
-
-const mockPurchaseHistory = [
-  { id: '1', itemName: 'Office Chairs', quantity: 5, purchaseDate: '2024-01-10' },
-  { id: '2', itemName: 'Printer Paper', quantity: 20, purchaseDate: '2024-01-08' },
-  { id: '3', itemName: 'Stationery Kit', quantity: 10, purchaseDate: '2024-01-05' },
-];
+import { collection, query, where, onSnapshot, orderBy, limit } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 const EmployeeDashboard = () => {
   const { currentUser } = useAuth();
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [inventoryData, setInventoryData] = useState([]);
+  const [purchaseRequests, setPurchaseRequests] = useState([]);
+  const [purchaseHistory, setPurchaseHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const lowStockItems = mockInventoryData.filter(item => item.status === 'low' || item.status === 'critical');
-  const criticalStockItems = mockInventoryData.filter(item => item.status === 'critical');
+  // Fetch inventory/stock data
+  useEffect(() => {
+    if (!currentUser?.companyId) {
+      setLoading(false);
+      return;
+    }
+
+    console.log('Fetching inventory data for company:', currentUser.companyId);
+
+    const q = query(
+      collection(db, 'stock_details'),
+      where('companyId', '==', currentUser.companyId)
+    );
+
+    const unsubscribe = onSnapshot(q,
+      (snapshot) => {
+        console.log('Inventory snapshot received:', snapshot.docs.length, 'documents');
+        const inventory = snapshot.docs.map(doc => {
+          const data = doc.data();
+          const currentStock = data.currentStock || 0;
+          const minThreshold = data.minThreshold || data.reorderLevel || 5;
+          let status = 'normal';
+          
+          if (currentStock === 0) {
+            status = 'critical';
+          } else if (currentStock <= minThreshold) {
+            status = 'low';
+          }
+
+          return {
+            id: doc.id,
+            name: `${data.productCategory || 'Item'}-${data.itemName || 'Unknown'} ${data.productVersion || ''}`.trim(),
+            currentStock,
+            minThreshold,
+            status
+          };
+        });
+        setInventoryData(inventory);
+        setLoading(false);
+      },
+      (err) => {
+        console.error('Error fetching inventory:', err);
+        setError('Failed to load inventory data');
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [currentUser?.companyId]);
+
+  // Fetch employee's purchase requests
+  useEffect(() => {
+    if (!currentUser?.companyId || !currentUser?.email) {
+      return;
+    }
+
+    console.log('Fetching purchase requests for employee:', currentUser.email);
+
+    const q = query(
+      collection(db, 'purchase_requests'),
+      where('companyId', '==', currentUser.companyId),
+      where('employeeEmail', '==', currentUser.email),
+      orderBy('createdAt', 'desc'),
+      limit(10)
+    );
+
+    const unsubscribe = onSnapshot(q,
+      (snapshot) => {
+        console.log('Purchase requests snapshot received:', snapshot.docs.length, 'documents');
+        const requests = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            itemName: data.itemName || data.productName || 'N/A',
+            quantity: data.quantity || 0,
+            reason: data.reason || data.notes || 'No reason provided',
+            status: data.status || 'pending',
+            requestDate: data.createdAt?.toDate()?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0]
+          };
+        });
+        setPurchaseRequests(requests);
+      },
+      (err) => {
+        console.error('Error fetching purchase requests:', err);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [currentUser?.companyId, currentUser?.email]);
+
+  // Fetch recent purchase history for the company
+  useEffect(() => {
+    if (!currentUser?.companyId) {
+      return;
+    }
+
+    console.log('Fetching purchase history for company:', currentUser.companyId);
+
+    const q = query(
+      collection(db, 'purchase_records'),
+      where('companyId', '==', currentUser.companyId),
+      orderBy('createdAt', 'desc'),
+      limit(5)
+    );
+
+    const unsubscribe = onSnapshot(q,
+      (snapshot) => {
+        console.log('Purchase history snapshot received:', snapshot.docs.length, 'documents');
+        const history = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            itemName: data.itemName || data.productName || 'N/A',
+            quantity: data.quantity || 0,
+            purchaseDate: data.purchaseDate?.toDate()?.toISOString().split('T')[0] || 
+                          data.createdAt?.toDate()?.toISOString().split('T')[0] || 
+                          new Date().toISOString().split('T')[0]
+          };
+        });
+        setPurchaseHistory(history);
+      },
+      (err) => {
+        console.error('Error fetching purchase history:', err);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [currentUser?.companyId]);
+
+  const lowStockItems = inventoryData.filter(item => item.status === 'low' || item.status === 'critical');
+  const criticalStockItems = inventoryData.filter(item => item.status === 'critical');
   
-  const pendingRequests = mockPurchaseRequests.filter(req => req.status === 'pending');
-  const approvedRequests = mockPurchaseRequests.filter(req => req.status === 'approved');
+  const pendingRequests = purchaseRequests.filter(req => req.status === 'pending');
+  const approvedRequests = purchaseRequests.filter(req => req.status === 'approved');
 
   // Stock level data for chart
-  const stockChartData = mockInventoryData.map(item => ({
+  const stockChartData = inventoryData.slice(0, 6).map(item => ({
     name: item.name.split(' ')[0], // Shortened name for chart
     current: item.currentStock,
     minimum: item.minThreshold
@@ -71,6 +187,21 @@ const EmployeeDashboard = () => {
       default: return 'secondary';
     }
   };
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-4 text-gray-600">Loading dashboard...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -98,7 +229,7 @@ const EmployeeDashboard = () => {
               <Package className="h-4 w-4 text-blue-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{mockInventoryData.length}</div>
+              <div className="text-2xl font-bold">{inventoryData.length}</div>
               <p className="text-xs text-gray-500">In inventory</p>
             </CardContent>
           </Card>
@@ -171,6 +302,29 @@ const EmployeeDashboard = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Stock Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Stock Levels Overview</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {stockChartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={stockChartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="current" fill="#3b82f6" name="Current Stock" />
+                    <Bar dataKey="minimum" fill="#ef4444" name="Min Threshold" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-center text-gray-500 py-8">No stock data available</p>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Purchase Requests and History */}
@@ -185,7 +339,7 @@ const EmployeeDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {mockPurchaseRequests.map((request) => (
+                {purchaseRequests.map((request) => (
                   <div key={request.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
@@ -203,7 +357,7 @@ const EmployeeDashboard = () => {
                     </Badge>
                   </div>
                 ))}
-                {mockPurchaseRequests.length === 0 && (
+                {purchaseRequests.length === 0 && (
                   <p className="text-center text-gray-500 py-4">No purchase requests yet</p>
                 )}
               </div>
@@ -217,7 +371,7 @@ const EmployeeDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {mockPurchaseHistory.map((purchase) => (
+                {purchaseHistory.map((purchase) => (
                   <div key={purchase.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
@@ -231,7 +385,7 @@ const EmployeeDashboard = () => {
                     <Badge variant="default">Delivered</Badge>
                   </div>
                 ))}
-                {mockPurchaseHistory.length === 0 && (
+                {purchaseHistory.length === 0 && (
                   <p className="text-center text-gray-500 py-4">No purchase history</p>
                 )}
               </div>
@@ -246,37 +400,41 @@ const EmployeeDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left p-2">Item Name</th>
-                    <th className="text-left p-2">Current Stock</th>
-                    <th className="text-left p-2">Min Threshold</th>
-                    <th className="text-left p-2">Status</th>
-                    <th className="text-left p-2">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {mockInventoryData.map((item) => (
-                    <tr key={item.id} className="border-b hover:bg-gray-50">
-                      <td className="p-2 font-medium">{item.name}</td>
-                      <td className="p-2">{item.currentStock}</td>
-                      <td className="p-2">{item.minThreshold}</td>
-                      <td className="p-2">
-                        <span className={`capitalize ${getStatusColor(item.status)}`}>
-                          {item.status}
-                        </span>
-                      </td>
-                      <td className="p-2">
-                        <Button size="sm" variant="outline">
-                          <Eye className="w-3 h-3 mr-1" />
-                          View
-                        </Button>
-                      </td>
+              {inventoryData.length > 0 ? (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-2">Item Name</th>
+                      <th className="text-left p-2">Current Stock</th>
+                      <th className="text-left p-2">Min Threshold</th>
+                      <th className="text-left p-2">Status</th>
+                      <th className="text-left p-2">Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {inventoryData.slice(0, 10).map((item) => (
+                      <tr key={item.id} className="border-b hover:bg-gray-50">
+                        <td className="p-2 font-medium">{item.name}</td>
+                        <td className="p-2">{item.currentStock}</td>
+                        <td className="p-2">{item.minThreshold}</td>
+                        <td className="p-2">
+                          <span className={`capitalize ${getStatusColor(item.status)}`}>
+                            {item.status}
+                          </span>
+                        </td>
+                        <td className="p-2">
+                          <Button size="sm" variant="outline">
+                            <Eye className="w-3 h-3 mr-1" />
+                            View
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="text-center text-gray-500 py-8">No inventory data available</p>
+              )}
             </div>
           </CardContent>
         </Card>
