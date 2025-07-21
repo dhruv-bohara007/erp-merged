@@ -223,6 +223,11 @@ service cloud.firestore {
       allow read: if isEmployeeUser() && getUserData().companyId != null &&
         (resource == null || resource.data.companyId == getUserData().companyId);
       
+      // Employees can update stock details for purchase request tracking
+      allow update: if isEmployeeUser() && getUserData().companyId != null &&
+        resource.data.companyId == getUserData().companyId &&
+        request.resource.data.companyId == resource.data.companyId;
+      
       allow read, write: if isSuperAdmin();
     }
 
