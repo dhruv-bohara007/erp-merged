@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +10,7 @@ import {
   XCircle,
   Eye
 } from 'lucide-react';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -22,7 +21,7 @@ const EmployeePurchases = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch purchase requests from Firestore
+  // Fetch purchase requests from Firestore - simplified query to avoid index requirements
   useEffect(() => {
     if (!currentUser?.companyId || !currentUser?.email) {
       setLoading(false);
@@ -31,11 +30,10 @@ const EmployeePurchases = () => {
 
     console.log('Fetching purchase requests for user:', currentUser.email);
 
+    // Use simpler query to avoid compound index requirement
     const q = query(
       collection(db, 'purchase_requests'),
-      where('companyId', '==', currentUser.companyId),
-      where('employeeEmail', '==', currentUser.email),
-      orderBy('createdAt', 'desc')
+      where('employeeEmail', '==', currentUser.email)
     );
 
     const unsubscribe = onSnapshot(q, 
@@ -51,7 +49,11 @@ const EmployeePurchases = () => {
             rejectedDate: data.rejectedAt?.toDate()?.toISOString().split('T')[0],
             sentDate: data.sentAt?.toDate()?.toISOString().split('T')[0]
           };
-        });
+        })
+        // Filter by company and sort in memory
+        .filter(req => req.companyId === currentUser.companyId)
+        .sort((a, b) => new Date(b.requestDate) - new Date(a.requestDate));
+        
         setPurchaseRequests(requests);
         setLoading(false);
       },
@@ -65,7 +67,7 @@ const EmployeePurchases = () => {
     return () => unsubscribe();
   }, [currentUser?.companyId, currentUser?.email]);
 
-  // Fetch purchase history from Firestore
+  // Fetch purchase history from Firestore - simplified query
   useEffect(() => {
     if (!currentUser?.companyId) {
       return;
@@ -73,10 +75,10 @@ const EmployeePurchases = () => {
 
     console.log('Fetching purchase history for company:', currentUser.companyId);
 
+    // Use simpler query to avoid compound index requirement
     const q = query(
       collection(db, 'purchase_records'),
-      where('companyId', '==', currentUser.companyId),
-      orderBy('createdAt', 'desc')
+      where('companyId', '==', currentUser.companyId)
     );
 
     const unsubscribe = onSnapshot(q,
@@ -93,8 +95,12 @@ const EmployeePurchases = () => {
             cost: data.totalAmountAfterTax || data.totalAmountINR || data.amount || 0,
             status: data.purchaseStatus || 'delivered'
           };
-        });
-        setPurchaseHistory(history.slice(0, 20)); // Limit to recent 20 records
+        })
+        // Sort in memory instead of using orderBy
+        .sort((a, b) => new Date(b.purchaseDate) - new Date(a.purchaseDate))
+        .slice(0, 20); // Limit to recent 20 records
+        
+        setPurchaseHistory(history);
       },
       (err) => {
         console.error('Error fetching purchase history:', err);

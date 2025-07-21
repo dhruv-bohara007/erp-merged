@@ -1,8 +1,8 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { 
   Package, 
   ShoppingCart, 
@@ -12,11 +12,11 @@ import {
   Eye,
   Clock,
   CheckCircle,
-  XCircle
+  XCircle,
+  Search
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { collection, query, where, onSnapshot, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 const EmployeeDashboard = () => {
@@ -27,6 +27,8 @@ const EmployeeDashboard = () => {
   const [purchaseHistory, setPurchaseHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('name');
 
   // Fetch inventory/stock data
   useEffect(() => {
@@ -90,7 +92,6 @@ const EmployeeDashboard = () => {
       collection(db, 'purchase_requests'),
       where('companyId', '==', currentUser.companyId),
       where('employeeEmail', '==', currentUser.email),
-      orderBy('createdAt', 'desc'),
       limit(10)
     );
 
@@ -107,7 +108,7 @@ const EmployeeDashboard = () => {
             status: data.status || 'pending',
             requestDate: data.createdAt?.toDate()?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0]
           };
-        });
+        }).sort((a, b) => new Date(b.requestDate) - new Date(a.requestDate));
         setPurchaseRequests(requests);
       },
       (err) => {
@@ -129,7 +130,6 @@ const EmployeeDashboard = () => {
     const q = query(
       collection(db, 'purchase_records'),
       where('companyId', '==', currentUser.companyId),
-      orderBy('createdAt', 'desc'),
       limit(5)
     );
 
@@ -146,7 +146,7 @@ const EmployeeDashboard = () => {
                           data.createdAt?.toDate()?.toISOString().split('T')[0] || 
                           new Date().toISOString().split('T')[0]
           };
-        });
+        }).sort((a, b) => new Date(b.purchaseDate) - new Date(a.purchaseDate));
         setPurchaseHistory(history);
       },
       (err) => {
@@ -162,13 +162,6 @@ const EmployeeDashboard = () => {
   
   const pendingRequests = purchaseRequests.filter(req => req.status === 'pending');
   const approvedRequests = purchaseRequests.filter(req => req.status === 'approved');
-
-  // Stock level data for chart
-  const stockChartData = inventoryData.slice(0, 6).map(item => ({
-    name: item.name.split(' ')[0], // Shortened name for chart
-    current: item.currentStock,
-    minimum: item.minThreshold
-  }));
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -187,6 +180,26 @@ const EmployeeDashboard = () => {
       default: return 'secondary';
     }
   };
+
+  // Filter and sort inventory data
+  const filteredAndSortedInventory = inventoryData
+    .filter(item => 
+      item.name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'stock':
+          return b.currentStock - a.currentStock;
+        case 'status':
+          const statusOrder = { 'critical': 0, 'low': 1, 'normal': 2 };
+          return statusOrder[a.status] - statusOrder[b.status];
+        default:
+          return 0;
+      }
+    })
+    .slice(0, 5); // Display only 5 items
 
   if (loading) {
     return (
@@ -268,7 +281,7 @@ const EmployeeDashboard = () => {
           </Card>
         </div>
 
-        {/* Charts and Alerts Section */}
+        {/* Low Stock Alerts and Purchase Requests Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Low Stock Alerts */}
           <Card>
@@ -291,9 +304,6 @@ const EmployeeDashboard = () => {
                         <p className="text-sm text-gray-500">Stock: {item.currentStock} (Min: {item.minThreshold})</p>
                       </div>
                     </div>
-                    <Button size="sm" variant="outline">
-                      Request Restock
-                    </Button>
                   </div>
                 ))}
                 {lowStockItems.length === 0 && (
@@ -303,32 +313,6 @@ const EmployeeDashboard = () => {
             </CardContent>
           </Card>
 
-          {/* Stock Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Stock Levels Overview</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {stockChartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={stockChartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="current" fill="#3b82f6" name="Current Stock" />
-                    <Bar dataKey="minimum" fill="#ef4444" name="Min Threshold" />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <p className="text-center text-gray-500 py-8">No stock data available</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Purchase Requests and History */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* My Purchase Requests */}
           <Card>
             <CardHeader>
@@ -363,44 +347,64 @@ const EmployeeDashboard = () => {
               </div>
             </CardContent>
           </Card>
-
-          {/* Purchase History */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Purchase History</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {purchaseHistory.map((purchase) => (
-                  <div key={purchase.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                        <CheckCircle className="w-4 h-4 text-green-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{purchase.itemName}</p>
-                        <p className="text-sm text-gray-500">Qty: {purchase.quantity} | {purchase.purchaseDate}</p>
-                      </div>
-                    </div>
-                    <Badge variant="default">Delivered</Badge>
-                  </div>
-                ))}
-                {purchaseHistory.length === 0 && (
-                  <p className="text-center text-gray-500 py-4">No purchase history</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
-        {/* Inventory Overview Table */}
+        {/* Purchase History */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Purchase History</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {purchaseHistory.map((purchase) => (
+                <div key={purchase.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">{purchase.itemName}</p>
+                      <p className="text-sm text-gray-500">Qty: {purchase.quantity} | {purchase.purchaseDate}</p>
+                    </div>
+                  </div>
+                  <Badge variant="default">Delivered</Badge>
+                </div>
+              ))}
+              {purchaseHistory.length === 0 && (
+                <p className="text-center text-gray-500 py-4">No purchase history</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Updated Inventory Overview Table */}
         <Card>
           <CardHeader>
             <CardTitle>Inventory Overview</CardTitle>
+            <div className="flex gap-4 items-center">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  placeholder="Search items..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+              >
+                <option value="name">Sort by Name</option>
+                <option value="stock">Sort by Stock</option>
+                <option value="status">Sort by Status</option>
+              </select>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              {inventoryData.length > 0 ? (
+              {filteredAndSortedInventory.length > 0 ? (
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b">
@@ -408,11 +412,10 @@ const EmployeeDashboard = () => {
                       <th className="text-left p-2">Current Stock</th>
                       <th className="text-left p-2">Min Threshold</th>
                       <th className="text-left p-2">Status</th>
-                      <th className="text-left p-2">Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {inventoryData.slice(0, 10).map((item) => (
+                    {filteredAndSortedInventory.map((item) => (
                       <tr key={item.id} className="border-b hover:bg-gray-50">
                         <td className="p-2 font-medium">{item.name}</td>
                         <td className="p-2">{item.currentStock}</td>
@@ -421,12 +424,6 @@ const EmployeeDashboard = () => {
                           <span className={`capitalize ${getStatusColor(item.status)}`}>
                             {item.status}
                           </span>
-                        </td>
-                        <td className="p-2">
-                          <Button size="sm" variant="outline">
-                            <Eye className="w-3 h-3 mr-1" />
-                            View
-                          </Button>
                         </td>
                       </tr>
                     ))}
