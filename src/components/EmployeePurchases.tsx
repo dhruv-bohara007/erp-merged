@@ -2,13 +2,24 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
 import { 
   ShoppingCart, 
   Clock,
   CheckCircle,
   XCircle,
-  Eye
+  Search,
+  Package,
+  AlertTriangle
 } from 'lucide-react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -20,6 +31,9 @@ const EmployeePurchases = () => {
   const [purchaseHistory, setPurchaseHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   // Fetch purchase requests from Firestore - simplified query to avoid index requirements
   useEffect(() => {
@@ -44,19 +58,18 @@ const EmployeePurchases = () => {
           return {
             id: doc.id,
             ...data,
-            companyId: data.companyId, // Include companyId for filtering
+            companyId: data.companyId,
             requestDate: data.createdAt?.toDate()?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
             approvedDate: data.approvedAt?.toDate()?.toISOString().split('T')[0],
             rejectedDate: data.rejectedAt?.toDate()?.toISOString().split('T')[0],
             sentDate: data.sentAt?.toDate()?.toISOString().split('T')[0]
           };
         })
-        // Filter by company and sort in memory
         .filter(req => req.companyId === currentUser.companyId)
         .sort((a, b) => {
           const dateA = new Date(a.requestDate).getTime();
           const dateB = new Date(b.requestDate).getTime();
-          return dateB - dateA; // Descending order (newest first)
+          return dateB - dateA;
         });
         
         setPurchaseRequests(requests);
@@ -80,7 +93,6 @@ const EmployeePurchases = () => {
 
     console.log('Fetching purchase history for company:', currentUser.companyId);
 
-    // Use simpler query to avoid compound index requirement
     const q = query(
       collection(db, 'purchase_records'),
       where('companyId', '==', currentUser.companyId)
@@ -101,13 +113,12 @@ const EmployeePurchases = () => {
             status: data.purchaseStatus || 'delivered'
           };
         })
-        // Sort in memory instead of using orderBy
         .sort((a, b) => {
           const dateA = new Date(a.purchaseDate).getTime();
           const dateB = new Date(b.purchaseDate).getTime();
-          return dateB - dateA; // Descending order (newest first)
+          return dateB - dateA;
         })
-        .slice(0, 20); // Limit to recent 20 records
+        .slice(0, 20);
         
         setPurchaseHistory(history);
       },
@@ -125,18 +136,33 @@ const EmployeePurchases = () => {
       case 'pending': return 'secondary';
       case 'approved': return 'default';
       case 'rejected': return 'destructive';
-      case 'sent': return 'default';
+      case 'PO Created': return 'outline';
       default: return 'secondary';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'pending': return <Clock className="w-4 h-4" />;
+      case 'pending': return <Clock className="w-4 h-4 text-yellow-600" />;
       case 'approved': return <CheckCircle className="w-4 h-4 text-green-600" />;
       case 'rejected': return <XCircle className="w-4 h-4 text-red-600" />;
-      case 'sent': return <CheckCircle className="w-4 h-4 text-blue-600" />;
-      default: return <Clock className="w-4 h-4" />;
+      case 'PO Created': return <Package className="w-4 h-4 text-blue-600" />;
+      default: return <Clock className="w-4 h-4 text-gray-600" />;
+    }
+  };
+
+  const getStockStatusBadge = (stockStatus: string) => {
+    const status = stockStatus?.toLowerCase() || 'unknown';
+    switch (status) {
+      case 'critical':
+        return <Badge variant="destructive" className="text-xs"><AlertTriangle className="w-3 h-3 mr-1" />Critical</Badge>;
+      case 'low':
+        return <Badge variant="secondary" className="text-xs bg-yellow-100 text-yellow-800"><AlertTriangle className="w-3 h-3 mr-1" />Low</Badge>;
+      case 'in stock':
+      case 'available':
+        return <Badge variant="default" className="text-xs bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />In Stock</Badge>;
+      default:
+        return <Badge variant="outline" className="text-xs">Unknown</Badge>;
     }
   };
 
@@ -149,39 +175,68 @@ const EmployeePurchases = () => {
     }
   };
 
-  // Filter and limit functions
+  // Filter requests based on search term
+  const filteredRequests = purchaseRequests.filter(request => {
+    if (!searchTerm) return true;
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      (request.productCategory || '').toLowerCase().includes(searchLower) ||
+      (request.itemName || '').toLowerCase().includes(searchLower) ||
+      (request.productVersion || '').toLowerCase().includes(searchLower) ||
+      (request.status || '').toLowerCase().includes(searchLower)
+    );
+  });
+
+  // Filter and paginate functions
   const filterRequestsByStatus = (status: string) => {
-    return purchaseRequests.filter(req => req.status === status).slice(0, 5);
+    const filtered = status === 'all' 
+      ? filteredRequests 
+      : filteredRequests.filter(req => req.status === status);
+    
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return {
+      items: filtered.slice(startIndex, endIndex),
+      totalItems: filtered.length,
+      totalPages: Math.ceil(filtered.length / itemsPerPage)
+    };
   };
 
   const limitedPurchaseHistory = purchaseHistory.slice(0, 5);
 
   const renderRequestItem = (request: any) => (
     <div key={request.id} className="border rounded-lg p-4 hover:bg-gray-50">
-      <div className="flex items-start justify-between mb-2">
-        <div>
-          <h4 className="font-medium text-gray-900">{request.itemName || request.productName || 'N/A'}</h4>
-          <p className="text-sm text-gray-500">
-            Qty: {request.quantity || 'N/A'} | ₹{(request.estimatedCost || request.totalAmount || 0).toLocaleString()}
-          </p>
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex-1">
+          <h4 className="font-medium text-gray-900 mb-1">{request.itemName || 'N/A'}</h4>
+          <div className="space-y-1">
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">Category:</span> {request.productCategory || 'N/A'}
+            </p>
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">Version:</span> {request.productVersion || 'N/A'}
+            </p>
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">Quantity:</span> {request.quantityRequired || 'N/A'} {request.unit || ''}
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`text-xs font-medium ${getPriorityColor(request.priority || 'medium')}`}>
-            {(request.priority || 'MEDIUM').toUpperCase()}
-          </span>
-          <Badge variant={getStatusBadgeVariant(request.status || 'pending')}>
+        <div className="flex flex-col items-end gap-2">
+          <Badge variant={getStatusBadgeVariant(request.status || 'pending')} className="flex items-center gap-1">
             {getStatusIcon(request.status || 'pending')}
-            <span className="ml-1">{request.status || 'pending'}</span>
+            <span>{(request.status || 'pending').charAt(0).toUpperCase() + (request.status || 'pending').slice(1)}</span>
           </Badge>
+          {getStockStatusBadge(request.stockStatus)}
         </div>
       </div>
-      <p className="text-sm text-gray-600 mb-2">{request.reason || request.notes || 'No reason provided'}</p>
+      <p className="text-sm text-gray-600 mb-3">{request.reason || 'No reason provided'}</p>
       <div className="flex items-center justify-between text-xs text-gray-500">
         <span>Requested: {request.requestDate}</span>
-        <Button size="sm" variant="outline">
-          <Eye className="w-3 h-3 mr-1" />
-          Details
-        </Button>
+        {request.priority && (
+          <span className={`font-medium ${getPriorityColor(request.priority)}`}>
+            {request.priority.toUpperCase()} PRIORITY
+          </span>
+        )}
       </div>
     </div>
   );
@@ -202,13 +257,45 @@ const EmployeePurchases = () => {
       </div>
       <div className="flex items-center justify-between text-xs text-gray-500">
         <span>Delivered: {purchase.purchaseDate}</span>
-        <Button size="sm" variant="outline">
-          <Eye className="w-3 h-3 mr-1" />
-          View
-        </Button>
       </div>
     </div>
   );
+
+  const renderPaginationForTab = (tabData: any) => {
+    if (tabData.totalPages <= 1) return null;
+
+    return (
+      <Pagination className="mt-4">
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious 
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+            />
+          </PaginationItem>
+          
+          {Array.from({ length: tabData.totalPages }, (_, i) => i + 1).map((page) => (
+            <PaginationItem key={page}>
+              <PaginationLink
+                onClick={() => setCurrentPage(page)}
+                isActive={currentPage === page}
+                className="cursor-pointer"
+              >
+                {page}
+              </PaginationLink>
+            </PaginationItem>
+          ))}
+          
+          <PaginationItem>
+            <PaginationNext 
+              onClick={() => setCurrentPage(Math.min(tabData.totalPages, currentPage + 1))}
+              className={currentPage === tabData.totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+            />
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
+    );
+  };
 
   if (loading) {
     return (
@@ -291,6 +378,24 @@ const EmployeePurchases = () => {
         </Card>
       </div>
 
+      {/* Search Bar */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search by category, item name, version, or status..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1); // Reset to first page when searching
+              }}
+              className="pl-10"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Purchase Requests and History */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Purchase Requests with Tabs */}
@@ -299,7 +404,7 @@ const EmployeePurchases = () => {
             <CardTitle>Purchase Requests</CardTitle>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="all" className="w-full">
+            <Tabs defaultValue="all" className="w-full" onValueChange={() => setCurrentPage(1)}>
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="all">All</TabsTrigger>
                 <TabsTrigger value="pending">Pending</TabsTrigger>
@@ -308,68 +413,85 @@ const EmployeePurchases = () => {
               </TabsList>
               
               <TabsContent value="all" className="space-y-4 mt-4">
-                {purchaseRequests.length === 0 ? (
-                  <p className="text-center text-gray-500 py-8">No purchase requests found</p>
-                ) : (
-                  purchaseRequests.slice(0, 5).map(renderRequestItem)
-                )}
+                {(() => {
+                  const tabData = filterRequestsByStatus('all');
+                  return (
+                    <>
+                      {tabData.items.length === 0 ? (
+                        <p className="text-center text-gray-500 py-8">No purchase requests found</p>
+                      ) : (
+                        tabData.items.map(renderRequestItem)
+                      )}
+                      {renderPaginationForTab(tabData)}
+                    </>
+                  );
+                })()}
               </TabsContent>
               
               <TabsContent value="pending" className="space-y-4 mt-4">
-                {filterRequestsByStatus('pending').length === 0 ? (
-                  <p className="text-center text-gray-500 py-8">No pending requests</p>
-                ) : (
-                  filterRequestsByStatus('pending').map(renderRequestItem)
-                )}
+                {(() => {
+                  const tabData = filterRequestsByStatus('pending');
+                  return (
+                    <>
+                      {tabData.items.length === 0 ? (
+                        <p className="text-center text-gray-500 py-8">No pending requests</p>
+                      ) : (
+                        tabData.items.map(renderRequestItem)
+                      )}
+                      {renderPaginationForTab(tabData)}
+                    </>
+                  );
+                })()}
               </TabsContent>
               
               <TabsContent value="approved" className="space-y-4 mt-4">
-                {filterRequestsByStatus('approved').length === 0 ? (
-                  <p className="text-center text-gray-500 py-8">No approved requests</p>
-                ) : (
-                  filterRequestsByStatus('approved').map(renderRequestItem)
-                )}
+                {(() => {
+                  const tabData = filterRequestsByStatus('approved');
+                  return (
+                    <>
+                      {tabData.items.length === 0 ? (
+                        <p className="text-center text-gray-500 py-8">No approved requests</p>
+                      ) : (
+                        tabData.items.map(renderRequestItem)
+                      )}
+                      {renderPaginationForTab(tabData)}
+                    </>
+                  );
+                })()}
               </TabsContent>
               
               <TabsContent value="rejected" className="space-y-4 mt-4">
-                {filterRequestsByStatus('rejected').length === 0 ? (
-                  <p className="text-center text-gray-500 py-8">No rejected requests</p>
-                ) : (
-                  filterRequestsByStatus('rejected').map(renderRequestItem)
-                )}
+                {(() => {
+                  const tabData = filterRequestsByStatus('rejected');
+                  return (
+                    <>
+                      {tabData.items.length === 0 ? (
+                        <p className="text-center text-gray-500 py-8">No rejected requests</p>
+                      ) : (
+                        tabData.items.map(renderRequestItem)
+                      )}
+                      {renderPaginationForTab(tabData)}
+                    </>
+                  );
+                })()}
               </TabsContent>
             </Tabs>
           </CardContent>
         </Card>
 
-        {/* Purchase History with Tabs */}
+        {/* Purchase History */}
         <Card>
           <CardHeader>
-            <CardTitle>Purchase History</CardTitle>
+            <CardTitle>Recent Purchase History</CardTitle>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="recent" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="recent">Recent</TabsTrigger>
-                <TabsTrigger value="all">All</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="recent" className="space-y-4 mt-4">
-                {limitedPurchaseHistory.length === 0 ? (
-                  <p className="text-center text-gray-500 py-8">No purchase history found</p>
-                ) : (
-                  limitedPurchaseHistory.map(renderHistoryItem)
-                )}
-              </TabsContent>
-              
-              <TabsContent value="all" className="space-y-4 mt-4">
-                {purchaseHistory.length === 0 ? (
-                  <p className="text-center text-gray-500 py-8">No purchase history found</p>
-                ) : (
-                  purchaseHistory.slice(0, 10).map(renderHistoryItem)
-                )}
-              </TabsContent>
-            </Tabs>
+            <div className="space-y-4">
+              {limitedPurchaseHistory.length === 0 ? (
+                <p className="text-center text-gray-500 py-8">No purchase history found</p>
+              ) : (
+                limitedPurchaseHistory.map(renderHistoryItem)
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
