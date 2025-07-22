@@ -19,7 +19,8 @@ interface ChatMessage {
   productCategory: string;
   senderEmail: string;
   senderName: string;
-  senderRole: 'employee' | 'company_admin';
+  receiverEmail: string;
+  requestId: string; // Same as itemId for request-specific chats
   message: string;
   createdAt: Date;
 }
@@ -103,7 +104,8 @@ const ChatHistoryModal = ({
         productCategory: productCategory,
         senderEmail: currentUser.email,
         senderName: currentUser.displayName || currentUser.email?.split('@')[0] || 'Unknown',
-        senderRole: isAdmin ? 'company_admin' : 'employee',
+        receiverEmail: targetEmployeeEmail || (isAdmin ? 'employee' : 'admin'), // Will need proper receiver email
+        requestId: itemId, // Using itemId as requestId for request-specific chats
         message: newMessage.trim(),
         createdAt: serverTimestamp()
       });
@@ -170,15 +172,9 @@ const ChatHistoryModal = ({
                 >
                   {!isCurrentUserMessage(message) && (
                     <div className="flex-shrink-0 mr-2">
-                      {message.senderRole === 'employee' ? (
-                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                          <User className="w-4 h-4 text-blue-600" />
-                        </div>
-                      ) : (
-                        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                          <Shield className="w-4 h-4 text-green-600" />
-                        </div>
-                      )}
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                        <User className="w-4 h-4 text-gray-600" />
+                      </div>
                     </div>
                   )}
                   

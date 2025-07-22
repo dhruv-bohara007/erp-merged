@@ -313,14 +313,16 @@ service cloud.firestore {
       allow read, write: if isCompanyAdmin() && 
         (resource == null || resource.data.companyId == getUserData().companyId);
       
-      // Employees can create messages for their company
+      // Employees can create messages for their company where they are the sender
       allow create: if isEmployeeUser() && getUserData().companyId != null &&
         request.resource.data.companyId == getUserData().companyId &&
         request.resource.data.senderEmail == getUserData().email;
       
-      // Employees can read messages from their company
+      // Employees can read messages from their company where they are sender or receiver
       allow read: if isEmployeeUser() && getUserData().companyId != null &&
-        (resource == null || resource.data.companyId == getUserData().companyId);
+        (resource == null || resource.data.companyId == getUserData().companyId) &&
+        (resource == null || resource.data.senderEmail == getUserData().email || 
+         resource.data.receiverEmail == getUserData().email);
       
       allow read, write: if isSuperAdmin();
     }
