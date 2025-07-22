@@ -128,9 +128,8 @@ export const syncPurchaseRequestStatus = async (
         newPendingQuantity = Math.max(0, newPendingQuantity - quantityRequired);
         rejectedQuantity += quantityRequired;
       } else if (status === 'PO Created') {
-        // Move from approved to PO created
-        approvedQuantity = Math.max(0, approvedQuantity - quantityRequired);
-        poCreatedQuantity += quantityRequired;
+        // Set poCreatedQuantity to current approvedQuantity when PO is created
+        poCreatedQuantity = approvedQuantity;
       }
       
       const stockRef = doc(db, 'stock_details', stockDoc.id);
