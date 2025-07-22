@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -92,13 +91,13 @@ const EmployeePurchases = () => {
     return () => unsubscribe();
   }, [currentUser?.companyId, currentUser?.email]);
 
-  // Fetch all purchase history from Firestore
+  // Fetch purchase history from purchase_records collection
   useEffect(() => {
     if (!currentUser?.companyId) {
       return;
     }
 
-    console.log('Fetching purchase history for company:', currentUser.companyId);
+    console.log('Fetching purchase history from purchase_records for company:', currentUser.companyId);
 
     const q = query(
       collection(db, 'purchase_records'),
@@ -107,17 +106,41 @@ const EmployeePurchases = () => {
 
     const unsubscribe = onSnapshot(q,
       (snapshot) => {
-        console.log('Purchase history snapshot received:', snapshot.docs.length, 'documents');
+        console.log('Purchase records snapshot received:', snapshot.docs.length, 'documents');
         const history = snapshot.docs.map(doc => {
           const data = doc.data();
+          
+          // Extract items for display
+          const items = data.items || [];
+          const firstItem = items[0] || {};
+          
           return {
             id: doc.id,
-            ...data,
+            purchaseRecordId: data.purchaseRecordId,
+            supplierName: data.supplierName,
+            // Use first item details for display, or fallback to record-level data
+            itemName: firstItem.itemName || data.itemName || 'Multiple Items',
+            productCategory: firstItem.productCategory || data.productCategory,
+            productVersion: firstItem.productVersion || data.productVersion,
+            quantity: firstItem.quantity || data.quantity,
+            unit: firstItem.unit || data.unit,
+            // Dates
             purchaseDate: data.purchaseDate?.toDate()?.toISOString().split('T')[0] || 
+                          data.expenseDate?.toDate()?.toISOString().split('T')[0] || 
                           data.createdAt?.toDate()?.toISOString().split('T')[0] || 
                           new Date().toISOString().split('T')[0],
-            cost: data.totalAmountAfterTax || data.totalAmountINR || data.amount || 0,
-            status: data.purchaseStatus || 'delivered'
+            // Amounts
+            totalAmount: data.totalAmount || data.totalAmountAfterTax || data.totalAmountINR || data.amount || 0,
+            subtotal: data.subtotal || 0,
+            totalTaxAmount: data.totalTaxAmount || 0,
+            // Status
+            status: data.purchaseStatus || 'completed',
+            // Additional details
+            description: data.description || data.notes,
+            companyCurrency: data.companyCurrency || 'USD',
+            // All items for detailed view
+            allItems: items,
+            itemCount: items.length || 1
           };
         })
         .sort((a, b) => {
@@ -208,7 +231,7 @@ const EmployeePurchases = () => {
     };
   };
 
-  // Filter and paginate purchase history
+  // Filter and paginate purchase history with enhanced details
   const getFilteredPurchaseHistory = () => {
     let filtered = purchaseHistory;
     
@@ -217,8 +240,10 @@ const EmployeePurchases = () => {
       const searchLower = historySearchTerm.toLowerCase();
       filtered = filtered.filter(purchase => 
         (purchase.productCategory || '').toLowerCase().includes(searchLower) ||
-        (purchase.itemName || purchase.productName || '').toLowerCase().includes(searchLower) ||
-        (purchase.productVersion || '').toLowerCase().includes(searchLower)
+        (purchase.itemName || '').toLowerCase().includes(searchLower) ||
+        (purchase.productVersion || '').toLowerCase().includes(searchLower) ||
+        (purchase.supplierName || '').toLowerCase().includes(searchLower) ||
+        (purchase.purchaseRecordId || '').toLowerCase().includes(searchLower)
       );
     }
     
@@ -280,25 +305,47 @@ const EmployeePurchases = () => {
     </div>
   );
 
+  // Enhanced history item renderer with purchase_records data
   const renderHistoryItem = (purchase: any) => {
-    const displayItemName = purchase.productCategory && purchase.itemName && purchase.productVersion
-      ? `${purchase.productCategory}-${purchase.itemName} ${purchase.productVersion}`
-      : purchase.itemName || purchase.productName || 'N/A';
-    
+    const formatCurrency = (amount: number) => {
+      const symbol = purchase.companyCurrency === 'INR' ? '₹' : '$';
+      return `${symbol}${amount.toFixed(2)}`;
+    };
+
     return (
       <div key={purchase.id} className="border rounded-lg p-4 hover:bg-gray-50">
-        <div className="flex items-start justify-between mb-2">
-          <div>
-            <h4 className="font-medium text-gray-900">{displayItemName}</h4>
-            <div className="space-y-1 mt-1">
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <h4 className="font-medium text-gray-900">{purchase.itemName}</h4>
+              {purchase.itemCount > 1 && (
+                <Badge variant="outline" className="text-xs">
+                  +{purchase.itemCount - 1} more items
+                </Badge>
+              )}
+            </div>
+            <div className="space-y-1">
               <p className="text-sm text-gray-600">
-                <span className="font-medium">Category:</span> {purchase.productCategory || 'N/A'}
+                <span className="font-medium">Purchase ID:</span> {purchase.purchaseRecordId}
               </p>
               <p className="text-sm text-gray-600">
-                <span className="font-medium">Version:</span> {purchase.productVersion || 'N/A'}
+                <span className="font-medium">Supplier:</span> {purchase.supplierName || 'N/A'}
               </p>
+              {purchase.productCategory && (
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Category:</span> {purchase.productCategory}
+                </p>
+              )}
+              {purchase.productVersion && (
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Version:</span> {purchase.productVersion}
+                </p>
+              )}
               <p className="text-sm text-gray-600">
                 <span className="font-medium">Quantity:</span> {purchase.quantity || 'N/A'} {purchase.unit || ''}
+              </p>
+              <p className="text-sm text-gray-600">
+                <span className="font-medium">Total Amount:</span> {formatCurrency(purchase.totalAmount)}
               </p>
             </div>
           </div>
@@ -307,8 +354,14 @@ const EmployeePurchases = () => {
             {purchase.status}
           </Badge>
         </div>
+        {purchase.description && (
+          <p className="text-sm text-gray-600 mb-3">{purchase.description}</p>
+        )}
         <div className="flex items-center justify-between text-xs text-gray-500">
-          <span>Delivered: {purchase.purchaseDate}</span>
+          <span>Purchased: {purchase.purchaseDate}</span>
+          {purchase.subtotal && purchase.totalTaxAmount && (
+            <span>Subtotal: {formatCurrency(purchase.subtotal)} | Tax: {formatCurrency(purchase.totalTaxAmount)}</span>
+          )}
         </div>
       </div>
     );
@@ -570,7 +623,7 @@ const EmployeePurchases = () => {
           </CardContent>
         </Card>
 
-        {/* Purchase History */}
+        {/* Enhanced Purchase History */}
         <Card>
           <CardHeader>
             <CardTitle>Purchase History</CardTitle>
