@@ -427,7 +427,7 @@ const PurchaseOrderView = () => {
                     <div class="info-label">📍 Contact Details</div>
                     <div class="info-value">
                       <strong>${companyData?.companyName || 'N/A'}</strong><br>
-                      ${companyData?.address || 'N/A'}<br>
+                      ${companyData?.streetAddress || 'N/A'}<br>
                       ${companyData?.city ? `${companyData.city}<br>` : ''}
                       Country: ${companyData?.country || 'N/A'}
                     </div>
