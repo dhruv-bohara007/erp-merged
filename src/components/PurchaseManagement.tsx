@@ -79,21 +79,21 @@ const PurchaseManagement = () => {
 
   // Calculate totals using totalAmount
   const totalAmount = filteredPurchases.reduce((sum, purchase) => {
-    const amount = purchase.totalAmount || 0;
+    const amount = purchase.totalAmount || purchase.amount || 0;
     return sum + Math.round(amount * 100) / 100;
   }, 0);
   
   const completedAmount = filteredPurchases
     .filter(p => p.purchaseStatus === 'completed')
     .reduce((sum, purchase) => {
-      const amount = purchase.totalAmount || 0;
+      const amount = purchase.totalAmount || purchase.amount || 0;
       return sum + Math.round(amount * 100) / 100;
     }, 0);
   
   const pendingAmount = filteredPurchases
     .filter(p => p.purchaseStatus === 'pending')
     .reduce((sum, purchase) => {
-      const amount = purchase.totalAmount || 0;
+      const amount = purchase.totalAmount || purchase.amount || 0;
       return sum + Math.round(amount * 100) / 100;
     }, 0);
 
@@ -116,7 +116,7 @@ PURCHASE RECORD
 
 Purchase Record ID: ${purchase.purchaseRecordId}
 Supplier: ${purchase.supplierName}
-Date: ${purchase.purchaseDate?.toLocaleDateString() || 'N/A'}
+Date: ${purchase.purchaseDate?.toLocaleDateString() || purchase.expenseDate?.toLocaleDateString() || 'N/A'}
 Currency: ${purchase.companyCurrency}
 
 ITEMS:
@@ -132,7 +132,7 @@ SUMMARY:
 --------
 Subtotal: ${formatCurrency(purchase.subtotal || 0)}
 Tax: ${formatCurrency(purchase.totalTaxAmount || 0)}
-Total Amount: ${formatCurrency(purchase.totalAmount || 0)}
+Total Amount: ${formatCurrency(purchase.totalAmount || purchase.amount || 0)}
 
 ${purchase.description ? `Description: ${purchase.description}` : ''}
     `;
@@ -333,12 +333,12 @@ ${purchase.description ? `Description: ${purchase.description}` : ''}
                           <div className="font-medium">{purchase.supplierName || 'N/A'}</div>
                         </TableCell>
                         <TableCell>
-                          <div className="font-medium">{formatCurrency(purchase.totalAmount || 0)}</div>
+                          <div className="font-medium">{formatCurrency(purchase.totalAmount || purchase.amount || 0)}</div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center text-sm">
                             <Calendar className="w-3 h-3 mr-1 text-gray-400" />
-                            {purchase.purchaseDate?.toLocaleDateString() || 'N/A'}
+                            {purchase.purchaseDate?.toLocaleDateString() || purchase.expenseDate?.toLocaleDateString() || 'N/A'}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -423,7 +423,7 @@ ${purchase.description ? `Description: ${purchase.description}` : ''}
                 </div>
                 <div>
                   <Label className="font-semibold">Purchase Date</Label>
-                  <p>{viewingPurchase.purchaseDate?.toLocaleDateString() || 'N/A'}</p>
+                  <p>{viewingPurchase.purchaseDate?.toLocaleDateString() || viewingPurchase.expenseDate?.toLocaleDateString() || 'N/A'}</p>
                 </div>
                 <div>
                   <Label className="font-semibold">Currency</Label>
@@ -471,7 +471,7 @@ ${purchase.description ? `Description: ${purchase.description}` : ''}
                   </div>
                   <div>
                     <Label className="font-semibold">Total Amount</Label>
-                    <p className="text-lg font-bold">{formatCurrency(viewingPurchase.totalAmount || 0)}</p>
+                    <p className="text-lg font-bold">{formatCurrency(viewingPurchase.totalAmount || viewingPurchase.amount || 0)}</p>
                   </div>
                 </div>
               </div>

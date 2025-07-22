@@ -187,9 +187,21 @@ const PurchaseForm = () => {
       const { amountInINR, rate } = await convertToINR(totalAmount, companyCountry);
       const totalAmountINRFormatted = Math.round(amountInINR * 100) / 100;
 
-      // Create a single purchase record document with all items
+      // Generate purchase record ID
+      const purchaseRecordId = `PR-${Date.now().toString().slice(-8)}`;
+
+      // Create a single purchase record document that conforms to Expense interface
       const purchaseRecord = {
-        purchaseRecordId: `PR-${Date.now().toString().slice(-8)}`,
+        // Required Expense fields
+        title: `Purchase Record - ${supplierName}`,
+        amount: Math.round(totalAmount * 100) / 100,
+        expenseDate: new Date(purchaseDate),
+        category: 'Purchase',
+        description: description || `Purchase from ${supplierName}`,
+        status: 'recorded' as const,
+        
+        // Purchase-specific fields (these are allowed in Expense interface)
+        purchaseRecordId,
         supplierName,
         supplierCountry,
         supplierCurrency,
@@ -211,10 +223,7 @@ const PurchaseForm = () => {
         totalAmountINR: totalAmountINRFormatted,
         companyCurrency: companyCurrency.code,
         exchangeRateUsed: rate,
-        description,
-        category: 'Purchase',
         purchaseDate: new Date(purchaseDate),
-        status: 'recorded' as const,
         purchaseStatus: 'completed' as const
       };
 
@@ -248,7 +257,7 @@ const PurchaseForm = () => {
       }
 
       // Redirect to Purchase Management page
-      navigate('/purchases');
+      navigate('/purchases?section=purchase-record');
     } catch (error) {
       console.error('Error adding purchase:', error);
       alert('Failed to add purchase. Please try again.');
