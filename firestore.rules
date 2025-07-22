@@ -320,9 +320,13 @@ service cloud.firestore {
       
       // Employees can read messages from their company where they are sender or receiver
       allow read: if isEmployeeUser() && getUserData().companyId != null &&
-        (resource == null || resource.data.companyId == getUserData().companyId) &&
-        (resource == null || resource.data.senderEmail == getUserData().email || 
+        resource != null &&
+        resource.data.companyId == getUserData().companyId &&
+        (resource.data.senderEmail == getUserData().email || 
          resource.data.receiverEmail == getUserData().email);
+      
+      // Allow employees to query messages (resource == null during queries)
+      allow read: if isEmployeeUser() && getUserData().companyId != null;
       
       allow read, write: if isSuperAdmin();
     }
