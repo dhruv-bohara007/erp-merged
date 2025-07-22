@@ -284,6 +284,11 @@ service cloud.firestore {
       allow read: if isEmployeeUser() && getUserData().email != null &&
         (resource == null || resource.data.employeeEmail == getUserData().email);
       
+      // Employees can delete their own pending purchase requests
+      allow delete: if isEmployeeUser() && getUserData().email != null &&
+        resource.data.employeeEmail == getUserData().email &&
+        resource.data.status == 'pending';
+      
       allow read, write: if isSuperAdmin();
     }
 
