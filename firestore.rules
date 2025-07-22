@@ -251,6 +251,21 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
     }
 
+    // INVENTORY_DEFINITIONS: only accessible by users from the same company
+    match /inventory_definitions/{inventoryDefinitionId} {
+      allow read, write: if isCompanyAdmin() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow create: if isCompanyAdmin() &&
+        request.resource.data.companyId == getUserData().companyId;
+      
+      // Employees can read inventory definitions from their company
+      allow read: if isEmployeeUser() && getUserData().companyId != null &&
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow read, write: if isSuperAdmin();
+    }
+
     // PURCHASE_REQUESTS: employees can create, admins can read and update
     match /purchase_requests/{requestId} {
       // Company admins can read and update purchase requests from their company

@@ -19,12 +19,14 @@ import { useCompanyData } from '@/hooks/useCompanyData';
 import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
 import AddProductModalWrapper from './AddProductModalWrapper';
 import ManageProductCategoryModal from './ManageProductCategoryModal';
+import ManageInventoryCategoriesModal from './ManageInventoryCategoriesModal';
 
 type SortBy = 'category' | 'name' | 'version' | 'none';
 
 const InventoryManagement = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isManageCategoryModalOpen, setIsManageCategoryModalOpen] = useState(false);
+  const [isManageInventoryCategoriesModalOpen, setIsManageInventoryCategoriesModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<SortBy>('none');
   const { inventory, loading, deleteInventoryItem } = useInventory();
@@ -123,6 +125,13 @@ const InventoryManagement = () => {
           >
             <Settings className="w-4 h-4 mr-2" />
             Manage Product Category
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => setIsManageInventoryCategoriesModalOpen(true)}
+          >
+            <Settings className="w-4 h-4 mr-2" />
+            Manage Inventory Categories
           </Button>
           <Button onClick={() => setIsAddModalOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
@@ -247,6 +256,11 @@ const InventoryManagement = () => {
       <ManageProductCategoryModal
         isOpen={isManageCategoryModalOpen}
         onClose={() => setIsManageCategoryModalOpen(false)}
+      />
+
+      <ManageInventoryCategoriesModal
+        isOpen={isManageInventoryCategoriesModalOpen}
+        onClose={() => setIsManageInventoryCategoriesModalOpen(false)}
       />
     </div>
   );
