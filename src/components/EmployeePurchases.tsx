@@ -19,11 +19,13 @@ import {
   XCircle,
   Search,
   Package,
-  AlertTriangle
+  AlertTriangle,
+  Eye
 } from 'lucide-react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import PurchaseDetailsModal from './PurchaseDetailsModal';
 
 const EmployeePurchases = () => {
   const { currentUser } = useAuth();
@@ -38,6 +40,10 @@ const EmployeePurchases = () => {
   const [historySearchTerm, setHistorySearchTerm] = useState('');
   const [historySortBy, setHistorySortBy] = useState('date');
   const [historyCurrentPage, setHistoryCurrentPage] = useState(1);
+  
+  // Modal state
+  const [selectedPurchase, setSelectedPurchase] = useState(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   
   const itemsPerPage = 5;
 
@@ -305,11 +311,16 @@ const EmployeePurchases = () => {
     </div>
   );
 
-  // Enhanced history item renderer with purchase_records data
+  // Enhanced history item renderer with purchase_records data and Details button
   const renderHistoryItem = (purchase: any) => {
     const formatCurrency = (amount: number) => {
       const symbol = purchase.companyCurrency === 'INR' ? '₹' : '$';
       return `${symbol}${amount.toFixed(2)}`;
+    };
+
+    const handleViewDetails = () => {
+      setSelectedPurchase(purchase);
+      setIsDetailsModalOpen(true);
     };
 
     return (
@@ -349,10 +360,21 @@ const EmployeePurchases = () => {
               </p>
             </div>
           </div>
-          <Badge variant="default">
-            <CheckCircle className="w-3 h-3 mr-1" />
-            {purchase.status}
-          </Badge>
+          <div className="flex flex-col items-end gap-2">
+            <Badge variant="default">
+              <CheckCircle className="w-3 h-3 mr-1" />
+              {purchase.status}
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleViewDetails}
+              className="flex items-center gap-1"
+            >
+              <Eye className="w-3 h-3" />
+              Details
+            </Button>
+          </div>
         </div>
         {purchase.description && (
           <p className="text-sm text-gray-600 mb-3">{purchase.description}</p>
@@ -666,6 +688,13 @@ const EmployeePurchases = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Purchase Details Modal */}
+      <PurchaseDetailsModal
+        isOpen={isDetailsModalOpen}
+        onClose={() => setIsDetailsModalOpen(false)}
+        purchase={selectedPurchase}
+      />
     </div>
   );
 };
