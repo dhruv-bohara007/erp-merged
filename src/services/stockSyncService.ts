@@ -50,7 +50,13 @@ export const syncStockDetails = async (companyId: string): Promise<StockSyncResu
           currentStock: newStock,
           lastPurchaseDate: purchaseData.purchaseDate || new Date(),
           pricePerUnit: purchaseData.pricePerUnit || stockData.pricePerUnit,
-          updatedAt: new Date()
+          updatedAt: new Date(),
+          // Clear request status fields after stock update
+          lastRequestStatus: null,
+          pendingQuantity: 0,
+          approvedQuantity: 0,
+          poCreatedQuantity: 0,
+          rejectedQuantity: 0
         });
         
         processedProducts++;
