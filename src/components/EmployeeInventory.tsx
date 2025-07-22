@@ -49,7 +49,7 @@ interface StockDetailsData {
   approvedQuantity?: number;
   poCreatedQuantity?: number;
   rejectedQuantity?: number;
-  lastRequestStatus?: 'pending' | 'approved' | 'po_created' | 'rejected';
+  lastRequestStatus?: 'pending' | 'approved' | 'PO Created' | 'rejected';
 }
 
 interface FlagRequestData {
@@ -217,7 +217,7 @@ const EmployeeInventory = () => {
   // Check if Flag Low button should be disabled
   const isFlagLowDisabled = (item: StockDetailsData) => {
     const status = item.lastRequestStatus;
-    return status === 'pending' || status === 'approved' || status === 'po_created';
+    return status === 'pending' || status === 'approved' || status === 'PO Created';
   };
 
   // Get the most recent request for an item
@@ -534,7 +534,7 @@ const EmployeeInventory = () => {
                       <div className={`border rounded-lg p-3 ${
                         item.lastRequestStatus === 'pending' ? 'bg-yellow-50 border-yellow-200' :
                         item.lastRequestStatus === 'approved' ? 'bg-green-50 border-green-200' :
-                        item.lastRequestStatus === 'po_created' ? 'bg-blue-50 border-blue-200' :
+                        item.lastRequestStatus === 'PO Created' ? 'bg-blue-50 border-blue-200' :
                         'bg-red-50 border-red-200'
                       }`}>
                         <div className="flex items-center gap-2">
@@ -550,7 +550,7 @@ const EmployeeInventory = () => {
                               <span className="text-sm font-medium text-green-800">Request Approved</span>
                             </>
                           )}
-                          {item.lastRequestStatus === 'po_created' && (
+                          {item.lastRequestStatus === 'PO Created' && (
                             <>
                               <ShoppingCart className="h-4 w-4 text-blue-600" />
                               <span className="text-sm font-medium text-blue-800">PO Created</span>
