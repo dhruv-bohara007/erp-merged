@@ -36,6 +36,8 @@ const EmployeeDashboard = () => {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('name');
+  const [stockStatusFilter, setStockStatusFilter] = useState('all');
+  const [purchaseStatusFilter, setPurchaseStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(0);
   
   // New state for purchase requests pagination and filtering
@@ -84,7 +86,9 @@ const EmployeeDashboard = () => {
             currentStock,
             minRequired,
             safeQuantityLimit,
-            status: data.stock_status || status
+            status: data.stock_status || status,
+            lastRequestStatus: data.lastRequestStatus || null,
+            purchaseStatus: data.lastRequestStatus || null
           };
         });
         setStockDetailsData(stockDetails);
@@ -355,9 +359,15 @@ const EmployeeDashboard = () => {
 
   // Filter and sort inventory data with pagination - use stockDetailsData for new columns
   const filteredInventory = stockDetailsData
-    .filter(item => 
-      item.name.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    .filter(item => {
+      const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStockStatus = stockStatusFilter === 'all' || item.status === stockStatusFilter;
+      const matchesPurchaseStatus = purchaseStatusFilter === 'all' || 
+        (item.lastRequestStatus && item.lastRequestStatus.toLowerCase().replace(' ', '_') === purchaseStatusFilter) ||
+        (purchaseStatusFilter === 'po_created' && item.lastRequestStatus === 'Order Recorded');
+      
+      return matchesSearch && matchesStockStatus && matchesPurchaseStatus;
+    })
     .sort((a, b) => {
       switch (sortBy) {
         case 'name':
@@ -394,7 +404,7 @@ const EmployeeDashboard = () => {
   // Reset pagination when search or sort changes
   useEffect(() => {
     setCurrentPage(0);
-  }, [searchTerm, sortBy]);
+  }, [searchTerm, sortBy, stockStatusFilter, purchaseStatusFilter]);
 
   // Reset requests pagination when search or sort changes
   useEffect(() => {
@@ -430,13 +440,6 @@ const EmployeeDashboard = () => {
             <h1 className="text-3xl font-bold text-gray-900">Employee Dashboard</h1>
             <p className="text-gray-600 mt-2">Welcome back! Monitor inventory and manage purchase requests.</p>
           </div>
-          <Button 
-            className="bg-blue-600 hover:bg-blue-700"
-            onClick={() => setShowPurchaseModal(true)}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Request Purchase
-          </Button>
         </div>
 
         {/* Summary Cards */}
@@ -486,284 +489,6 @@ const EmployeeDashboard = () => {
           </Card>
         </div>
 
-        {/* Low Stock Alerts and Purchase Requests Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Low Stock Alerts */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-red-500" />
-                Low Stock Alerts
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {lowStockItems.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-2 h-2 rounded-full ${
-                        item.status === 'critical' ? 'bg-red-500' : 'bg-yellow-500'
-                      }`}></div>
-                      <div>
-                        <p className="font-medium text-gray-900">{item.name}</p>
-                        <p className="text-sm text-gray-500">Stock: {item.currentStock} (Min: {item.minThreshold})</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {lowStockItems.length === 0 && (
-                  <p className="text-center text-gray-500 py-4">All items are well stocked!</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-        {/* My Purchase Requests */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ShoppingCart className="w-5 h-5 text-green-500" />
-                My Purchase Requests
-              </CardTitle>
-              <div className="flex gap-4 items-center mt-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    placeholder="Search requests..."
-                    value={requestsSearchTerm}
-                    onChange={(e) => setRequestsSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <select
-                  value={requestsSortBy}
-                  onChange={(e) => setRequestsSortBy(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-                >
-                  <option value="date">Sort by Date</option>
-                  <option value="name">Sort by Item</option>
-                  <option value="status">Sort by Status</option>
-                </select>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {(() => {
-                  const filteredRequests = purchaseRequests
-                    .filter(request => 
-                      request.itemName.toLowerCase().includes(requestsSearchTerm.toLowerCase())
-                    )
-                    .sort((a, b) => {
-                      switch (requestsSortBy) {
-                        case 'name':
-                          return a.itemName.localeCompare(b.itemName);
-                        case 'status':
-                          return a.status.localeCompare(b.status);
-                        case 'date':
-                        default:
-                          return new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime();
-                      }
-                    });
-
-                  const requestsPerPage = 5;
-                  const totalRequestsPages = Math.ceil(filteredRequests.length / requestsPerPage);
-                  const currentRequests = filteredRequests.slice(
-                    requestsCurrentPage * requestsPerPage,
-                    (requestsCurrentPage + 1) * requestsPerPage
-                  );
-
-                  return (
-                    <>
-                      {currentRequests.map((request) => (
-                        <div key={request.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                              {getRequestStatusIcon(request.status)}
-                            </div>
-                            <div>
-                              <p className="font-medium text-gray-900">{request.itemName}</p>
-                              <p className="text-sm text-gray-500">
-                                Qty: {request.quantity} {request.unit} | {request.requestDate}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant={getRequestStatusBadge(request.status)}>
-                              {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                            </Badge>
-                            {request.status === 'pending' && (
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => handleDeleteRequest(request.id)}
-                                className="h-6 w-6 p-0"
-                                title="Delete pending request"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                      {currentRequests.length === 0 && (
-                        <p className="text-center text-gray-500 py-4">
-                          {requestsSearchTerm ? 'No matching requests found' : 'No purchase requests yet'}
-                        </p>
-                      )}
-                      {/* Pagination for Requests */}
-                      {totalRequestsPages > 1 && (
-                        <div className="flex items-center justify-between mt-4">
-                          <div className="text-sm text-gray-500">
-                            Showing {requestsCurrentPage * requestsPerPage + 1} to{' '}
-                            {Math.min((requestsCurrentPage + 1) * requestsPerPage, filteredRequests.length)} of{' '}
-                            {filteredRequests.length} requests
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setRequestsCurrentPage(Math.max(0, requestsCurrentPage - 1))}
-                              disabled={requestsCurrentPage === 0}
-                            >
-                              <ChevronLeft className="w-4 h-4" />
-                              Previous
-                            </Button>
-                            <span className="text-sm text-gray-500">
-                              Page {requestsCurrentPage + 1} of {totalRequestsPages}
-                            </span>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setRequestsCurrentPage(Math.min(totalRequestsPages - 1, requestsCurrentPage + 1))}
-                              disabled={requestsCurrentPage === totalRequestsPages - 1}
-                            >
-                              Next
-                              <ChevronRight className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Recent Purchase History */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Purchase History</CardTitle>
-            <div className="flex gap-4 items-center mt-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  placeholder="Search purchase history..."
-                  value={historySearchTerm}
-                  onChange={(e) => setHistorySearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <select
-                value={historySortBy}
-                onChange={(e) => setHistorySortBy(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-              >
-                <option value="date">Sort by Date</option>
-                <option value="name">Sort by Item</option>
-                <option value="quantity">Sort by Quantity</option>
-              </select>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {(() => {
-                const filteredHistory = purchaseHistory
-                  .filter(purchase => 
-                    purchase.itemName.toLowerCase().includes(historySearchTerm.toLowerCase())
-                  )
-                  .sort((a, b) => {
-                    switch (historySortBy) {
-                      case 'name':
-                        return a.itemName.localeCompare(b.itemName);
-                      case 'quantity':
-                        return b.quantity - a.quantity;
-                      case 'date':
-                      default:
-                        return new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime();
-                    }
-                  });
-
-                const historyPerPage = 5;
-                const totalHistoryPages = Math.ceil(filteredHistory.length / historyPerPage);
-                const currentHistory = filteredHistory.slice(
-                  historyCurrentPage * historyPerPage,
-                  (historyCurrentPage + 1) * historyPerPage
-                );
-
-                return (
-                  <>
-                    {currentHistory.map((purchase) => (
-                      <div key={purchase.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                            <CheckCircle className="w-4 h-4 text-green-600" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-900">{purchase.itemName}</p>
-                            <p className="text-sm text-gray-500">
-                              Qty: {purchase.quantity} {purchase.unit} | {purchase.purchaseDate}
-                            </p>
-                          </div>
-                        </div>
-                        <Badge variant="default">Delivered</Badge>
-                      </div>
-                    ))}
-                    {currentHistory.length === 0 && (
-                      <p className="text-center text-gray-500 py-4">
-                        {historySearchTerm ? 'No matching purchase history found' : 'No purchase history'}
-                      </p>
-                    )}
-                    {/* Pagination for History */}
-                    {totalHistoryPages > 1 && (
-                      <div className="flex items-center justify-between mt-4">
-                        <div className="text-sm text-gray-500">
-                          Showing {historyCurrentPage * historyPerPage + 1} to{' '}
-                          {Math.min((historyCurrentPage + 1) * historyPerPage, filteredHistory.length)} of{' '}
-                          {filteredHistory.length} purchases
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setHistoryCurrentPage(Math.max(0, historyCurrentPage - 1))}
-                            disabled={historyCurrentPage === 0}
-                          >
-                            <ChevronLeft className="w-4 h-4" />
-                            Previous
-                          </Button>
-                          <span className="text-sm text-gray-500">
-                            Page {historyCurrentPage + 1} of {totalHistoryPages}
-                          </span>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setHistoryCurrentPage(Math.min(totalHistoryPages - 1, historyCurrentPage + 1))}
-                            disabled={historyCurrentPage === totalHistoryPages - 1}
-                          >
-                            Next
-                            <ChevronRight className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Updated Inventory Overview Table with New Columns */}
         <Card>
@@ -779,6 +504,27 @@ const EmployeeDashboard = () => {
                   className="pl-10"
                 />
               </div>
+              <select
+                value={stockStatusFilter}
+                onChange={(e) => setStockStatusFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+              >
+                <option value="all">All Stock Status</option>
+                <option value="normal">Normal</option>
+                <option value="low">Low</option>
+                <option value="critical">Critical</option>
+              </select>
+              <select
+                value={purchaseStatusFilter}
+                onChange={(e) => setPurchaseStatusFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+              >
+                <option value="all">All Purchase Status</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="po_created">PO Created</option>
+              </select>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
