@@ -163,8 +163,12 @@ const StockDetails = () => {
         if (existingDoc.empty) {
           await setDoc(docRef, stockItem);
         } else {
+          // Get existing document to check current values
+          const existingData = existingDoc.docs[0]?.data();
+          const hasValidQuantities = existingData?.minRequired > 0 && existingData?.safeQuantityLimit >= 0;
+          
           // Update stock quantities and request data
-          await updateDoc(docRef, {
+          const updateData: any = {
             currentStock: stockItem.currentStock,
             updatedAt: stockItem.updatedAt,
             lastPurchaseDate: stockItem.lastPurchaseDate,
@@ -174,7 +178,14 @@ const StockDetails = () => {
             poCreatedQuantity: stockItem.poCreatedQuantity,
             rejectedQuantity: stockItem.rejectedQuantity,
             lastRequestStatus: stockItem.lastRequestStatus
-          });
+          };
+          
+          // Ensure items without valid quantities are suspended by default
+          if (!hasValidQuantities) {
+            updateData.displayStatus = 'suspended';
+          }
+          
+          await updateDoc(docRef, updateData);
         }
       } catch (error) {
         console.error('Error saving stock details:', error);
