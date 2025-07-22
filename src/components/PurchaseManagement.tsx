@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,7 +21,9 @@ import {
   Trash2,
   Eye,
   Download,
-  Mail
+  Mail,
+  FileDown,
+  X
 } from 'lucide-react';
 import { usePurchases } from '@/hooks/useFirestore';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -32,6 +33,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Label } from '@/components/ui/label';
 import PurchaseRequestsAdmin from './PurchaseRequestsAdmin';
 import PurchaseOrderView from './PurchaseOrderView';
+import jsPDF from 'jspdf';
 
 const PurchaseManagement = () => {
   const navigate = useNavigate();
@@ -105,6 +107,127 @@ const PurchaseManagement = () => {
   const handleViewDetails = (purchase: any) => {
     setViewingPurchase(purchase);
     setViewModalOpen(true);
+  };
+
+  // Generate PDF for purchase record
+  const generatePurchaseRecordPDF = (purchase: any) => {
+    const pdf = new jsPDF();
+    const pageWidth = pdf.internal.pageSize.width;
+    const margin = 20;
+    let yPosition = 30;
+
+    // Company/Header Section
+    pdf.setFontSize(20);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('PURCHASE RECORD', pageWidth / 2, yPosition, { align: 'center' });
+    
+    yPosition += 20;
+    
+    // Purchase Record Details
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'normal');
+    
+    // Left column
+    pdf.text(`Purchase Record ID: ${purchase.purchaseRecordId}`, margin, yPosition);
+    yPosition += 8;
+    pdf.text(`Supplier Name: ${purchase.supplierName || 'N/A'}`, margin, yPosition);
+    yPosition += 8;
+    pdf.text(`Purchase Date: ${purchase.purchaseDate?.toLocaleDateString() || purchase.expenseDate?.toLocaleDateString() || 'N/A'}`, margin, yPosition);
+    yPosition += 8;
+    pdf.text(`Currency: ${purchase.companyCurrency}`, margin, yPosition);
+    
+    yPosition += 20;
+
+    // Items Section
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('ITEMS:', margin, yPosition);
+    yPosition += 10;
+    
+    pdf.setFont('helvetica', 'normal');
+    
+    // Table headers
+    const tableStartY = yPosition;
+    const colWidths = [60, 30, 40, 40];
+    const headers = ['Product', 'Qty', 'Unit Price', 'Amount'];
+    
+    pdf.setFont('helvetica', 'bold');
+    let xPos = margin;
+    headers.forEach((header, index) => {
+      pdf.text(header, xPos, yPosition);
+      xPos += colWidths[index];
+    });
+    
+    yPosition += 8;
+    
+    // Draw line under headers
+    pdf.line(margin, yPosition - 2, pageWidth - margin, yPosition - 2);
+    
+    pdf.setFont('helvetica', 'normal');
+    
+    // Items data
+    if (purchase.items && purchase.items.length > 0) {
+      purchase.items.forEach((item: any) => {
+        xPos = margin;
+        
+        // Product info (multi-line if needed)
+        const productText = `${item.productCategory} - ${item.itemName} (${item.productVersion})`;
+        pdf.text(productText, xPos, yPosition, { maxWidth: colWidths[0] - 5 });
+        xPos += colWidths[0];
+        
+        // Quantity
+        pdf.text(`${item.quantity} ${item.unit}`, xPos, yPosition);
+        xPos += colWidths[1];
+        
+        // Unit Price
+        pdf.text(formatCurrency(item.pricePerUnit), xPos, yPosition);
+        xPos += colWidths[2];
+        
+        // Amount
+        pdf.text(formatCurrency(item.amount), xPos, yPosition);
+        
+        yPosition += 12;
+      });
+    } else {
+      pdf.text('No items', margin, yPosition);
+      yPosition += 12;
+    }
+    
+    yPosition += 10;
+    
+    // Draw line before totals
+    pdf.line(margin, yPosition - 5, pageWidth - margin, yPosition - 5);
+    
+    // Totals Section
+    pdf.setFont('helvetica', 'bold');
+    const totalsX = pageWidth - 100;
+    
+    pdf.text('Subtotal:', totalsX - 40, yPosition);
+    pdf.text(formatCurrency(purchase.subtotal || 0), totalsX, yPosition);
+    yPosition += 8;
+    
+    pdf.text('Tax:', totalsX - 40, yPosition);
+    pdf.text(formatCurrency(purchase.totalTaxAmount || 0), totalsX, yPosition);
+    yPosition += 8;
+    
+    pdf.setFontSize(14);
+    pdf.text('Total Amount:', totalsX - 40, yPosition);
+    pdf.text(formatCurrency(purchase.totalAmount || purchase.amount || 0), totalsX, yPosition);
+    
+    yPosition += 20;
+    
+    // Description (if available)
+    if (purchase.description) {
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Description:', margin, yPosition);
+      yPosition += 8;
+      pdf.setFont('helvetica', 'normal');
+      const splitDescription = pdf.splitTextToSize(purchase.description, pageWidth - 2 * margin);
+      pdf.text(splitDescription, margin, yPosition);
+    }
+
+    // Save the PDF
+    pdf.save(`Purchase_Record_${purchase.purchaseRecordId}.pdf`);
   };
 
   // Handle download purchase record
@@ -407,8 +530,19 @@ ${purchase.description ? `Description: ${purchase.description}` : ''}
       {/* View Purchase Record Modal */}
       <Dialog open={viewModalOpen} onOpenChange={setViewModalOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
+          <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <DialogTitle>Purchase Record Details</DialogTitle>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => viewingPurchase && generatePurchaseRecordPDF(viewingPurchase)}
+                className="text-blue-600 hover:text-blue-700"
+              >
+                <FileDown className="w-4 h-4 mr-1" />
+                PDF
+              </Button>
+            </div>
           </DialogHeader>
           {viewingPurchase && (
             <div className="space-y-6">
