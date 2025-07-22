@@ -157,10 +157,12 @@ const PurchaseManagement = () => {
       xPos += colWidths[index];
     });
     
-    yPosition += 8;
+    yPosition += 5;
     
     // Draw line under headers only
-    pdf.line(margin, yPosition - 2, pageWidth - margin, yPosition - 2);
+    pdf.line(margin, yPosition, pageWidth - margin, yPosition);
+    
+    yPosition += 5;
     
     pdf.setFont('helvetica', 'normal');
     
