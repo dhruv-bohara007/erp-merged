@@ -20,9 +20,10 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  ShoppingCart
+  ShoppingCart,
+  Trash2
 } from 'lucide-react';
-import { collection, getDocs, query, where, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, addDoc, serverTimestamp, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -411,6 +412,92 @@ const EmployeeInventory = () => {
     });
   };
 
+  // Delete pending purchase request
+  const handleDeleteRequest = async (item: StockDetailsData) => {
+    if (!currentUser?.companyId || !currentUser?.email) return;
+
+    try {
+      // Find the pending request for this item
+      const purchaseRequestsCollection = collection(db, 'purchase_requests');
+      const q = query(
+        purchaseRequestsCollection,
+        where('companyId', '==', currentUser.companyId),
+        where('employeeEmail', '==', currentUser.email),
+        where('productCategory', '==', item.productCategory),
+        where('itemName', '==', item.itemName),
+        where('productVersion', '==', item.productVersion),
+        where('status', '==', 'pending')
+      );
+      
+      const snapshot = await getDocs(q);
+      
+      if (!snapshot.empty) {
+        const requestDoc = snapshot.docs[0];
+        const requestData = requestDoc.data();
+        
+        // Delete the request document
+        await deleteDoc(doc(db, 'purchase_requests', requestDoc.id));
+        
+        // Update stock_details to rollback pendingQuantity
+        const stockDetailsCollection = collection(db, 'stock_details');
+        const stockQuery = query(
+          stockDetailsCollection,
+          where('companyId', '==', currentUser.companyId),
+          where('productCategory', '==', item.productCategory),
+          where('itemName', '==', item.itemName),
+          where('productVersion', '==', item.productVersion)
+        );
+        
+        const stockSnapshot = await getDocs(stockQuery);
+        
+        if (!stockSnapshot.empty) {
+          const stockDoc = stockSnapshot.docs[0];
+          const stockData = stockDoc.data();
+          
+          // Reduce pending quantity and update lastRequestStatus
+          const updateData: any = {
+            pendingQuantity: Math.max(0, (stockData.pendingQuantity || 0) - (requestData.quantityRequired || 0)),
+            updatedAt: new Date()
+          };
+          
+          // If no more pending quantity, clear the lastRequestStatus
+          if (updateData.pendingQuantity === 0) {
+            updateData.lastRequestStatus = null;
+          }
+          
+          await updateDoc(doc(db, 'stock_details', stockDoc.id), updateData);
+          
+          // Update local state
+          setStockDetails(prev => prev.map(stockItem => 
+            stockItem.id === stockDoc.id 
+              ? { 
+                  ...stockItem, 
+                  pendingQuantity: updateData.pendingQuantity,
+                  lastRequestStatus: updateData.lastRequestStatus,
+                  updatedAt: new Date()
+                }
+              : stockItem
+          ));
+        }
+        
+        // Remove from local allRequests state
+        setAllRequests(prev => prev.filter(req => req.id !== requestDoc.id));
+        
+        toast({
+          title: "Request Deleted",
+          description: `Purchase request for ${item.itemName} has been deleted successfully.`
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting request:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete request. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
   // Calculate summary stats
   const totalItems = stockDetails.length;
   const lowStockItems = stockDetails.filter(item => getItemStatus(item) === 'low').length;
@@ -537,30 +624,42 @@ const EmployeeInventory = () => {
                         item.lastRequestStatus === 'PO Created' ? 'bg-blue-50 border-blue-200' :
                         'bg-red-50 border-red-200'
                       }`}>
-                        <div className="flex items-center gap-2">
+                         <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {item.lastRequestStatus === 'pending' && (
+                              <>
+                                <Clock className="h-4 w-4 text-yellow-600" />
+                                <span className="text-sm font-medium text-yellow-800">Request Pending</span>
+                              </>
+                            )}
+                            {item.lastRequestStatus === 'approved' && (
+                              <>
+                                <CheckCircle className="h-4 w-4 text-green-600" />
+                                <span className="text-sm font-medium text-green-800">Request Approved</span>
+                              </>
+                            )}
+                            {item.lastRequestStatus === 'PO Created' && (
+                              <>
+                                <ShoppingCart className="h-4 w-4 text-blue-600" />
+                                <span className="text-sm font-medium text-blue-800">PO Created</span>
+                              </>
+                            )}
+                            {item.lastRequestStatus === 'rejected' && (
+                              <>
+                                <XCircle className="h-4 w-4 text-red-600" />
+                                <span className="text-sm font-medium text-red-800">Request Rejected</span>
+                              </>
+                            )}
+                          </div>
                           {item.lastRequestStatus === 'pending' && (
-                            <>
-                              <Clock className="h-4 w-4 text-yellow-600" />
-                              <span className="text-sm font-medium text-yellow-800">Request Pending</span>
-                            </>
-                          )}
-                          {item.lastRequestStatus === 'approved' && (
-                            <>
-                              <CheckCircle className="h-4 w-4 text-green-600" />
-                              <span className="text-sm font-medium text-green-800">Request Approved</span>
-                            </>
-                          )}
-                          {item.lastRequestStatus === 'PO Created' && (
-                            <>
-                              <ShoppingCart className="h-4 w-4 text-blue-600" />
-                              <span className="text-sm font-medium text-blue-800">PO Created</span>
-                            </>
-                          )}
-                          {item.lastRequestStatus === 'rejected' && (
-                            <>
-                              <XCircle className="h-4 w-4 text-red-600" />
-                              <span className="text-sm font-medium text-red-800">Request Rejected</span>
-                            </>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleDeleteRequest(item)}
+                              className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
                           )}
                         </div>
                       </div>
