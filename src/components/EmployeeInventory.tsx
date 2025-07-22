@@ -50,7 +50,8 @@ interface StockDetailsData {
   approvedQuantity?: number;
   poCreatedQuantity?: number;
   rejectedQuantity?: number;
-  lastRequestStatus?: 'pending' | 'approved' | 'PO Created' | 'rejected';
+  lastRequestStatus?: 'pending' | 'approved' | 'PO Created' | 'rejected' | 'Order Recorded';
+  lastRecordedOrderQuantity?: number;
 }
 
 interface FlagRequestData {
@@ -127,7 +128,8 @@ const EmployeeInventory = () => {
           pendingQuantity: data.pendingQuantity || 0,
           approvedQuantity: data.approvedQuantity || 0,
           poCreatedQuantity: data.poCreatedQuantity || 0,
-          rejectedQuantity: data.rejectedQuantity || 0
+          rejectedQuantity: data.rejectedQuantity || 0,
+          lastRecordedOrderQuantity: data.lastRecordedOrderQuantity || 0
         };
       }) as StockDetailsData[];
     } catch (error) {
@@ -218,6 +220,7 @@ const EmployeeInventory = () => {
   // Check if Flag Low button should be disabled
   const isFlagLowDisabled = (item: StockDetailsData) => {
     const status = item.lastRequestStatus;
+    // Flag Low button is enabled when there's no active request or when order has been recorded
     return status === 'pending' || status === 'approved' || status === 'PO Created';
   };
 
@@ -620,9 +623,10 @@ const EmployeeInventory = () => {
                     {item.lastRequestStatus && (
                       <div className={`border rounded-lg p-3 ${
                         item.lastRequestStatus === 'pending' ? 'bg-yellow-50 border-yellow-200' :
-                        item.lastRequestStatus === 'approved' ? 'bg-green-50 border-green-200' :
-                        item.lastRequestStatus === 'PO Created' ? 'bg-blue-50 border-blue-200' :
-                        'bg-red-50 border-red-200'
+                         item.lastRequestStatus === 'approved' ? 'bg-green-50 border-green-200' :
+                         item.lastRequestStatus === 'PO Created' ? 'bg-blue-50 border-blue-200' :
+                         item.lastRequestStatus === 'Order Recorded' ? 'bg-purple-50 border-purple-200' :
+                         'bg-red-50 border-red-200'
                       }`}>
                          <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
@@ -638,18 +642,24 @@ const EmployeeInventory = () => {
                                 <span className="text-sm font-medium text-green-800">Request Approved</span>
                               </>
                             )}
-                            {item.lastRequestStatus === 'PO Created' && (
-                              <>
-                                <ShoppingCart className="h-4 w-4 text-blue-600" />
-                                <span className="text-sm font-medium text-blue-800">PO Created</span>
-                              </>
-                            )}
-                            {item.lastRequestStatus === 'rejected' && (
-                              <>
-                                <XCircle className="h-4 w-4 text-red-600" />
-                                <span className="text-sm font-medium text-red-800">Request Rejected</span>
-                              </>
-                            )}
+                             {item.lastRequestStatus === 'PO Created' && (
+                               <>
+                                 <ShoppingCart className="h-4 w-4 text-blue-600" />
+                                 <span className="text-sm font-medium text-blue-800">PO Created</span>
+                               </>
+                             )}
+                             {item.lastRequestStatus === 'Order Recorded' && (
+                               <>
+                                 <CheckCircle className="h-4 w-4 text-purple-600" />
+                                 <span className="text-sm font-medium text-purple-800">Order Recorded</span>
+                               </>
+                             )}
+                             {item.lastRequestStatus === 'rejected' && (
+                               <>
+                                 <XCircle className="h-4 w-4 text-red-600" />
+                                 <span className="text-sm font-medium text-red-800">Request Rejected</span>
+                               </>
+                             )}
                           </div>
                           {item.lastRequestStatus === 'pending' && (
                             <Button
@@ -680,9 +690,17 @@ const EmployeeInventory = () => {
                       <span className="font-medium">{item.safeQuantityLimit || 0} {item.unit}</span>
                     </div>
                     
-                    {/* Display quantities based on status */}
-                    {((item.pendingQuantity || 0) > 0 || (item.approvedQuantity || 0) > 0 || (item.poCreatedQuantity || 0) > 0 || (item.rejectedQuantity || 0) > 0) && (
-                      <div className="border-t pt-3 space-y-2">
+                     {/* Display last recorded order quantity if available */}
+                     {(item.lastRecordedOrderQuantity || 0) > 0 && (
+                       <div className="flex justify-between items-center">
+                         <span className="text-sm text-gray-600">Last Order Quantity:</span>
+                         <span className="font-medium text-purple-600">{item.lastRecordedOrderQuantity || 0} {item.unit}</span>
+                       </div>
+                     )}
+                     
+                     {/* Display quantities based on status */}
+                     {((item.pendingQuantity || 0) > 0 || (item.approvedQuantity || 0) > 0 || (item.poCreatedQuantity || 0) > 0 || (item.rejectedQuantity || 0) > 0) && (
+                       <div className="border-t pt-3 space-y-2">
                         {/* Show pending quantity if there's a pending request */}
                         {(item.pendingQuantity || 0) > 0 && (
                           <div className="flex justify-between items-center">

@@ -8,56 +8,99 @@ export class PurchaseStockService {
    * Updates stock when a purchase record is added
    */
   static async updateStockOnPurchase(purchaseRecord: Expense, companyId: string): Promise<void> {
-    if (!purchaseRecord.productCategory || !purchaseRecord.itemName || !purchaseRecord.productVersion) {
-      console.warn('Missing product details for stock update');
-      return;
-    }
-
     try {
-      const stockDetailsRef = collection(db, 'stock_details');
-      const q = query(
-        stockDetailsRef,
-        where('companyId', '==', companyId),
-        where('productCategory', '==', purchaseRecord.productCategory),
-        where('itemName', '==', purchaseRecord.itemName),
-        where('productVersion', '==', purchaseRecord.productVersion)
-      );
-
-      const snapshot = await getDocs(q);
-      const quantity = purchaseRecord.quantity || 0;
-
-      if (snapshot.empty) {
-        // Create new stock record if none exists
-        await addDoc(stockDetailsRef, {
-          companyId,
+      // Handle purchase records with items array (multiple items)
+      if (purchaseRecord.items && purchaseRecord.items.length > 0) {
+        for (const item of purchaseRecord.items) {
+          await this.updateStockForPurchaseItem(companyId, {
+            productCategory: item.productCategory,
+            itemName: item.itemName,
+            productVersion: item.productVersion,
+            quantity: item.quantity,
+            unit: item.unit || 'pcs',
+            pricePerUnit: item.pricePerUnit || 0,
+            purchaseDate: purchaseRecord.purchaseDate || new Date()
+          });
+        }
+      } 
+      // Handle single-item purchase records (backwards compatibility)
+      else if (purchaseRecord.productCategory && purchaseRecord.itemName && purchaseRecord.productVersion) {
+        await this.updateStockForPurchaseItem(companyId, {
           productCategory: purchaseRecord.productCategory,
           itemName: purchaseRecord.itemName,
           productVersion: purchaseRecord.productVersion,
-          currentStock: quantity,
-          lastPurchaseDate: purchaseRecord.purchaseDate || new Date(),
+          quantity: purchaseRecord.quantity || 0,
           unit: purchaseRecord.unit || 'pcs',
           pricePerUnit: purchaseRecord.pricePerUnit || 0,
-          minRequired: 0,
-          safeQuantityLimit: 0,
-          displayStatus: 'displayed',
-          createdAt: new Date(),
-          updatedAt: new Date()
+          purchaseDate: purchaseRecord.purchaseDate || new Date()
         });
       } else {
-        // Update existing stock record
-        const stockDoc = snapshot.docs[0];
-        const currentData = stockDoc.data() as StockDetailsData;
-        
-        await updateDoc(doc(db, 'stock_details', stockDoc.id), {
-          currentStock: currentData.currentStock + quantity,
-          lastPurchaseDate: purchaseRecord.purchaseDate || new Date(),
-          pricePerUnit: purchaseRecord.pricePerUnit || currentData.pricePerUnit || 0,
-          updatedAt: new Date()
-        });
+        console.warn('Missing product details for stock update');
       }
     } catch (error) {
       console.error('Error updating stock on purchase:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Helper method to update stock for a single purchase item
+   */
+  private static async updateStockForPurchaseItem(
+    companyId: string,
+    item: {
+      productCategory: string;
+      itemName: string;
+      productVersion: string;
+      quantity: number;
+      unit: string;
+      pricePerUnit: number;
+      purchaseDate: Date;
+    }
+  ): Promise<void> {
+    const stockDetailsRef = collection(db, 'stock_details');
+    const q = query(
+      stockDetailsRef,
+      where('companyId', '==', companyId),
+      where('productCategory', '==', item.productCategory),
+      where('itemName', '==', item.itemName),
+      where('productVersion', '==', item.productVersion)
+    );
+
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      // Create new stock record if none exists
+      await addDoc(stockDetailsRef, {
+        companyId,
+        productCategory: item.productCategory,
+        itemName: item.itemName,
+        productVersion: item.productVersion,
+        currentStock: item.quantity,
+        lastPurchaseDate: item.purchaseDate,
+        unit: item.unit,
+        pricePerUnit: item.pricePerUnit,
+        minRequired: 0,
+        safeQuantityLimit: 0,
+        displayStatus: 'displayed',
+        lastRequestStatus: 'Order Recorded',
+        lastRecordedOrderQuantity: item.quantity,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+    } else {
+      // Update existing stock record
+      const stockDoc = snapshot.docs[0];
+      const currentData = stockDoc.data() as StockDetailsData;
+      
+      await updateDoc(doc(db, 'stock_details', stockDoc.id), {
+        currentStock: currentData.currentStock + item.quantity,
+        lastPurchaseDate: item.purchaseDate,
+        pricePerUnit: item.pricePerUnit,
+        lastRequestStatus: 'Order Recorded',
+        lastRecordedOrderQuantity: item.quantity,
+        updatedAt: new Date()
+      });
     }
   }
 

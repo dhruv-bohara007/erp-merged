@@ -340,5 +340,6 @@ export interface StockDetailsData {
   approvedQuantity?: number;
   poCreatedQuantity?: number;
   rejectedQuantity?: number;
-  lastRequestStatus?: 'pending' | 'approved' | 'po_created' | 'rejected';
+  lastRequestStatus?: 'pending' | 'approved' | 'po_created' | 'rejected' | 'Order Recorded';
+  lastRecordedOrderQuantity?: number;
 }
