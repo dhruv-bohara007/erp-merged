@@ -143,10 +143,12 @@ Terms: ${order.terms || 'N/A'}
     if (!confirm('Are you sure you want to delete this purchase order?')) return;
     
     try {
-      const { doc, deleteDoc } = await import('firebase/firestore');
-      const { db } = await import('@/lib/firebase');
+      const { deletePurchaseOrderWithRollback } = await import('@/services/purchaseOrderService');
       
-      await deleteDoc(doc(db, 'purchase_orders', orderId));
+      await deletePurchaseOrderWithRollback(orderId);
+      
+      // Show success message
+      alert('Purchase order deleted and related data rolled back successfully');
     } catch (error) {
       console.error('Error deleting purchase order:', error);
       alert('Failed to delete purchase order');
