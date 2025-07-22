@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import SearchableDropdown from '@/components/SearchableDropdown';
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Settings } from 'lucide-react';
 import { usePurchases, useSuppliers } from '@/hooks/useFirestore';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -19,6 +19,8 @@ import { useTaxCalculations } from '@/hooks/useTaxCalculations';
 import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 import { PurchaseStockService } from '@/services/purchaseStockService';
 import { format } from 'date-fns';
+import { useInventoryDefinitions } from '@/hooks/useInventoryDefinitions';
+import ManageInventoryCategoriesModal from './ManageInventoryCategoriesModal';
 
 interface PurchaseItem {
   id: string;
@@ -58,7 +60,8 @@ const PurchaseForm = () => {
   const { companyData } = useCompanyData();
   const { calculateTaxes } = useTaxCalculations();
 
-  const [entryMode, setEntryMode] = useState<'manual' | 'select'>('manual');
+  const [entryMode, setEntryMode] = useState<'inventory' | 'select'>('inventory');
+  const [isManageInventoryCategoriesModalOpen, setIsManageInventoryCategoriesModalOpen] = useState(false);
   const [selectedSupplierId, setSelectedSupplierId] = useState('');
   const [supplierName, setSupplierName] = useState('');
   const [supplierCountry, setSupplierCountry] = useState('');
@@ -73,6 +76,9 @@ const PurchaseForm = () => {
 
   // Fetch stock details to populate dropdowns
   const [stockDetails, setStockDetails] = useState<any[]>([]);
+  
+  // Use inventory definitions hook
+  const { inventoryDefinitions } = useInventoryDefinitions();
 
   useEffect(() => {
     const fetchStockDetails = async () => {
@@ -111,12 +117,30 @@ const PurchaseForm = () => {
     label: `${supplier.name} - ${supplier.country}`
   }));
 
-  // Get unique categories, names, and versions for dropdowns from stock_details
-  const categories = [...new Set(stockDetails.map(p => p.productCategory).filter(Boolean))];
-  const getProductNames = (category: string) => 
-    [...new Set(stockDetails.filter(p => p.productCategory === category).map(p => p.itemName).filter(Boolean))];
-  const getProductVersions = (category: string, name: string) =>
-    [...new Set(stockDetails.filter(p => p.productCategory === category && p.itemName === name).map(p => p.productVersion).filter(Boolean))];
+  // Get unique categories, names, and versions for dropdowns
+  const getCategories = () => {
+    if (entryMode === 'inventory') {
+      return [...new Set(inventoryDefinitions.map(p => p.productCategory).filter(Boolean))];
+    } else {
+      return [...new Set(stockDetails.map(p => p.productCategory).filter(Boolean))];
+    }
+  };
+  
+  const getProductNames = (category: string) => {
+    if (entryMode === 'inventory') {
+      return [...new Set(inventoryDefinitions.filter(p => p.productCategory === category).map(p => p.itemName).filter(Boolean))];
+    } else {
+      return [...new Set(stockDetails.filter(p => p.productCategory === category).map(p => p.itemName).filter(Boolean))];
+    }
+  };
+  
+  const getProductVersions = (category: string, name: string) => {
+    if (entryMode === 'inventory') {
+      return [...new Set(inventoryDefinitions.filter(p => p.productCategory === category && p.itemName === name).map(p => p.productVersion).filter(Boolean))];
+    } else {
+      return [...new Set(stockDetails.filter(p => p.productCategory === category && p.itemName === name).map(p => p.productVersion).filter(Boolean))];
+    }
+  };
 
   const addNewItem = () => {
     const newItem: PurchaseItem = {
@@ -265,12 +289,21 @@ const PurchaseForm = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
-      <div className="flex items-center space-x-4">
-        <Button variant="ghost" onClick={() => navigate('/purchases')}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Purchases
+      <div className="flex justify-between items-center">
+        <div className="flex items-center space-x-4">
+          <Button variant="ghost" onClick={() => navigate('/purchases')}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Purchases
+          </Button>
+          <h1 className="text-3xl font-bold">Add Purchase</h1>
+        </div>
+        <Button 
+          variant="outline" 
+          onClick={() => setIsManageInventoryCategoriesModalOpen(true)}
+        >
+          <Settings className="w-4 h-4 mr-2" />
+          Manage Inventory Categories
         </Button>
-        <h1 className="text-3xl font-bold">Add Purchase</h1>
       </div>
 
       <Card>
@@ -312,10 +345,10 @@ const PurchaseForm = () => {
 
           <div className="space-y-4">
             <Label>Entry Mode</Label>
-            <RadioGroup value={entryMode} onValueChange={(value: 'manual' | 'select') => setEntryMode(value)}>
+            <RadioGroup value={entryMode} onValueChange={(value: 'inventory' | 'select') => setEntryMode(value)}>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="manual" id="manual" />
-                <Label htmlFor="manual">Manual Entry</Label>
+                <RadioGroupItem value="inventory" id="inventory" />
+                <Label htmlFor="inventory">From Manage Inventory Category</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="select" id="select" />
@@ -348,71 +381,42 @@ const PurchaseForm = () => {
                 )}
               </div>
 
-              {entryMode === 'select' ? (
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label>Product Category</Label>
-                    <SearchableDropdown
-                      items={categories}
-                      value={item.productCategory || ''}
-                      onValueChange={(value) => updateItem(item.id, { 
-                        productCategory: value, 
-                        productVersion: '', 
-                        itemName: '' 
-                      })}
-                      placeholder="Select category"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Product Name</Label>
-                    <SearchableDropdown
-                      items={item.productCategory ? getProductNames(item.productCategory) : []}
-                      value={item.itemName}
-                      onValueChange={(value) => updateItem(item.id, { 
-                        itemName: value, 
-                        productVersion: '' 
-                      })}
-                      placeholder="Select product"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Product Version</Label>
-                    <SearchableDropdown
-                      items={item.productCategory && item.itemName ? getProductVersions(item.productCategory, item.itemName) : []}
-                      value={item.productVersion || ''}
-                      onValueChange={(value) => updateItem(item.id, { productVersion: value })}
-                      placeholder="Select version"
-                    />
-                  </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Product Category</Label>
+                  <SearchableDropdown
+                    items={getCategories()}
+                    value={item.productCategory || ''}
+                    onValueChange={(value) => updateItem(item.id, { 
+                      productCategory: value, 
+                      productVersion: '', 
+                      itemName: '' 
+                    })}
+                    placeholder="Select category"
+                  />
                 </div>
-              ) : (
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label>Product Category</Label>
-                    <Input
-                      value={item.productCategory}
-                      onChange={(e) => updateItem(item.id, { productCategory: e.target.value })}
-                      placeholder="Enter product category"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Product Name</Label>
-                    <Input
-                      value={item.itemName}
-                      onChange={(e) => updateItem(item.id, { itemName: e.target.value })}
-                      placeholder="Enter product name"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Product Version</Label>
-                    <Input
-                      value={item.productVersion}
-                      onChange={(e) => updateItem(item.id, { productVersion: e.target.value })}
-                      placeholder="Enter product version"
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label>Product Name</Label>
+                  <SearchableDropdown
+                    items={item.productCategory ? getProductNames(item.productCategory) : []}
+                    value={item.itemName}
+                    onValueChange={(value) => updateItem(item.id, { 
+                      itemName: value, 
+                      productVersion: '' 
+                    })}
+                    placeholder="Select product"
+                  />
                 </div>
-              )}
+                <div className="space-y-2">
+                  <Label>Product Version</Label>
+                  <SearchableDropdown
+                    items={item.productCategory && item.itemName ? getProductVersions(item.productCategory, item.itemName) : []}
+                    value={item.productVersion || ''}
+                    onValueChange={(value) => updateItem(item.id, { productVersion: value })}
+                    placeholder="Select version"
+                  />
+                </div>
+              </div>
 
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div className="space-y-2">
@@ -514,6 +518,11 @@ const PurchaseForm = () => {
           Final Add Purchase
         </Button>
       </div>
+
+      <ManageInventoryCategoriesModal
+        isOpen={isManageInventoryCategoriesModalOpen}
+        onClose={() => setIsManageInventoryCategoriesModalOpen(false)}
+      />
     </div>
   );
 };
