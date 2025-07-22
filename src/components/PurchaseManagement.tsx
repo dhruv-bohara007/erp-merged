@@ -159,7 +159,7 @@ const PurchaseManagement = () => {
     
     yPosition += 8;
     
-    // Draw line under headers
+    // Draw line under headers only
     pdf.line(margin, yPosition - 2, pageWidth - margin, yPosition - 2);
     
     pdf.setFont('helvetica', 'normal');
