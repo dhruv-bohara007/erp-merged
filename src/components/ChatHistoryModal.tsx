@@ -164,35 +164,56 @@ const ChatHistoryModal = ({
               messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex gap-3 ${
+                  className={`flex w-full mb-3 ${
                     isCurrentUserMessage(message) ? 'justify-end' : 'justify-start'
                   }`}
                 >
+                  {!isCurrentUserMessage(message) && (
+                    <div className="flex-shrink-0 mr-2">
+                      {message.senderRole === 'employee' ? (
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <User className="w-4 h-4 text-blue-600" />
+                        </div>
+                      ) : (
+                        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                          <Shield className="w-4 h-4 text-green-600" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
                   <div
-                    className={`max-w-[70%] rounded-lg p-3 ${
+                    className={`max-w-[70%] rounded-lg p-3 shadow-sm ${
                       isCurrentUserMessage(message)
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-900'
+                        ? 'bg-blue-500 text-white rounded-br-sm ml-auto'
+                        : 'bg-white text-gray-900 border rounded-bl-sm'
                     }`}
                   >
-                    <div className="flex items-center gap-2 mb-1">
-                      {message.senderRole === 'employee' ? (
-                        <User className="w-3 h-3" />
-                      ) : (
-                        <Shield className="w-3 h-3" />
-                      )}
-                      <span className="text-xs font-medium">
-                        From: {message.senderEmail}
+                    <div className={`flex items-center gap-1 mb-1 text-xs ${
+                      isCurrentUserMessage(message) ? 'text-blue-100' : 'text-gray-500'
+                    }`}>
+                      <span className="font-medium">
+                        {isCurrentUserMessage(message) ? 'You' : message.senderName || message.senderEmail.split('@')[0]}
                       </span>
-                      <span className="text-xs font-medium opacity-80">
-                        To: {isCurrentUserMessage(message) ? targetEmployeeEmail || 'Admin' : currentUser?.email}
-                      </span>
-                      <span className="text-xs opacity-70">
+                      <span className="opacity-70">•</span>
+                      <span className="opacity-70">
                         {format(message.createdAt, 'MMM dd, HH:mm')}
                       </span>
                     </div>
                     <p className="text-sm whitespace-pre-wrap">{message.message}</p>
                   </div>
+
+                  {isCurrentUserMessage(message) && (
+                    <div className="flex-shrink-0 ml-2">
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        {currentUser?.role === 'employee' ? (
+                          <User className="w-4 h-4 text-blue-600" />
+                        ) : (
+                          <Shield className="w-4 h-4 text-green-600" />
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))
             )}
