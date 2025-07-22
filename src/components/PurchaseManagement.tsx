@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,6 +48,8 @@ const PurchaseManagement = () => {
   const [editingPurchase, setEditingPurchase] = useState<any>(null);
   const [editQuantity, setEditQuantity] = useState('');
   const [editUnit, setEditUnit] = useState('');
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [viewingPurchase, setViewingPurchase] = useState<any>(null);
   
   // Get active section from URL params, default to purchase-requests
   const activeSection = searchParams.get('section') || 'purchase-requests';
@@ -55,12 +58,14 @@ const PurchaseManagement = () => {
   const companyCountry = companyData?.country || 'US';
   const companyCurrency = getCurrencyInfo(companyCountry);
 
-  const filteredPurchases = purchases.filter(purchase => {
-    const matchesSearch = (purchase.supplierName || purchase.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (purchase.itemName || '').toLowerCase().includes(searchTerm.toLowerCase());
+  // Filter purchase records (only show records with purchaseRecordId)
+  const purchaseRecords = purchases.filter(purchase => purchase.purchaseRecordId);
+
+  const filteredPurchases = purchaseRecords.filter(purchase => {
+    const matchesSearch = (purchase.supplierName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (purchase.purchaseRecordId || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || purchase.purchaseStatus === statusFilter;
-    const matchesCategory = categoryFilter === 'all' || purchase.productCategory === categoryFilter;
-    return matchesSearch && matchesStatus && matchesCategory;
+    return matchesSearch && matchesStatus;
   });
 
   const getStatusColor = (status?: string) => {
@@ -72,55 +77,25 @@ const PurchaseManagement = () => {
     }
   };
 
-  // Calculate totals using totalAmountAfterTax (preferred) or fallback to totalAmountINR/amount
+  // Calculate totals using totalAmount
   const totalAmount = filteredPurchases.reduce((sum, purchase) => {
-    const amount = purchase.totalAmountAfterTax || purchase.totalAmountINR || purchase.amount || 0;
+    const amount = purchase.totalAmount || 0;
     return sum + Math.round(amount * 100) / 100;
   }, 0);
   
   const completedAmount = filteredPurchases
     .filter(p => p.purchaseStatus === 'completed')
     .reduce((sum, purchase) => {
-      const amount = purchase.totalAmountAfterTax || purchase.totalAmountINR || purchase.amount || 0;
+      const amount = purchase.totalAmount || 0;
       return sum + Math.round(amount * 100) / 100;
     }, 0);
   
   const pendingAmount = filteredPurchases
     .filter(p => p.purchaseStatus === 'pending')
     .reduce((sum, purchase) => {
-      const amount = purchase.totalAmountAfterTax || purchase.totalAmountINR || purchase.amount || 0;
+      const amount = purchase.totalAmount || 0;
       return sum + Math.round(amount * 100) / 100;
     }, 0);
-
-  // Get unique categories for filter
-  const categories = [...new Set(purchases.map(p => p.productCategory).filter(Boolean))];
-
-  // Group purchases by product for stock details
-  const stockDetails = purchases.reduce((acc, purchase) => {
-    if (purchase.itemName || purchase.productCategory) {
-      const key = `${purchase.productCategory || 'Uncategorized'}-${purchase.itemName || 'Unknown'}-${purchase.productVersion || 'N/A'}`;
-      if (!acc[key]) {
-        acc[key] = {
-          productCategory: purchase.productCategory || 'Uncategorized',
-          itemName: purchase.itemName || 'Unknown',
-          productVersion: purchase.productVersion || 'N/A',
-          currentStock: 0,
-          totalValue: 0,
-          lastPurchaseDate: purchase.purchaseDate || purchase.expenseDate,
-          unit: purchase.unit || 'pcs'
-        };
-      }
-      acc[key].currentStock += purchase.quantity || 0;
-      // Use totalAmountAfterTax for Total Value calculation
-      acc[key].totalValue += Math.round((purchase.totalAmountAfterTax || purchase.totalAmountINR || purchase.amount || 0) * 100) / 100;
-      
-      const purchaseDate = purchase.purchaseDate || purchase.expenseDate;
-      if (purchaseDate && purchaseDate > acc[key].lastPurchaseDate) {
-        acc[key].lastPurchaseDate = purchaseDate;
-      }
-    }
-    return acc;
-  }, {} as Record<string, any>);
 
   // Format currency with company currency symbol and 2 decimal places
   const formatCurrency = (amount: number) => {
@@ -128,43 +103,54 @@ const PurchaseManagement = () => {
   };
 
   const handleViewDetails = (purchase: any) => {
-    // TODO: Implement view details functionality
-    console.log('View details for purchase:', purchase);
-    alert(`Viewing details for purchase: ${purchase.id}`);
+    setViewingPurchase(purchase);
+    setViewModalOpen(true);
   };
 
-  // Handle edit purchase
-  const handleEditPurchase = (purchase: any) => {
-    setEditingPurchase(purchase);
-    setEditQuantity(purchase.quantity?.toString() || '');
-    setEditUnit(purchase.unit || '');
-    setEditModalOpen(true);
-  };
+  // Handle download purchase record
+  const handleDownloadPurchaseRecord = (purchase: any) => {
+    // Create a simple text-based purchase record
+    const content = `
+PURCHASE RECORD
+===============
 
-  // Handle save edit
-  const handleSaveEdit = async () => {
-    if (!editingPurchase || !editQuantity || !editUnit) {
-      alert('Please fill in all fields');
-      return;
-    }
+Purchase Record ID: ${purchase.purchaseRecordId}
+Supplier: ${purchase.supplierName}
+Date: ${purchase.purchaseDate?.toLocaleDateString() || 'N/A'}
+Currency: ${purchase.companyCurrency}
 
-    try {
-      await updatePurchase(editingPurchase.id, {
-        quantity: parseFloat(editQuantity),
-        unit: editUnit,
-        updatedAt: new Date()
-      });
-      setEditModalOpen(false);
-      setEditingPurchase(null);
-    } catch (error) {
-      console.error('Error updating purchase:', error);
-      alert('Failed to update purchase. Please try again.');
-    }
+ITEMS:
+------
+${purchase.items?.map((item: any, index: number) => `
+${index + 1}. ${item.productCategory} - ${item.itemName} (${item.productVersion})
+   Quantity: ${item.quantity} ${item.unit}
+   Price per Unit: ${formatCurrency(item.pricePerUnit)}
+   Amount: ${formatCurrency(item.amount)}
+`).join('') || 'No items'}
+
+SUMMARY:
+--------
+Subtotal: ${formatCurrency(purchase.subtotal || 0)}
+Tax: ${formatCurrency(purchase.totalTaxAmount || 0)}
+Total Amount: ${formatCurrency(purchase.totalAmount || 0)}
+
+${purchase.description ? `Description: ${purchase.description}` : ''}
+    `;
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Purchase_Record_${purchase.purchaseRecordId}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   // Handle delete purchase
   const handleDeletePurchase = async (purchaseId: string) => {
-    if (window.confirm('Are you sure you want to delete this purchase?')) {
+    if (window.confirm('Are you sure you want to delete this purchase record?')) {
       try {
         await deletePurchase(purchaseId);
       } catch (error) {
@@ -226,7 +212,7 @@ const PurchaseManagement = () => {
     <PurchaseRequestsAdmin />
   );
 
-  // Purchase Record Content - Removed Actions column
+  // Purchase Record Content - Updated to show purchase records
   const renderPurchaseRecord = () => (
     <>
       {/* Summary Cards */}
@@ -235,7 +221,7 @@ const PurchaseManagement = () => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Purchases</p>
+                <p className="text-sm font-medium text-gray-600">Total Purchase Records</p>
                 <p className="text-2xl font-bold">{formatCurrency(totalAmount)}</p>
               </div>
               <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
@@ -277,8 +263,8 @@ const PurchaseManagement = () => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Items</p>
-                <p className="text-2xl font-bold">{Object.keys(stockDetails).length}</p>
+                <p className="text-sm font-medium text-gray-600">Total Records</p>
+                <p className="text-2xl font-bold">{filteredPurchases.length}</p>
               </div>
               <div className="h-8 w-8 bg-purple-100 rounded-full flex items-center justify-center">
                 <TrendingUp className="h-4 w-4 text-purple-600" />
@@ -288,16 +274,16 @@ const PurchaseManagement = () => {
         </Card>
       </div>
 
-      {/* Tabs for Recent Purchases and Stock Details */}
+      {/* Purchase Records Table */}
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <CardTitle>Purchase Data</CardTitle>
+            <CardTitle>Purchase Records</CardTitle>
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
-                  placeholder="Search purchases..."
+                  placeholder="Search records..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 w-full sm:w-64"
@@ -314,91 +300,78 @@ const PurchaseManagement = () => {
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-full sm:w-40">
-                  <SelectValue placeholder="Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map(category => (
-                    <SelectItem key={category} value={category}>{category}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
           </div>
         </CardHeader>
         <CardContent>
           <div className="w-full">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Purchase Record ID</TableHead>
+                    <TableHead>Supplier Name</TableHead>
+                    <TableHead>Total Amount</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredPurchases.length === 0 ? (
                     <TableRow>
-                      <TableHead>Supplier Name</TableHead>
-                      <TableHead>Item Name</TableHead>
-                      <TableHead>Quantity Bought</TableHead>
-                      <TableHead>Unit</TableHead>
-                       <TableHead>Price per Unit</TableHead>
-                       <TableHead>Total Amount</TableHead>
-                       <TableHead>Date</TableHead>
-                       <TableHead>Actions</TableHead>
+                      <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                        No purchase records found
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                     {filteredPurchases.length === 0 ? (
-                       <TableRow>
-                         <TableCell colSpan={8} className="text-center py-8 text-gray-500">
-                           No purchases found
-                         </TableCell>
-                       </TableRow>
-                    ) : (
-                      filteredPurchases.map((purchase) => {
-                        const displayItemName = purchase.productCategory && purchase.itemName && purchase.productVersion
-                          ? `${purchase.productCategory}-${purchase.itemName} ${purchase.productVersion}`
-                          : purchase.itemName || purchase.title || 'N/A';
-                        
-                        return (
-                          <TableRow key={purchase.id}>
-                            <TableCell>
-                              <div className="font-medium">{purchase.supplierName || 'N/A'}</div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="font-medium">{displayItemName}</div>
-                            </TableCell>
-                            <TableCell>
-                              <div>{purchase.quantity || 'N/A'}</div>
-                            </TableCell>
-                            <TableCell>
-                              <div>{purchase.unit || 'N/A'}</div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="font-medium">{formatCurrency(purchase.pricePerUnit || 0)}</div>
-                            </TableCell>
-                           <TableCell>
-                               <div className="font-medium">{formatCurrency(purchase.totalAmountAfterTax || purchase.amount || 0)}</div>
-                             </TableCell>
-                             <TableCell>
-                               <div className="flex items-center text-sm">
-                                 <Calendar className="w-3 h-3 mr-1 text-gray-400" />
-                                 {(purchase.purchaseDate || purchase.expenseDate)?.toLocaleDateString() || 'N/A'}
-                               </div>
-                             </TableCell>
-                             <TableCell>
-                               <Button
-                                 variant="destructive"
-                                 size="sm"
-                                 onClick={() => handleDeletePurchase(purchase.id)}
-                               >
-                                 <Trash2 className="w-4 h-4" />
-                               </Button>
-                             </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+                  ) : (
+                    filteredPurchases.map((purchase) => (
+                      <TableRow key={purchase.id}>
+                        <TableCell>
+                          <div className="font-medium">{purchase.purchaseRecordId}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">{purchase.supplierName || 'N/A'}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">{formatCurrency(purchase.totalAmount || 0)}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center text-sm">
+                            <Calendar className="w-3 h-3 mr-1 text-gray-400" />
+                            {purchase.purchaseDate?.toLocaleDateString() || 'N/A'}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewDetails(purchase)}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDownloadPurchaseRecord(purchase)}
+                            >
+                              <Download className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDeletePurchase(purchase.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -431,45 +404,86 @@ const PurchaseManagement = () => {
       {activeSection === 'purchase-order' && <PurchaseOrderView />}
       {activeSection === 'purchase-record' && renderPurchaseRecord()}
 
-      {/* Edit Purchase Modal */}
-      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-        <DialogContent className="max-w-md">
+      {/* View Purchase Record Modal */}
+      <Dialog open={viewModalOpen} onOpenChange={setViewModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Purchase</DialogTitle>
+            <DialogTitle>Purchase Record Details</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="editQuantity">Quantity</Label>
-              <Input
-                id="editQuantity"
-                type="number"
-                value={editQuantity}
-                onChange={(e) => setEditQuantity(e.target.value)}
-                placeholder="Enter quantity"
-              />
+          {viewingPurchase && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="font-semibold">Purchase Record ID</Label>
+                  <p>{viewingPurchase.purchaseRecordId}</p>
+                </div>
+                <div>
+                  <Label className="font-semibold">Supplier Name</Label>
+                  <p>{viewingPurchase.supplierName}</p>
+                </div>
+                <div>
+                  <Label className="font-semibold">Purchase Date</Label>
+                  <p>{viewingPurchase.purchaseDate?.toLocaleDateString() || 'N/A'}</p>
+                </div>
+                <div>
+                  <Label className="font-semibold">Currency</Label>
+                  <p>{viewingPurchase.companyCurrency}</p>
+                </div>
+              </div>
+
+              <div>
+                <Label className="font-semibold">Items</Label>
+                <div className="mt-2 space-y-2">
+                  {viewingPurchase.items?.map((item: any, index: number) => (
+                    <div key={index} className="p-3 border rounded-lg">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                        <div>
+                          <span className="font-medium">Product:</span>
+                          <p>{item.productCategory} - {item.itemName} ({item.productVersion})</p>
+                        </div>
+                        <div>
+                          <span className="font-medium">Quantity:</span>
+                          <p>{item.quantity} {item.unit}</p>
+                        </div>
+                        <div>
+                          <span className="font-medium">Price per Unit:</span>
+                          <p>{formatCurrency(item.pricePerUnit)}</p>
+                        </div>
+                        <div>
+                          <span className="font-medium">Amount:</span>
+                          <p>{formatCurrency(item.amount)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )) || <p>No items</p>}
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <Label className="font-semibold">Subtotal</Label>
+                    <p>{formatCurrency(viewingPurchase.subtotal || 0)}</p>
+                  </div>
+                  <div>
+                    <Label className="font-semibold">Tax</Label>
+                    <p>{formatCurrency(viewingPurchase.totalTaxAmount || 0)}</p>
+                  </div>
+                  <div>
+                    <Label className="font-semibold">Total Amount</Label>
+                    <p className="text-lg font-bold">{formatCurrency(viewingPurchase.totalAmount || 0)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {viewingPurchase.description && (
+                <div>
+                  <Label className="font-semibold">Description</Label>
+                  <p>{viewingPurchase.description}</p>
+                </div>
+              )}
             </div>
-            <div>
-              <Label htmlFor="editUnit">Unit</Label>
-              <Select value={editUnit} onValueChange={setEditUnit}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select unit" />
-                </SelectTrigger>
-                <SelectContent>
-                  {['pcs', 'kg', 'lbs', 'grams', 'liters', 'gallons', 'meters', 'feet', 'boxes', 'bottles', 'packets', 'sets', 'units'].map(unit => (
-                    <SelectItem key={unit} value={unit}>{unit}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setEditModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleSaveEdit}>
-                Save Changes
-              </Button>
-            </div>
-          </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

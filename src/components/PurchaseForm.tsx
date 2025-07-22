@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -188,56 +187,60 @@ const PurchaseForm = () => {
       const { amountInINR, rate } = await convertToINR(totalAmount, companyCountry);
       const totalAmountINRFormatted = Math.round(amountInINR * 100) / 100;
 
-      // Process each item - only save to purchase_records
-      for (const item of items) {
-        // Convert item price to INR with 2 decimal places
-        const { amountInINR: itemAmountInINR } = await convertToINR(item.amount, companyCountry);
-        const { amountInINR: priceInINR } = await convertToINR(item.pricePerUnit, companyCountry);
-        const { amountInINR: totalAmountAfterTaxINR } = await convertToINR(totalAmount, companyCountry);
-        
-        const itemAmountINRFormatted = Math.round(itemAmountInINR * 100) / 100;
-        const priceInINRFormatted = Math.round(priceInINR * 100) / 100;
-        const totalAmountAfterTaxFormatted = Math.round(totalAmountAfterTaxINR * 100) / 100;
-
-        // Create purchase record with all the new fields
-        const purchaseRecord = {
-          title: `${item.itemName} from ${supplierName}`,
-          supplierName,
-          supplierCountry,
-          supplierCurrency,
-          companyCountry,
+      // Create a single purchase record document with all items
+      const purchaseRecord = {
+        purchaseRecordId: `PR-${Date.now().toString().slice(-8)}`,
+        supplierName,
+        supplierCountry,
+        supplierCurrency,
+        companyCountry,
+        items: items.map(item => ({
+          productCategory: item.productCategory,
           itemName: item.itemName,
-          productCategory: item.productCategory, // Save product category
-          productVersion: item.productVersion, // Save product version
+          productVersion: item.productVersion,
           quantity: item.quantity,
           unit: item.unit,
-          pricePerUnit: Math.round(item.pricePerUnit * 100) / 100, // Store with 2 decimal places
-          discount: (Math.round(item.quantity * item.pricePerUnit * item.discountRate / 100 * 100) / 100).toString(),
-          totalAmount: Math.round(item.amount * 100) / 100, // Store with 2 decimal places
-          totalAmountAfterTax: Math.round(totalAmount * 100) / 100, // Total Amount After Tax in company currency
-          totalAmountAfterTaxINR: totalAmountAfterTaxFormatted, // Total Amount After Tax in INR
-          totalAmountINR: itemAmountINRFormatted,
-          companyCurrency: companyCurrency.code,
-          exchangeRateUsed: rate,
-          description,
-          category: 'Purchase',
-          amount: Math.round(item.amount * 100) / 100, // Store with 2 decimal places
-          expenseDate: new Date(purchaseDate),
-          purchaseDate: new Date(purchaseDate),
-          status: 'recorded' as const,
-          purchaseStatus: 'completed' as const
-        };
+          pricePerUnit: Math.round(item.pricePerUnit * 100) / 100,
+          discountRate: item.discountRate,
+          discount: Math.round(item.quantity * item.pricePerUnit * item.discountRate / 100 * 100) / 100,
+          amount: Math.round(item.amount * 100) / 100
+        })),
+        subtotal: Math.round(subtotal * 100) / 100,
+        totalTaxAmount: Math.round(totalTaxAmount * 100) / 100,
+        totalAmount: Math.round(totalAmount * 100) / 100,
+        totalAmountINR: totalAmountINRFormatted,
+        companyCurrency: companyCurrency.code,
+        exchangeRateUsed: rate,
+        description,
+        category: 'Purchase',
+        purchaseDate: new Date(purchaseDate),
+        status: 'recorded' as const,
+        purchaseStatus: 'completed' as const
+      };
 
-        // Add purchase record to database
-        await addPurchase(purchaseRecord);
+      // Add single purchase record to database
+      await addPurchase(purchaseRecord);
 
-        // Update stock levels using the service - create a typed record with required fields
+      // Update stock levels for each item using the service
+      for (const item of items) {
         const stockUpdateRecord = {
           ...purchaseRecord,
+          // Override with individual item data for stock update
+          itemName: item.itemName,
+          productCategory: item.productCategory,
+          productVersion: item.productVersion,
+          quantity: item.quantity,
+          unit: item.unit,
+          pricePerUnit: item.pricePerUnit,
+          amount: item.amount,
+          totalAmountAfterTax: totalAmount,
+          totalAmountAfterTaxINR: totalAmountINRFormatted,
+          totalAmountINR: Math.round((await convertToINR(item.amount, companyCountry)).amountInINR * 100) / 100,
           id: '', // Will be set by Firebase
           createdAt: new Date(),
           updatedAt: new Date()
         };
+        
         await PurchaseStockService.updateStockOnPurchase(
           stockUpdateRecord,
           currentUser.companyId
