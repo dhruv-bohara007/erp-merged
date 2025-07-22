@@ -225,6 +225,18 @@ export interface Purchase {
   updatedAt: Date;
 }
 
+// Purchase item interface for items array in purchase records
+export interface PurchaseItem {
+  productCategory: string;
+  itemName: string;
+  productVersion: string;
+  quantity: number;
+  unit: string;
+  pricePerUnit: number;
+  discount?: string;
+  amount: number;
+}
+
 // Note: This interface is used for the purchase_records collection (migrated from expenses)
 export interface Expense {
   id: string;
@@ -240,6 +252,7 @@ export interface Expense {
   receipt?: string;
   status: 'recorded' | 'approved' | 'reimbursed';
   // Purchase-specific fields (for when used as Purchase)
+  purchaseRecordId?: string; // Added for purchase record identification
   supplierName?: string;
   supplierCountry?: string; // New field for supplier country
   supplierCurrency?: string; // New field for supplier currency
@@ -260,6 +273,10 @@ export interface Expense {
   exchangeRateUsed?: number;
   purchaseDate?: Date;
   purchaseStatus?: 'completed' | 'pending' | 'cancelled';
+  // New fields for storing multiple items in a single purchase record
+  items?: PurchaseItem[]; // Array of purchase items
+  subtotal?: number; // Subtotal of all items
+  totalTaxAmount?: number; // Total tax amount
   createdAt: Date;
   updatedAt: Date;
 }
