@@ -51,7 +51,7 @@ const ChatHistoryModal = ({
   const { currentUser } = useAuth();
   const { toast } = useToast();
 
-  // Fetch messages when modal opens - get all messages for this item where current user is a participant
+  // Fetch messages when modal opens - get all messages for this product where current user is a participant
   useEffect(() => {
     if (!open || !currentUser?.companyId || !currentUser?.email) return;
 
@@ -59,7 +59,8 @@ const ChatHistoryModal = ({
     const q = query(
       messagesCollection,
       where('companyId', '==', currentUser.companyId),
-      where('itemId', '==', itemId),
+      where('itemName', '==', itemName),
+      where('productCategory', '==', productCategory),
       where('participants', 'array-contains', currentUser.email)
     );
 
@@ -92,7 +93,7 @@ const ChatHistoryModal = ({
     });
 
     return () => unsubscribe();
-  }, [open, currentUser?.companyId, currentUser?.email, itemId]);
+  }, [open, currentUser?.companyId, currentUser?.email, itemName, productCategory]);
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !currentUser?.companyId || !currentUser?.email || loading) return;
