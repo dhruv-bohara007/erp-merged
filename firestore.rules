@@ -316,17 +316,13 @@ service cloud.firestore {
       // Employees can create messages for their company where they are the sender
       allow create: if isEmployeeUser() && getUserData().companyId != null &&
         request.resource.data.companyId == getUserData().companyId &&
-        request.resource.data.senderEmail == getUserData().email;
+        request.resource.data.senderEmail == getUserData().email &&
+        getUserData().email in request.resource.data.participants;
       
-      // Employees can read messages from their company where they are sender or receiver
+      // Employees can read messages from their company where they are in participants array
       allow read: if isEmployeeUser() && getUserData().companyId != null &&
-        resource != null &&
-        resource.data.companyId == getUserData().companyId &&
-        (resource.data.senderEmail == getUserData().email || 
-         resource.data.receiverEmail == getUserData().email);
-      
-      // Allow employees to query messages (resource == null during queries)
-      allow read: if isEmployeeUser() && getUserData().companyId != null;
+        (resource == null || (resource.data.companyId == getUserData().companyId &&
+         getUserData().email in resource.data.participants));
       
       allow read, write: if isSuperAdmin();
     }

@@ -20,6 +20,7 @@ interface ChatMessage {
   senderEmail: string;
   senderName: string;
   receiverEmail: string;
+  participants: string[]; // Array containing both sender and receiver emails
   requestId: string; // Same as itemId for request-specific chats
   message: string;
   createdAt: Date;
@@ -50,15 +51,16 @@ const ChatHistoryModal = ({
   const { currentUser } = useAuth();
   const { toast } = useToast();
 
-  // Fetch messages when modal opens - get all messages for this item to show complete conversation
+  // Fetch messages when modal opens - get all messages for this item where current user is a participant
   useEffect(() => {
-    if (!open || !currentUser?.companyId) return;
+    if (!open || !currentUser?.companyId || !currentUser?.email) return;
 
     const messagesCollection = collection(db, 'messages');
     const q = query(
       messagesCollection,
       where('companyId', '==', currentUser.companyId),
-      where('itemId', '==', itemId)
+      where('itemId', '==', itemId),
+      where('participants', 'array-contains', currentUser.email)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -90,21 +92,29 @@ const ChatHistoryModal = ({
     });
 
     return () => unsubscribe();
-  }, [open, currentUser?.companyId, itemId]);
+  }, [open, currentUser?.companyId, currentUser?.email, itemId]);
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !currentUser?.companyId || loading) return;
+    if (!newMessage.trim() || !currentUser?.companyId || !currentUser?.email || loading) return;
 
     setLoading(true);
     try {
+      const senderEmail = currentUser.email;
+      const receiverEmail = isAdmin 
+        ? (targetEmployeeEmail || 'employee') 
+        : 'mahesh9000@gmail.com'; // Use actual admin email instead of placeholder
+      
+      const participants = [senderEmail, receiverEmail];
+
       await addDoc(collection(db, 'messages'), {
         companyId: currentUser.companyId,
         itemId: itemId,
         itemName: itemName,
         productCategory: productCategory,
-        senderEmail: currentUser.email,
+        senderEmail: senderEmail,
         senderName: currentUser.displayName || currentUser.email?.split('@')[0] || 'Unknown',
-        receiverEmail: targetEmployeeEmail || (isAdmin ? 'employee' : 'admin'), // Will need proper receiver email
+        receiverEmail: receiverEmail,
+        participants: participants, // Array for easier querying
         requestId: itemId, // Using itemId as requestId for request-specific chats
         message: newMessage.trim(),
         createdAt: serverTimestamp()
