@@ -13,8 +13,10 @@ import {
   Eye,
   EyeOff,
   Edit,
-  Trash2
+  Trash2,
+  Settings
 } from 'lucide-react';
+import ManageInventoryCategoriesModal from './ManageInventoryCategoriesModal';
 
 import { useCompanyData } from '@/hooks/useCompanyData';
 import { collection, doc, setDoc, getDocs, query, where, updateDoc, deleteDoc } from 'firebase/firestore';
@@ -52,6 +54,7 @@ const StockDetails = () => {
   const [stockDetails, setStockDetails] = useState<StockDetailsData[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingFields, setEditingFields] = useState<{[key: string]: {minRequired?: string, safeQuantityLimit?: string}}>({});
+  const [isManageInventoryCategoriesModalOpen, setIsManageInventoryCategoriesModalOpen] = useState(false);
   
   
   const { companyData } = useCompanyData();
@@ -451,6 +454,15 @@ const StockDetails = () => {
           <h1 className="text-3xl font-bold">Inventory Management</h1>
           <p className="text-gray-600 mt-2">Track and manage your inventory stock levels</p>
         </div>
+        <div>
+          <Button 
+            variant="outline" 
+            onClick={() => setIsManageInventoryCategoriesModalOpen(true)}
+          >
+            <Settings className="w-4 h-4 mr-2" />
+            Manage Inventory Categories
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -712,6 +724,11 @@ const StockDetails = () => {
           </div>
         </CardContent>
       </Card>
+
+      <ManageInventoryCategoriesModal
+        isOpen={isManageInventoryCategoriesModalOpen}
+        onClose={() => setIsManageInventoryCategoriesModalOpen(false)}
+      />
     </div>
   );
 };
