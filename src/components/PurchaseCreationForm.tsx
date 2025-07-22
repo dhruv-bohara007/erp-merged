@@ -448,13 +448,28 @@ const PurchaseCreationForm = () => {
       // Update selected purchase requests status to 'PO Created' if the order is completed
       if (status === 'completed' && selectedRequestIds.length > 0) {
         const { doc, updateDoc } = await import('firebase/firestore');
+        const { syncPurchaseRequestStatus } = await import('@/services/stockSyncService');
         
         const updatePromises = selectedRequestIds.map(async (requestId) => {
           const requestRef = doc(db, 'purchase_requests', requestId);
-          return updateDoc(requestRef, {
+          await updateDoc(requestRef, {
             status: 'PO Created',
             updatedAt: new Date()
           });
+
+          // Find the matching request to get product details for sync
+          const matchingRequest = approvedRequests.find(req => req.id === requestId);
+          if (matchingRequest) {
+            // Sync with stock_details to update poCreatedQuantity and lastRequestStatus
+            await syncPurchaseRequestStatus(
+              currentUser.companyId,
+              matchingRequest.productCategory,
+              matchingRequest.itemName,
+              matchingRequest.productVersion,
+              'PO Created',
+              matchingRequest.quantityRequired
+            );
+          }
         });
         
         await Promise.all(updatePromises);
