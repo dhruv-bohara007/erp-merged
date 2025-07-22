@@ -65,39 +65,64 @@ export class PurchaseStockService {
    * Updates stock when a purchase record is deleted
    */
   static async updateStockOnPurchaseDelete(purchaseRecord: Expense, companyId: string): Promise<void> {
-    if (!purchaseRecord.productCategory || !purchaseRecord.itemName || !purchaseRecord.productVersion) {
-      console.warn('Missing product details for stock update');
-      return;
-    }
-
     try {
-      const stockDetailsRef = collection(db, 'stock_details');
-      const q = query(
-        stockDetailsRef,
-        where('companyId', '==', companyId),
-        where('productCategory', '==', purchaseRecord.productCategory),
-        where('itemName', '==', purchaseRecord.itemName),
-        where('productVersion', '==', purchaseRecord.productVersion)
-      );
-
-      const snapshot = await getDocs(q);
-      const quantity = purchaseRecord.quantity || 0;
-
-      if (!snapshot.empty) {
-        const stockDoc = snapshot.docs[0];
-        const currentData = stockDoc.data() as StockDetailsData;
-        
-        // Subtract quantity but ensure stock doesn't go below 0
-        const newStock = Math.max(0, currentData.currentStock - quantity);
-        
-        await updateDoc(doc(db, 'stock_details', stockDoc.id), {
-          currentStock: newStock,
-          updatedAt: new Date()
+      // Handle purchase records with items array (multiple items)
+      if (purchaseRecord.items && purchaseRecord.items.length > 0) {
+        for (const item of purchaseRecord.items) {
+          await this.updateStockForItem(companyId, {
+            productCategory: item.productCategory,
+            itemName: item.itemName,
+            productVersion: item.productVersion,
+            quantity: item.quantity
+          });
+        }
+      } 
+      // Handle single-item purchase records (backwards compatibility)
+      else if (purchaseRecord.productCategory && purchaseRecord.itemName && purchaseRecord.productVersion) {
+        await this.updateStockForItem(companyId, {
+          productCategory: purchaseRecord.productCategory,
+          itemName: purchaseRecord.itemName,
+          productVersion: purchaseRecord.productVersion,
+          quantity: purchaseRecord.quantity || 0
         });
+      } else {
+        console.warn('Missing product details for stock update');
       }
     } catch (error) {
       console.error('Error updating stock on purchase delete:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Helper method to update stock for a single item
+   */
+  private static async updateStockForItem(
+    companyId: string, 
+    item: { productCategory: string; itemName: string; productVersion: string; quantity: number }
+  ): Promise<void> {
+    const stockDetailsRef = collection(db, 'stock_details');
+    const q = query(
+      stockDetailsRef,
+      where('companyId', '==', companyId),
+      where('productCategory', '==', item.productCategory),
+      where('itemName', '==', item.itemName),
+      where('productVersion', '==', item.productVersion)
+    );
+
+    const snapshot = await getDocs(q);
+
+    if (!snapshot.empty) {
+      const stockDoc = snapshot.docs[0];
+      const currentData = stockDoc.data() as StockDetailsData;
+      
+      // Subtract quantity but ensure stock doesn't go below 0
+      const newStock = Math.max(0, currentData.currentStock - item.quantity);
+      
+      await updateDoc(doc(db, 'stock_details', stockDoc.id), {
+        currentStock: newStock,
+        updatedAt: new Date()
+      });
     }
   }
 
