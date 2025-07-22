@@ -213,8 +213,7 @@ const PurchaseForm = () => {
           quantity: item.quantity,
           unit: item.unit,
           pricePerUnit: Math.round(item.pricePerUnit * 100) / 100,
-          discountRate: item.discountRate,
-          discount: Math.round(item.quantity * item.pricePerUnit * item.discountRate / 100 * 100) / 100,
+          discount: `${item.discountRate}%`, // Convert to string format for PurchaseItem interface
           amount: Math.round(item.amount * 100) / 100
         })),
         subtotal: Math.round(subtotal * 100) / 100,
