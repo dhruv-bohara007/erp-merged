@@ -16,14 +16,17 @@ import {
   XCircle,
   Search,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Trash2
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { collection, query, where, onSnapshot, limit } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, limit, doc, deleteDoc, updateDoc, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useToast } from '@/hooks/use-toast';
 
 const EmployeeDashboard = () => {
   const { currentUser } = useAuth();
+  const { toast } = useToast();
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [inventoryData, setInventoryData] = useState([]);
   const [stockDetailsData, setStockDetailsData] = useState([]);
@@ -264,6 +267,92 @@ const EmployeeDashboard = () => {
     }
   };
 
+  // Function to delete a pending purchase request and rollback stock
+  const handleDeleteRequest = async (requestId: string) => {
+    try {
+      // Find the request to get details for rollback
+      const requestToDelete = purchaseRequests.find(req => req.id === requestId);
+      if (!requestToDelete) {
+        toast({
+          title: "Error",
+          description: "Request not found",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (requestToDelete.status !== 'pending') {
+        toast({
+          title: "Cannot Delete",
+          description: "Only pending requests can be deleted",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Get the purchase request details from Firestore
+      const purchaseRequestsQuery = query(
+        collection(db, 'purchase_requests'),
+        where('companyId', '==', currentUser?.companyId),
+        where('employeeEmail', '==', currentUser?.email)
+      );
+      const requestSnapshot = await getDocs(purchaseRequestsQuery);
+      const requestDoc = requestSnapshot.docs.find(doc => doc.id === requestId);
+      
+      if (!requestDoc) {
+        toast({
+          title: "Error",
+          description: "Request not found in database",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const requestData = requestDoc.data();
+
+      // Find and update the corresponding stock_details to rollback
+      const stockDetailsQuery = query(
+        collection(db, 'stock_details'),
+        where('companyId', '==', currentUser?.companyId),
+        where('productCategory', '==', requestData.productCategory),
+        where('itemName', '==', requestData.itemName),
+        where('productVersion', '==', requestData.productVersion)
+      );
+      
+      const stockSnapshot = await getDocs(stockDetailsQuery);
+      
+      if (!stockSnapshot.empty) {
+        const stockDoc = stockSnapshot.docs[0];
+        const stockData = stockDoc.data();
+        
+        // Rollback: remove the pending quantity
+        const newPendingQuantity = Math.max(0, (stockData.pendingQuantity || 0) - (requestData.quantityRequired || 0));
+        
+        await updateDoc(doc(db, 'stock_details', stockDoc.id), {
+          pendingQuantity: newPendingQuantity,
+          lastRequestStatus: newPendingQuantity > 0 ? 'pending' : null,
+          updatedAt: new Date()
+        });
+      }
+
+      // Delete the purchase request
+      await deleteDoc(doc(db, 'purchase_requests', requestId));
+
+      toast({
+        title: "Request Deleted",
+        description: "Purchase request has been deleted and stock rolled back",
+      });
+
+    } catch (error) {
+      console.error('Error deleting purchase request:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete purchase request",
+        variant: "destructive"
+      });
+    }
+  };
+
   // Filter and sort inventory data with pagination - use stockDetailsData for new columns
   const filteredInventory = stockDetailsData
     .filter(item => 
@@ -498,9 +587,22 @@ const EmployeeDashboard = () => {
                               </p>
                             </div>
                           </div>
-                          <Badge variant={getRequestStatusBadge(request.status)}>
-                            {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={getRequestStatusBadge(request.status)}>
+                              {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                            </Badge>
+                            {request.status === 'pending' && (
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleDeleteRequest(request.id)}
+                                className="h-6 w-6 p-0"
+                                title="Delete pending request"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       ))}
                       {currentRequests.length === 0 && (
