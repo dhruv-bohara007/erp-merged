@@ -11,6 +11,7 @@ export const usePaymentSync = () => {
   useEffect(() => {
     if (!invoices.length || !payments.length || isProcessingRef.current) return;
 
+    // With new structure, payments array contains one document per invoice
     const invoicesWithPayments = invoices.filter(invoice => 
       payments.some(payment => payment.invoiceId === invoice.id)
     );
@@ -22,18 +23,19 @@ export const usePaymentSync = () => {
       
       try {
         for (const invoice of invoicesWithPayments) {
-          // Create a more specific cache key that includes payment amounts
-          const invoicePayments = payments.filter(p => p.invoiceId === invoice.id);
-          const totalPaid = invoicePayments.reduce((sum, p) => sum + (p.originalPaymentAmount || 0), 0);
-          const cacheKey = `${invoice.id}-${totalPaid.toFixed(2)}-${(invoice.paidUSD || 0).toFixed(2)}`;
+          const paymentDoc = payments.find(p => p.invoiceId === invoice.id);
+          if (!paymentDoc) continue;
+
+          // Create cache key based on payment document's updated timestamp and total amounts
+          const cacheKey = `${invoice.id}-${paymentDoc.totalPaidUSD.toFixed(2)}-${paymentDoc.totalPaidINR.toFixed(2)}-${paymentDoc.updatedAt.toMillis()}`;
           
           // Skip if already processed with current payment state
           if (processedInvoicesRef.current.has(cacheKey)) continue;
 
-          // Calculate totals using originalPaymentAmount for proper aggregation
-          const paidUSD = invoicePayments.reduce((sum, p) => sum + (p.originalPaymentAmount || 0), 0);
-          const paidINR = invoicePayments.reduce((sum, p) => sum + (p.amount || 0), 0);
-          const pendingINR = Math.max(0, (invoice.totalAmountINR || 0) - paidINR);
+          // Use totals from payment document
+          const paidUSD = paymentDoc.totalPaidUSD || 0;
+          const paidINR = paymentDoc.totalPaidINR || 0;
+          const pendingINR = paymentDoc.pendingINR || 0;
 
           // Determine status
           const companyAmount = invoice.companyAmount || 0;
@@ -41,7 +43,7 @@ export const usePaymentSync = () => {
           const isOverdue = new Date() > dueDate;
           
           let status: 'draft' | 'sent' | 'paid' | 'overdue' | 'pending';
-          if (paidUSD >= companyAmount || (companyAmount - paidUSD) <= 0.01) { // Using small threshold
+          if (paidUSD >= companyAmount || (companyAmount - paidUSD) <= 0.01) {
             status = 'paid';
           } else if (paidUSD > 0 && !isOverdue) {
             status = 'pending';
@@ -53,7 +55,7 @@ export const usePaymentSync = () => {
             status = invoice.status || 'draft';
           }
 
-          // Check if update is actually needed (with tolerance for floating point)
+          // Check if update is actually needed
           const needsUpdate = 
             Math.abs((invoice.paidUSD || 0) - paidUSD) > 0.01 ||
             Math.abs((invoice.paidINR || 0) - paidINR) > 0.01 ||

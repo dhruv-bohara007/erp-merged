@@ -16,7 +16,7 @@ import {
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { PurchaseStockService } from '@/services/purchaseStockService';
-import type { Supplier, Purchase, Expense, InventoryItem } from '@/types/firestore';
+import type { Supplier, Purchase, Expense, InventoryItem, Payment } from '@/types/firestore';
 
 export interface Invoice {
   id: string;
@@ -132,29 +132,6 @@ export interface Client {
   updatedAt: Date;
 }
 
-export interface Payment {
-  id: string;
-  invoiceId: string;
-  invoiceNumber: string;
-  clientId: string;
-  clientName: string;
-  amount: number;
-  paymentMethod: string;
-  paymentDate: Date;
-  status: 'completed' | 'pending' | 'failed';
-  referenceNumber?: string;
-  bankDetails?: {
-    fromAccount?: string;
-    toAccount?: string;
-    ifscCode?: string;
-  };
-  notes?: string;
-  pendingAmountINR?: number;
-  originalPaymentAmount?: number;
-  originalCurrency?: string;
-  amountPaidByClient: number;
-  createdAt: Date;
-}
 
 // Note: Using imported types from @/types/firestore for Expense and InventoryItem
 
@@ -555,16 +532,34 @@ export const usePayments = () => {
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
         console.log('Payments snapshot received:', snapshot.docs.length, 'documents');
-        const paymentData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          amountPaidByClient: doc.data().amountPaidByClient || 0, // New field
-          paymentDate: doc.data().paymentDate?.toDate(),
-          createdAt: doc.data().createdAt?.toDate(),
-        })) as Payment[];
+        const paymentData = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            invoiceId: data.invoiceId,
+            invoiceNumber: data.invoiceNumber,
+            clientId: data.clientId,
+            clientName: data.clientName,
+            companyId: data.companyId,
+            totalPaidUSD: data.totalPaidUSD || 0,
+            totalPaidINR: data.totalPaidINR || 0,
+            pendingINR: data.pendingINR || 0,
+            status: data.status || 'pending',
+            partialPayments: (data.partialPayments || []).map((pp: any) => ({
+              ...pp,
+              paymentDate: pp.paymentDate?.toDate() || new Date(),
+              conversionRate: {
+                ...pp.conversionRate,
+                timestamp: pp.conversionRate?.timestamp?.toDate() || new Date()
+              }
+            })),
+            createdAt: data.createdAt,
+            updatedAt: data.updatedAt
+          };
+        }) as Payment[];
         
         // Sort in memory instead of using orderBy to avoid composite index
-        paymentData.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+        paymentData.sort((a, b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
         
         setPayments(paymentData);
         setLoading(false);
@@ -589,8 +584,7 @@ export const usePayments = () => {
       const docRef = await addDoc(collection(db, 'payments'), {
         ...payment,
         companyId: currentUser.companyId,
-        amountPaidByClient: payment.amountPaidByClient || 0, // Ensure new field is included
-        paymentDate: Timestamp.fromDate(payment.paymentDate),
+        updatedAt: Timestamp.now(),
         createdAt: Timestamp.now(),
       });
       return docRef.id;
@@ -600,7 +594,23 @@ export const usePayments = () => {
     }
   };
 
-  return { payments, loading, error, addPayment };
+  const updatePayment = async (paymentId: string, updates: Partial<Payment>) => {
+    if (!currentUser?.companyId) {
+      throw new Error('User company ID not found');
+    }
+
+    try {
+      await updateDoc(doc(db, 'payments', paymentId), {
+        ...updates,
+        updatedAt: Timestamp.now(),
+      });
+    } catch (err) {
+      console.error('Error updating payment:', err);
+      throw new Error(err instanceof Error ? err.message : 'Failed to update payment');
+    }
+  };
+
+  return { payments, loading, error, addPayment, updatePayment };
 };
 
 export const useExpenses = () => {

@@ -91,6 +91,7 @@ service cloud.firestore {
     }
 
     // PAYMENTS: only accessible by users from the same company
+    // Note: paymentId should match invoiceId since we have one payment document per invoice
     match /payments/{paymentId} {
       allow read, write: if isCompanyAdmin() && 
         (resource == null || resource.data.companyId == getUserData().companyId);

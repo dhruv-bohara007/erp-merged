@@ -13,7 +13,7 @@ import {
   History,
   Trash2
 } from 'lucide-react';
-import { Payment } from '@/hooks/useFirestore';
+import { Payment } from '@/types/firestore';
 import { useInvoices } from '@/hooks/useFirestore';
 import { useCompanyData } from '@/hooks/useCompanyData';
 import PaymentHistoryModal from './PaymentHistoryModal';

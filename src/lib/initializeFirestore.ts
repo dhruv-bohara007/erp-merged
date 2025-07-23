@@ -2,7 +2,8 @@
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { Company, Client, GSTReturn, TDSRecord } from '../types/firestore';
-import { Invoice, Payment } from '../hooks/useFirestore';
+import { Invoice } from '../hooks/useFirestore';
+import { LegacyPayment } from '@/types/payment-legacy';
 
 export const initializeCollections = async () => {
   try {
@@ -162,7 +163,7 @@ export const initializeCollections = async () => {
     console.log('Invoice added with ID:', invoiceRef.id);
 
     // Sample Payment Data - using Date instead of Timestamp for paymentDate
-    const samplePayment: Omit<Payment, 'id' | 'createdAt'> = {
+    const samplePayment: Omit<LegacyPayment, 'id' | 'createdAt'> = {
       invoiceId: invoiceRef.id,
       invoiceNumber: 'INV-2024-001',
       clientId: clientRefs[0].id,

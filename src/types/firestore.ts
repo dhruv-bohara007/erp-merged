@@ -121,8 +121,34 @@ export interface Invoice {
   terms?: string;
   paidDate?: Timestamp;
   paidAmount?: number;
+  paidUSD?: number; // Amount paid in company currency
+  paidINR?: number; // Amount paid in INR
+  pendingINR?: number; // Remaining amount pending in INR
   createdAt: Timestamp;
   updatedAt: Timestamp;
+}
+
+export interface PartialPayment {
+  paymentDate: Timestamp;
+  originalPaymentAmount: number; // Amount in original payment currency
+  paymentMethod: 'neft' | 'rtgs' | 'imps' | 'upi' | 'cash' | 'credit_card' | 'debit_card' | 'cheque';
+  amountPaidByClient: number; // Amount paid in client's currency
+  amount: number; // Amount in company currency
+  conversionRate: {
+    clientToCompany: number;
+    companyToINR: number;
+    timestamp: Timestamp;
+  };
+  pendingPaymentInINR: number;
+  clientCurrency: string;
+  companyCurrency: string;
+  referenceNumber?: string; // UTR/Transaction ID
+  bankDetails?: {
+    fromAccount?: string;
+    toAccount?: string;
+    ifscCode?: string;
+  };
+  notes?: string;
 }
 
 export interface Payment {
@@ -131,17 +157,12 @@ export interface Payment {
   invoiceNumber: string; // denormalized
   clientId: string;
   clientName: string; // denormalized
-  amount: number;
-  paymentMethod: 'neft' | 'rtgs' | 'imps' | 'upi' | 'cash' | 'credit_card' | 'debit_card' | 'cheque';
-  paymentDate: Timestamp;
-  status: 'completed' | 'pending' | 'failed';
-  referenceNumber?: string; // UTR/Transaction ID
-  bankDetails?: {
-    fromAccount?: string;
-    toAccount?: string;
-    ifscCode?: string;
-  };
-  notes?: string;
+  companyId: string;
+  totalPaidUSD: number; // Total amount paid in company currency
+  totalPaidINR: number; // Total amount paid in INR
+  pendingINR: number; // Remaining amount pending in INR
+  status: 'completed' | 'partial' | 'pending';
+  partialPayments: PartialPayment[]; // Array of individual payments
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

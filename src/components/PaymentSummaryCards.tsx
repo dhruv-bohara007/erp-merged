@@ -1,7 +1,7 @@
 
 import { Card, CardContent } from '@/components/ui/card';
 import { IndianRupee, Calendar } from 'lucide-react';
-import { Payment } from '@/hooks/useFirestore';
+import { Payment } from '@/types/firestore';
 import { useInvoices } from '@/hooks/useFirestore';
 import { useCompanyData } from '@/hooks/useCompanyData';
 
