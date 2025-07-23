@@ -14,8 +14,10 @@ import {
   EyeOff,
   Edit,
   Trash2,
-  Settings
+  Settings,
+  Info
 } from 'lucide-react';
+import SupplierQuantityModal from '@/components/SupplierQuantityModal';
 
 
 import { useCompanyData } from '@/hooks/useCompanyData';
@@ -54,6 +56,13 @@ const StockDetails = () => {
   const [stockDetails, setStockDetails] = useState<StockDetailsData[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingFields, setEditingFields] = useState<{[key: string]: {minRequired?: string, safeQuantityLimit?: string}}>({});
+  const [supplierModalOpen, setSupplierModalOpen] = useState(false);
+  const [selectedStockItem, setSelectedStockItem] = useState<{
+    itemName: string;
+    productVersion: string;
+    productCategory: string;
+    unit: string;
+  } | null>(null);
   
   
   
@@ -522,7 +531,6 @@ const StockDetails = () => {
                   <TableHead>Item Name</TableHead>
                   <TableHead>Product Version</TableHead>
                   <TableHead>Current Stock</TableHead>
-                  <TableHead>Price Per Unit</TableHead>
                   <TableHead>Min Required</TableHead>
                   <TableHead>Safe Quantity Limit</TableHead>
                   <TableHead>Request Status</TableHead>
@@ -531,6 +539,7 @@ const StockDetails = () => {
                   <TableHead>PO Created Qty</TableHead>
                   <TableHead>Rejected Qty</TableHead>
                   <TableHead>Last Updated</TableHead>
+                  <TableHead>Details</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -555,17 +564,6 @@ const StockDetails = () => {
                       </TableCell>
                       <TableCell>
                         <div>{item.currentStock} {item.unit}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">
-                          {companyData?.companyCurrency ? 
-                            `${companyData.companyCurrency === 'USD' ? '$' : 
-                               companyData.companyCurrency === 'EUR' ? '€' : 
-                               companyData.companyCurrency === 'GBP' ? '£' : 
-                               companyData.companyCurrency === 'INR' ? '₹' : 
-                               companyData.companyCurrency}${(item.pricePerUnit || 0).toLocaleString()}` 
-                            : `$${(item.pricePerUnit || 0).toLocaleString()}`}
-                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2 items-center">
@@ -683,6 +681,25 @@ const StockDetails = () => {
                         </div>
                       </TableCell>
                       <TableCell>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedStockItem({
+                              itemName: item.itemName,
+                              productVersion: item.productVersion,
+                              productCategory: item.productCategory,
+                              unit: item.unit
+                            });
+                            setSupplierModalOpen(true);
+                          }}
+                          className="flex items-center gap-2"
+                        >
+                          <Info className="h-3 w-3" />
+                          Details
+                        </Button>
+                      </TableCell>
+                      <TableCell>
                         <div className="flex gap-2">
                           <Button
                             size="sm"
@@ -714,6 +731,15 @@ const StockDetails = () => {
         </CardContent>
       </Card>
 
+      {/* Supplier Quantity Modal */}
+      <SupplierQuantityModal
+        isOpen={supplierModalOpen}
+        onClose={() => {
+          setSupplierModalOpen(false);
+          setSelectedStockItem(null);
+        }}
+        stockItem={selectedStockItem}
+      />
     </div>
   );
 };
