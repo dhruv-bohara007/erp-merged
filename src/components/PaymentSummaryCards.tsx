@@ -1,7 +1,7 @@
 
 import { Card, CardContent } from '@/components/ui/card';
 import { IndianRupee, Calendar } from 'lucide-react';
-import { Payment } from '@/types/firestore';
+import { Payment } from '@/hooks/useFirestore';
 import { useInvoices } from '@/hooks/useFirestore';
 import { useCompanyData } from '@/hooks/useCompanyData';
 
@@ -37,28 +37,28 @@ const PaymentSummaryCards = ({ payments }: PaymentSummaryCardsProps) => {
     return `${symbol}${amount.toFixed(2)}`;
   };
 
-  // Calculate Total Received from payments (sum of all company currency amounts)
-  const totalReceived = payments.reduce((sum, payment) => sum + (payment.totalAmountPaidCompanyCurrency || 0), 0);
+  // Calculate Total Received from payments (sum of all original payment amounts)
+  const totalReceived = payments.reduce((sum, payment) => sum + (payment.originalPaymentAmount || 0), 0);
 
   // Calculate Pending from outstanding invoices minus all payments made
   const pendingAmount = invoices.reduce((total, invoice) => {
     if (['draft', 'sent', 'pending', 'overdue'].includes(invoice.status)) {
       const invoiceTotal = invoice.totalAmount || 0;
-      const paymentDoc = payments.find(p => p.invoiceId === invoice.id);
-      const totalPaid = paymentDoc?.totalAmountPaidCompanyCurrency || 0;
+      const invoicePayments = payments.filter(p => p.invoiceId === invoice.id);
+      const totalPaid = invoicePayments.reduce((sum, p) => sum + (p.originalPaymentAmount || 0), 0);
       return total + Math.max(0, invoiceTotal - totalPaid);
     }
     return total;
   }, 0);
   
-  // Calculate this month's revenue from payments (current month)
+  // Calculate this month's revenue from payments (current month) - use originalPaymentAmount
   const thisMonthRevenue = payments.filter(payment => {
-    if (!payment.createdAt) return false;
-    const paymentDate = payment.createdAt instanceof Date ? payment.createdAt : new Date();
+    if (!payment.paymentDate) return false;
+    const paymentDate = new Date(payment.paymentDate);
     const currentDate = new Date();
     return paymentDate.getMonth() === currentDate.getMonth() && 
            paymentDate.getFullYear() === currentDate.getFullYear();
-  }).reduce((sum, payment) => sum + (payment.totalAmountPaidCompanyCurrency || 0), 0);
+  }).reduce((sum, payment) => sum + (payment.originalPaymentAmount || 0), 0);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

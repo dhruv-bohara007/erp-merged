@@ -25,9 +25,7 @@ const Payments = () => {
     const matchesSearch = payment.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          payment.clientName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || payment.status === statusFilter;
-    // For method filter, check if any partial payment has the method
-    const matchesMethod = methodFilter === 'all' || 
-      payment.partialPayments?.some(p => p.paymentMethod === methodFilter);
+    const matchesMethod = methodFilter === 'all' || payment.paymentMethod === methodFilter;
     return matchesSearch && matchesStatus && matchesMethod;
   });
 
@@ -59,15 +57,17 @@ const Payments = () => {
     }
 
     // Create CSV content
-    const csvHeader = 'Invoice Number,Client Name,Total Amount Paid (INR),Status,Created Date\n';
+    const csvHeader = 'Invoice Number,Client Name,Amount (INR),Payment Method,Payment Date,Status,Reference Number,Notes\n';
     const csvContent = filteredPayments.map(payment => {
-      const amount = Math.round(payment.totalAmountPaid || 0);
+      const amount = Math.round(payment.amount || 0);
       return [
         payment.invoiceNumber,
         payment.clientName,
         amount,
+        payment.paymentMethod,
+        payment.paymentDate?.toLocaleDateString() || '',
         payment.status,
-        payment.createdAt instanceof Date ? payment.createdAt.toLocaleDateString() : '',
+        payment.referenceNumber || '',
         payment.notes || ''
       ].join(',');
     }).join('\n');

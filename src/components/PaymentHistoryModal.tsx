@@ -8,7 +8,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Calendar, CreditCard, Banknote, Smartphone, Building, IndianRupee, Trash2 } from 'lucide-react';
-import { Payment } from '@/types/firestore';
+import { Payment } from '@/hooks/useFirestore';
 import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 import { useToast } from '@/hooks/use-toast';
 import { doc, deleteDoc } from 'firebase/firestore';
