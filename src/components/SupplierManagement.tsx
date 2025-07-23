@@ -306,7 +306,7 @@ const SupplierManagement = () => {
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-h-48 overflow-y-auto">
                       {countries.map(country => (
                         <SelectItem key={country.value} value={country.value}>
                           {country.label}
@@ -317,13 +317,19 @@ const SupplierManagement = () => {
                 </div>
                 <div>
                   <Label htmlFor="phone">Phone*</Label>
-                  <Input
-                    id="phone"
-                    value={newSupplier.phone}
-                    onChange={(e) => handleNewSupplierFieldChange('phone', e.target.value)}
-                    placeholder={`${getPhoneCodeForCountry(newSupplier.country)} 123456789`}
-                    required
-                  />
+                  <div className="flex items-center gap-2">
+                    <div className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm text-gray-600 min-w-[80px] text-center">
+                      {getPhoneCodeForCountry(newSupplier.country)}
+                    </div>
+                    <Input
+                      id="phone"
+                      value={newSupplier.phone}
+                      onChange={(e) => handleNewSupplierFieldChange('phone', e.target.value)}
+                      placeholder="123456789"
+                      required
+                      className="flex-1"
+                    />
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="city">City*</Label>
@@ -595,7 +601,7 @@ const SupplierManagement = () => {
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-h-48 overflow-y-auto">
                       {countries.map(country => (
                         <SelectItem key={country.value} value={country.value}>
                           {country.label}
@@ -606,13 +612,19 @@ const SupplierManagement = () => {
                 </div>
                 <div>
                   <Label htmlFor="edit-phone">Phone*</Label>
-                  <Input
-                    id="edit-phone"
-                    value={editingSupplier.phone}
-                    onChange={(e) => handleEditSupplierFieldChange('phone', e.target.value)}
-                    placeholder={`${getPhoneCodeForCountry(editingSupplier.country)} 123456789`}
-                    required
-                  />
+                  <div className="flex items-center gap-2">
+                    <div className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm text-gray-600 min-w-[80px] text-center">
+                      {getPhoneCodeForCountry(editingSupplier.country)}
+                    </div>
+                    <Input
+                      id="edit-phone"
+                      value={editingSupplier.phone}
+                      onChange={(e) => handleEditSupplierFieldChange('phone', e.target.value)}
+                      placeholder="123456789"
+                      required
+                      className="flex-1"
+                    />
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="edit-city">City*</Label>
@@ -642,7 +654,7 @@ const SupplierManagement = () => {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="edit-taxId">{getTaxLabel(editingSupplier.country)}</Label>
+                  <Label htmlFor="edit-taxId">Tax ID</Label>
                   <Input
                     id="edit-taxId"
                     value={editingSupplier.taxInfo?.id || ''}

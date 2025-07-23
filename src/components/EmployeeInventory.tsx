@@ -80,6 +80,8 @@ interface PurchaseRequest {
 const EmployeeInventory = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [stockStatusSort, setStockStatusSort] = useState<'all' | 'normal' | 'low' | 'critical'>('all');
+  const [purchaseStatusSort, setPurchaseStatusSort] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'PO Created'>('all');
   const [stockDetails, setStockDetails] = useState<StockDetailsData[]>([]);
   const [allRequests, setAllRequests] = useState<PurchaseRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -191,7 +193,15 @@ const EmployeeInventory = () => {
     const matchesSearch = item.itemName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          item.productCategory.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || item.productCategory === selectedCategory;
-    return matchesSearch && matchesCategory;
+    
+    // Stock status filter
+    const stockStatus = getItemStatus(item);
+    const matchesStockStatus = stockStatusSort === 'all' || stockStatus === stockStatusSort;
+    
+    // Purchase status filter
+    const matchesPurchaseStatus = purchaseStatusSort === 'all' || item.lastRequestStatus === purchaseStatusSort;
+    
+    return matchesSearch && matchesCategory && matchesStockStatus && matchesPurchaseStatus;
   });
 
   // Get product price from stock details
@@ -587,6 +597,27 @@ const EmployeeInventory = () => {
                     {category === 'all' ? 'All Categories' : category}
                   </option>
                 ))}
+              </select>
+              <select
+                value={stockStatusSort}
+                onChange={(e) => setStockStatusSort(e.target.value as any)}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Stock Status</option>
+                <option value="normal">Normal</option>
+                <option value="low">Low</option>
+                <option value="critical">Critical</option>
+              </select>
+              <select
+                value={purchaseStatusSort}
+                onChange={(e) => setPurchaseStatusSort(e.target.value as any)}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Purchase Status</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="PO Created">PO Created</option>
               </select>
             </div>
           </CardContent>
