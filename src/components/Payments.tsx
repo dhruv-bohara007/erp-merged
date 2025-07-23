@@ -12,6 +12,7 @@ import PaymentTable from './PaymentTable';
 import PaymentSync from './PaymentSync';
 import { doc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { getPaymentMethod, getPaymentDate, getPaymentReferenceNumber, getPaymentNotes, getPaymentAmount } from '@/utils/paymentUtils';
 
 const Payments = () => {
   const { payments, loading, error } = usePayments();
@@ -25,7 +26,7 @@ const Payments = () => {
     const matchesSearch = payment.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          payment.clientName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || payment.status === statusFilter;
-    const matchesMethod = methodFilter === 'all' || payment.paymentMethod === methodFilter;
+    const matchesMethod = methodFilter === 'all' || getPaymentMethod(payment) === methodFilter;
     return matchesSearch && matchesStatus && matchesMethod;
   });
 
@@ -59,16 +60,16 @@ const Payments = () => {
     // Create CSV content
     const csvHeader = 'Invoice Number,Client Name,Amount (INR),Payment Method,Payment Date,Status,Reference Number,Notes\n';
     const csvContent = filteredPayments.map(payment => {
-      const amount = Math.round(payment.amount || 0);
+      const amount = Math.round(getPaymentAmount(payment) || 0);
       return [
         payment.invoiceNumber,
         payment.clientName,
         amount,
-        payment.paymentMethod,
-        payment.paymentDate?.toLocaleDateString() || '',
+        getPaymentMethod(payment),
+        getPaymentDate(payment)?.toLocaleDateString() || '',
         payment.status,
-        payment.referenceNumber || '',
-        payment.notes || ''
+        getPaymentReferenceNumber(payment) || '',
+        getPaymentNotes(payment) || ''
       ].join(',');
     }).join('\n');
 

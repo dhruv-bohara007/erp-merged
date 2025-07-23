@@ -2,6 +2,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { IndianRupee, Calendar } from 'lucide-react';
 import { Payment } from '@/types/firestore';
+import { getOriginalPaymentAmount, getPaymentDate } from '@/utils/paymentUtils';
 import { useInvoices } from '@/hooks/useFirestore';
 import { useCompanyData } from '@/hooks/useCompanyData';
 
@@ -38,14 +39,14 @@ const PaymentSummaryCards = ({ payments }: PaymentSummaryCardsProps) => {
   };
 
   // Calculate Total Received from payments (sum of all original payment amounts)
-  const totalReceived = payments.reduce((sum, payment) => sum + (payment.originalPaymentAmount || 0), 0);
+  const totalReceived = payments.reduce((sum, payment) => sum + getOriginalPaymentAmount(payment), 0);
 
   // Calculate Pending from outstanding invoices minus all payments made
   const pendingAmount = invoices.reduce((total, invoice) => {
     if (['draft', 'sent', 'pending', 'overdue'].includes(invoice.status)) {
       const invoiceTotal = invoice.totalAmount || 0;
       const invoicePayments = payments.filter(p => p.invoiceId === invoice.id);
-      const totalPaid = invoicePayments.reduce((sum, p) => sum + (p.originalPaymentAmount || 0), 0);
+      const totalPaid = invoicePayments.reduce((sum, p) => sum + getOriginalPaymentAmount(p), 0);
       return total + Math.max(0, invoiceTotal - totalPaid);
     }
     return total;
@@ -53,12 +54,11 @@ const PaymentSummaryCards = ({ payments }: PaymentSummaryCardsProps) => {
   
   // Calculate this month's revenue from payments (current month) - use originalPaymentAmount
   const thisMonthRevenue = payments.filter(payment => {
-    if (!payment.paymentDate) return false;
-    const paymentDate = new Date(payment.paymentDate);
+    const paymentDate = getPaymentDate(payment);
     const currentDate = new Date();
     return paymentDate.getMonth() === currentDate.getMonth() && 
            paymentDate.getFullYear() === currentDate.getFullYear();
-  }).reduce((sum, payment) => sum + (payment.originalPaymentAmount || 0), 0);
+  }).reduce((sum, payment) => sum + getOriginalPaymentAmount(payment), 0);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

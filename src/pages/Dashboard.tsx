@@ -19,6 +19,7 @@ import { useInvoices, useClients, usePayments } from '@/hooks/useFirestore';
 import { useCompanyData } from '@/hooks/useCompanyData';
 import AddClientModal from '@/components/AddClientModal';
 import { useNavigate } from 'react-router-dom';
+import { getOriginalPaymentAmount, getPaymentDate } from '@/utils/paymentUtils';
 
 const Dashboard = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('month');
@@ -58,14 +59,14 @@ const Dashboard = () => {
   const totalInvoices = invoices.length;
   
   // Total Received from payments (sum of all original payment amounts) - matches Payment Management
-  const totalReceived = payments.reduce((sum, payment) => sum + (payment.originalPaymentAmount || 0), 0);
+  const totalReceived = payments.reduce((sum, payment) => sum + getOriginalPaymentAmount(payment), 0);
 
   // Calculate Pending from outstanding invoices minus payments made - matches Payment Management
   const pendingAmount = invoices.reduce((total, invoice) => {
     if (['draft', 'sent', 'overdue', 'pending'].includes(invoice.status)) {
       const invoiceTotal = invoice.companyAmount || invoice.totalAmount || 0;
       const invoicePayments = payments.filter(p => p.invoiceId === invoice.id);
-      const totalPaid = invoicePayments.reduce((sum, p) => sum + (p.originalPaymentAmount || 0), 0);
+      const totalPaid = invoicePayments.reduce((sum, p) => sum + getOriginalPaymentAmount(p), 0);
       return total + Math.max(0, invoiceTotal - totalPaid);
     }
     return total;
@@ -76,7 +77,7 @@ const Dashboard = () => {
   const totalOverdueAmount = overdueInvoices.reduce((sum, inv) => {
     const invoiceTotal = inv.companyAmount || inv.totalAmount || 0;
     const invoicePayments = payments.filter(p => p.invoiceId === inv.id);
-    const totalPaid = invoicePayments.reduce((sum, p) => sum + (p.originalPaymentAmount || 0), 0);
+    const totalPaid = invoicePayments.reduce((sum, p) => sum + getOriginalPaymentAmount(p), 0);
     return sum + Math.max(0, invoiceTotal - totalPaid);
   }, 0);
 
@@ -103,12 +104,11 @@ const Dashboard = () => {
       // Use payments data for more accurate revenue calculation
       const monthlyTotal = payments
         .filter(payment => {
-          if (!payment.paymentDate) return false;
-          const paymentDate = new Date(payment.paymentDate);
+          const paymentDate = getPaymentDate(payment);
           return paymentDate.getMonth() === date.getMonth() && 
                  paymentDate.getFullYear() === date.getFullYear();
         })
-        .reduce((sum, payment) => sum + (payment.originalPaymentAmount || 0), 0);
+        .reduce((sum, payment) => sum + getOriginalPaymentAmount(payment), 0);
       
       last6Months.push({ month: monthYear, revenue: monthlyTotal });
     }
@@ -122,7 +122,7 @@ const Dashboard = () => {
     
     payments.forEach(payment => {
       if (!payment.clientId || !payment.clientName) return;
-      const paymentAmount = payment.originalPaymentAmount || 0;
+      const paymentAmount = getOriginalPaymentAmount(payment);
       
       const current = clientTotals.get(payment.clientId) || { name: payment.clientName, total: 0 };
       current.total += paymentAmount;
@@ -142,14 +142,14 @@ const Dashboard = () => {
     
     // Recent payments
     payments.slice(0, 2).forEach(payment => {
-      if (!payment.id || !payment.clientName || !payment.originalPaymentAmount || !payment.createdAt) return;
+      if (!payment.id || !payment.clientName || !getOriginalPaymentAmount(payment) || !payment.updatedAt) return;
       
       activities.push({
         id: `payment-${payment.id}`,
         type: 'payment',
         message: `Payment received from ${payment.clientName}`,
-        amount: formatCurrency(payment.originalPaymentAmount),
-        time: formatTimeAgo(payment.createdAt)
+        amount: formatCurrency(getOriginalPaymentAmount(payment)),
+        time: formatTimeAgo(payment.updatedAt?.toDate ? payment.updatedAt.toDate() : new Date())
       });
     });
     

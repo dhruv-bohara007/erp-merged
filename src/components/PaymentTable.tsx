@@ -14,6 +14,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { Payment } from '@/types/firestore';
+import { getOriginalPaymentAmount, getPaymentDate, getPaymentMethod } from '@/utils/paymentUtils';
 import { useInvoices } from '@/hooks/useFirestore';
 import { useCompanyData } from '@/hooks/useCompanyData';
 import PaymentHistoryModal from './PaymentHistoryModal';
@@ -91,14 +92,14 @@ const PaymentTable = ({ payments, onDeletePayment }: PaymentTableProps) => {
     
     if (existingGroup) {
       // Sum all originalPaymentAmount values for the invoice
-      existingGroup.totalAmountPaid += (payment.originalPaymentAmount || 0);
+      existingGroup.totalAmountPaid += getOriginalPaymentAmount(payment);
       existingGroup.paymentIds.push(payment.id);
       
       // Update latest payment info if this payment is more recent
-      if (payment.paymentDate > existingGroup.latestPaymentDate) {
-        existingGroup.latestPaymentDate = payment.paymentDate;
-        existingGroup.latestPaymentMethod = payment.paymentMethod;
-        existingGroup.paymentTiming = getPaymentTiming(payment.paymentDate, payment.invoiceId, invoices.find(inv => inv.id === payment.invoiceId));
+      if (getPaymentDate(payment) > existingGroup.latestPaymentDate) {
+        existingGroup.latestPaymentDate = getPaymentDate(payment);
+        existingGroup.latestPaymentMethod = getPaymentMethod(payment);
+        existingGroup.paymentTiming = getPaymentTiming(getPaymentDate(payment), payment.invoiceId, invoices.find(inv => inv.id === payment.invoiceId));
       }
       
       // Recalculate pending amount based on total amount paid
@@ -121,7 +122,7 @@ const PaymentTable = ({ payments, onDeletePayment }: PaymentTableProps) => {
       // Create new group with the payment amount
       const invoice = invoices.find(inv => inv.id === payment.invoiceId);
       const companyAmount = invoice?.companyAmount || invoice?.totalAmount || 0;
-      const paidAmount = payment.originalPaymentAmount || 0;
+      const paidAmount = getOriginalPaymentAmount(payment);
       const pendingAmount = Math.max(0, companyAmount - paidAmount);
       
       // Determine status based on pending amount and due date
@@ -142,11 +143,11 @@ const PaymentTable = ({ payments, onDeletePayment }: PaymentTableProps) => {
         invoiceNumber: payment.invoiceNumber,
         clientName: payment.clientName,
         totalAmountPaid: paidAmount,
-        latestPaymentDate: payment.paymentDate,
-        latestPaymentMethod: payment.paymentMethod,
+        latestPaymentDate: getPaymentDate(payment),
+        latestPaymentMethod: getPaymentMethod(payment),
         pendingAmountINR: pendingAmount,
         status: status,
-        paymentTiming: getPaymentTiming(payment.paymentDate, payment.invoiceId, invoice),
+        paymentTiming: getPaymentTiming(getPaymentDate(payment), payment.invoiceId, invoice),
         companyCountry: invoice?.companyCountry,
         paymentIds: [payment.id]
       });

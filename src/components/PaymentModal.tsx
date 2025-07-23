@@ -28,6 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { usePayments } from '@/hooks/useFirestore';
 import { useInvoices } from '@/hooks/useFirestore';
+import { getPaymentAmount, getAmountPaidByClient, getOriginalPaymentAmount } from '@/utils/paymentUtils';
 import { toast } from '@/hooks/use-toast';
 import { exchangeRateService } from '@/services/exchangeRateService';
 import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
@@ -75,7 +76,7 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
       // Calculate amount already paid for this invoice in company currency
       if (invoice) {
         const invoicePayments = payments.filter(p => p.invoiceId === invoice.id);
-        const totalPaidCompanyCurrency = invoicePayments.reduce((sum, p) => sum + (p.originalPaymentAmount || 0), 0);
+        const totalPaidCompanyCurrency = invoicePayments.reduce((sum, p) => sum + getOriginalPaymentAmount(p), 0);
         setAmountAlreadyPaidCompanyCurrency(totalPaidCompanyCurrency);
       }
     } else {
@@ -87,7 +88,7 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
   // Filter invoices to show only those with pending payments
   const invoicesWithPendingPayments = invoices.filter(invoice => {
     const invoicePayments = payments.filter(p => p.invoiceId === invoice.id);
-    const totalPaidINR = invoicePayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    const totalPaidINR = invoicePayments.reduce((sum, p) => sum + getPaymentAmount(p), 0);
     const totalAmountINR = invoice.totalAmountINR || invoice.totalAmount || 0;
     return totalPaidINR < totalAmountINR;
   });
@@ -165,7 +166,7 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
       // Always create a new payment document for each payment
       // Calculate pending amount in INR after this payment
       const existingPayments = payments.filter(p => p.invoiceId === selectedInvoice.id);
-      const totalPaidINRAfterPayment = existingPayments.reduce((sum, p) => sum + (p.amount || 0), 0) + convertedAmountINR;
+      const totalPaidINRAfterPayment = existingPayments.reduce((sum, p) => sum + getPaymentAmount(p), 0) + convertedAmountINR;
       const totalAmountINR = selectedInvoice.totalAmountINR || selectedInvoice.totalAmount || 0;
       const pendingAmountINR = Math.max(0, totalAmountINR - totalPaidINRAfterPayment);
 
@@ -242,7 +243,7 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
       await addPayment(paymentData);
 
       // Update the invoice's amountPaidByClient field with total paid amount
-      const totalPaidByClient = existingPayments.reduce((sum, p) => sum + (p.amountPaidByClient || 0), 0) + amountInClientCurrency;
+      const totalPaidByClient = existingPayments.reduce((sum, p) => sum + getAmountPaidByClient(p), 0) + amountInClientCurrency;
       await updateInvoice(selectedInvoice.id, {
         amountPaidByClient: totalPaidByClient
       });

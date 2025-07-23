@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Calendar, CreditCard, Banknote, Smartphone, Building, IndianRupee, Trash2 } from 'lucide-react';
 import { Payment } from '@/types/firestore';
+import { getPaymentDate, getOriginalPaymentAmount, getPaymentMethod } from '@/utils/paymentUtils';
 import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 import { useToast } from '@/hooks/use-toast';
 import { doc, deleteDoc } from 'firebase/firestore';
@@ -112,18 +113,18 @@ const PaymentHistoryModal = ({
                     <TableCell>
                       <div className="flex items-center text-sm">
                         <Calendar className="w-3 h-3 mr-1 text-gray-400" />
-                        {payment.paymentDate.toLocaleDateString()}
+                        {getPaymentDate(payment).toLocaleDateString()}
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="font-medium">
-                        {getCompanyCurrencySymbol()}{(payment.originalPaymentAmount || 0).toLocaleString()}
+                        {getCompanyCurrencySymbol()}{getOriginalPaymentAmount(payment).toLocaleString()}
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        {getPaymentMethodIcon(payment.paymentMethod)}
-                        <span className="capitalize">{payment.paymentMethod.replace('_', ' ').toUpperCase()}</span>
+                        {getPaymentMethodIcon(getPaymentMethod(payment))}
+                        <span className="capitalize">{getPaymentMethod(payment).replace('_', ' ').toUpperCase()}</span>
                       </div>
                     </TableCell>
                     <TableCell>
