@@ -238,8 +238,27 @@ const EmployeeDashboard = () => {
     return () => unsubscribe();
   }, [currentUser?.companyId]);
 
-  const lowStockItems = inventoryData.filter(item => item.status === 'low' || item.status === 'critical');
-  const criticalStockItems = inventoryData.filter(item => item.status === 'critical');
+  // Calculate summary stats using same logic as EmployeeInventory
+  const getItemStatus = (item: any) => {
+    const { currentStock, minRequired = 0, safeQuantityLimit = 0 } = item;
+    
+    if (currentStock >= minRequired) {
+      return 'normal';
+    } else if (currentStock <= safeQuantityLimit) {
+      return 'critical';
+    } else {
+      return 'low';
+    }
+  };
+
+  const lowStockItems = stockDetailsData.filter(item => {
+    const status = getItemStatus(item);
+    return status === 'low';
+  });
+  const criticalStockItems = stockDetailsData.filter(item => {
+    const status = getItemStatus(item);
+    return status === 'critical';
+  });
   
   const pendingRequests = purchaseRequests.filter(req => req.status === 'pending');
   const approvedRequests = purchaseRequests.filter(req => req.status === 'approved');
@@ -443,14 +462,14 @@ const EmployeeDashboard = () => {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="border-l-4 border-l-blue-500">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">Total Items</CardTitle>
               <Package className="h-4 w-4 text-blue-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{inventoryData.length}</div>
+              <div className="text-2xl font-bold">{stockDetailsData.length}</div>
               <p className="text-xs text-gray-500">In inventory</p>
             </CardContent>
           </Card>
@@ -477,16 +496,6 @@ const EmployeeDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-green-500">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Pending Requests</CardTitle>
-              <Clock className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{pendingRequests.length}</div>
-              <p className="text-xs text-gray-500">Awaiting approval</p>
-            </CardContent>
-          </Card>
         </div>
 
 
@@ -547,8 +556,6 @@ const EmployeeDashboard = () => {
                         <th className="text-left p-2">Current Stock</th>
                         <th className="text-left p-2">Min Required</th>
                         <th className="text-left p-2">Safe Quantity Limit</th>
-                        <th className="text-left p-2">Stock Status</th>
-                        <th className="text-left p-2">Purchase Status</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -558,20 +565,6 @@ const EmployeeDashboard = () => {
                           <td className="p-2">{item.currentStock}</td>
                           <td className="p-2">{item.minRequired}</td>
                           <td className="p-2">{item.safeQuantityLimit}</td>
-                          <td className="p-2">
-                            <span className={`capitalize ${getStatusColor(item.status)}`}>
-                              {item.status}
-                            </span>
-                          </td>
-                          <td className="p-2">
-                            {item.lastRequestStatus ? (
-                              <Badge variant={getRequestStatusBadge(item.lastRequestStatus)}>
-                                {item.lastRequestStatus}
-                              </Badge>
-                            ) : (
-                              <span className="text-gray-400">None</span>
-                            )}
-                          </td>
                         </tr>
                       ))}
                     </tbody>
