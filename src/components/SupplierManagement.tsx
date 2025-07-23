@@ -465,9 +465,7 @@ const SupplierManagement = () => {
                   <TableHead>Name</TableHead>
                   <TableHead>Contact</TableHead>
                   <TableHead>Location</TableHead>
-                  <TableHead>Tax ID</TableHead>
                   <TableHead>Total Orders</TableHead>
-                  <TableHead>Total Value</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -502,28 +500,9 @@ const SupplierManagement = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {supplier.taxInfo?.id ? (
-                          <div className="text-sm">
-                            <span className="font-medium">{supplier.taxInfo.type}:</span>
-                            <br />
-                            {supplier.taxInfo.id}
-                          </div>
-                        ) : (
-                          <span className="text-gray-400">Not provided</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
                         <div className="text-sm font-medium">{stats?.activePurchases || 0}</div>
                         <div className="text-xs text-gray-500">
                           {stats?.pendingPurchases || 0} pending
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm font-medium">
-                          {formatCurrency(stats?.totalPurchases || 0)}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          Avg: {formatCurrency(stats?.averageOrderValue || 0)}
                         </div>
                       </TableCell>
                       <TableCell>

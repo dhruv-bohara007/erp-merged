@@ -6,9 +6,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Calendar, CreditCard, Banknote, Smartphone, Building, IndianRupee } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Calendar, CreditCard, Banknote, Smartphone, Building, IndianRupee, Trash2 } from 'lucide-react';
 import { Payment } from '@/hooks/useFirestore';
 import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
+import { useToast } from '@/hooks/use-toast';
+import { doc, deleteDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 interface PaymentHistoryModalProps {
   open: boolean;
@@ -17,6 +21,7 @@ interface PaymentHistoryModalProps {
   invoiceNumber: string;
   payments: Payment[];
   companyCountry?: string;
+  onPaymentDeleted?: () => void;
 }
 
 const PaymentHistoryModal = ({ 
@@ -25,8 +30,10 @@ const PaymentHistoryModal = ({
   invoiceId, 
   invoiceNumber, 
   payments,
-  companyCountry 
+  companyCountry,
+  onPaymentDeleted
 }: PaymentHistoryModalProps) => {
+  const { toast } = useToast();
   // Filter payments for this specific invoice
   const invoicePayments = payments.filter(payment => payment.invoiceId === invoiceId);
 
@@ -50,6 +57,31 @@ const PaymentHistoryModal = ({
     return currencyInfo.symbol;
   };
 
+  const handleDeletePayment = async (paymentId: string) => {
+    if (!confirm('Are you sure you want to delete this payment?')) return;
+    
+    try {
+      await deleteDoc(doc(db, 'payments', paymentId));
+      
+      toast({
+        title: "Success",
+        description: "Payment deleted successfully",
+      });
+      
+      // Call callback to refresh data
+      if (onPaymentDeleted) {
+        onPaymentDeleted();
+      }
+    } catch (error) {
+      console.error('Error deleting payment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete payment",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[800px]">
@@ -58,15 +90,15 @@ const PaymentHistoryModal = ({
         </DialogHeader>
         
         <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Payment Date</TableHead>
-                <TableHead>Amount Paid (Company Currency)</TableHead>
-                <TableHead>Amount in INR</TableHead>
-                <TableHead>Payment Method</TableHead>
-              </TableRow>
-            </TableHeader>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Payment Date</TableHead>
+                  <TableHead>Amount Paid (Company Currency)</TableHead>
+                  <TableHead>Payment Method</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
             <TableBody>
               {invoicePayments.length === 0 ? (
                 <TableRow>
@@ -89,13 +121,21 @@ const PaymentHistoryModal = ({
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium">₹{(payment.amount || 0).toLocaleString()}</div>
-                    </TableCell>
-                    <TableCell>
                       <div className="flex items-center gap-2">
                         {getPaymentMethodIcon(payment.paymentMethod)}
                         <span className="capitalize">{payment.paymentMethod.replace('_', ' ').toUpperCase()}</span>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeletePayment(payment.id)}
+                        className="text-red-600 hover:text-red-700"
+                        title="Delete Payment"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))

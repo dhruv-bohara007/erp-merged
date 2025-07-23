@@ -221,7 +221,6 @@ const PaymentTable = ({ payments, onDeletePayment }: PaymentTableProps) => {
               <TableHead>Invoice #</TableHead>
               <TableHead>Client</TableHead>
               <TableHead>Amount Paid</TableHead>
-              <TableHead>Payment Method</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Pending Payment</TableHead>
               <TableHead>Status</TableHead>
@@ -232,7 +231,7 @@ const PaymentTable = ({ payments, onDeletePayment }: PaymentTableProps) => {
           <TableBody>
             {groupedPayments.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                   No payments found
                 </TableCell>
               </TableRow>
@@ -247,12 +246,6 @@ const PaymentTable = ({ payments, onDeletePayment }: PaymentTableProps) => {
                   </TableCell>
                   <TableCell>
                     <div className="font-medium">{formatCurrency(group.totalAmountPaid)}</div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {getPaymentMethodIcon(group.latestPaymentMethod)}
-                      <span className="capitalize">{group.latestPaymentMethod.replace('_', ' ').toUpperCase()}</span>
-                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center text-sm">
@@ -283,15 +276,6 @@ const PaymentTable = ({ payments, onDeletePayment }: PaymentTableProps) => {
                         <History className="w-4 h-4 mr-1" />
                         History
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeletePayment(group.paymentIds)}
-                        className="text-red-600 hover:text-red-700"
-                        title="Delete Payment"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -308,6 +292,7 @@ const PaymentTable = ({ payments, onDeletePayment }: PaymentTableProps) => {
         invoiceNumber={paymentHistoryModal.invoiceNumber}
         payments={payments}
         companyCountry={paymentHistoryModal.companyCountry}
+        onPaymentDeleted={() => window.location.reload()}
       />
     </>
   );

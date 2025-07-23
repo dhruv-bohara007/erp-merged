@@ -98,7 +98,7 @@ const StockDetails = () => {
               unit: purchaseData.unit || 'pcs',
               minRequired: 0,
               safeQuantityLimit: 0,
-              displayStatus: 'suspended',
+              displayStatus: 'suspended', // Default to suspended when both values are zero
               createdAt: new Date(),
               updatedAt: new Date(),
               lastPurchaseDate: purchaseData.purchaseDate || purchaseData.expenseDate,
@@ -193,7 +193,8 @@ const StockDetails = () => {
           };
           
           // Ensure items without valid quantities are suspended by default
-          if (!hasValidQuantities) {
+          // Default to suspended if both minRequired and safeQuantityLimit are zero
+          if (!hasValidQuantities || (existingData?.minRequired === 0 && existingData?.safeQuantityLimit === 0)) {
             updateData.displayStatus = 'suspended';
           }
           
@@ -400,6 +401,12 @@ const StockDetails = () => {
   const isDisplayButtonEnabled = (item: StockDetailsData) => {
     return (item.minRequired !== undefined && item.minRequired !== null && item.minRequired > 0) && 
            (item.safeQuantityLimit !== undefined && item.safeQuantityLimit !== null && item.safeQuantityLimit >= 0);
+  };
+
+  // Check if item should default to "Suspend" when both minRequired and safeQuantityLimit are zero
+  const shouldDefaultToSuspend = (item: StockDetailsData) => {
+    return (item.minRequired === 0 || item.minRequired === undefined || item.minRequired === null) &&
+           (item.safeQuantityLimit === 0 || item.safeQuantityLimit === undefined || item.safeQuantityLimit === null);
   };
 
   // Get the display value for input fields - show editing value or actual saved value
@@ -703,20 +710,23 @@ const StockDetails = () => {
                         <div className="flex gap-2">
                           <Button
                             size="sm"
-                            variant={item.displayStatus === 'displayed' ? 'default' : 'secondary'}
+                            variant={
+                              shouldDefaultToSuspend(item) ? 'secondary' : 
+                              item.displayStatus === 'displayed' ? 'default' : 'secondary'
+                            }
                             disabled={!isDisplayButtonEnabled(item)}
                             onClick={() => toggleDisplayStatus(item.id)}
                             className="flex items-center gap-2"
                           >
-                             {item.displayStatus === 'displayed' ? (
-                               <>
-                                 <EyeOff className="h-3 w-3" />
-                                 Suspend
-                               </>
-                             ) : (
+                             {(shouldDefaultToSuspend(item) || item.displayStatus === 'suspended') ? (
                                <>
                                  <Eye className="h-3 w-3" />
                                  Display
+                               </>
+                             ) : (
+                               <>
+                                 <EyeOff className="h-3 w-3" />
+                                 Suspend
                                </>
                              )}
                           </Button>
