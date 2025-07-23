@@ -121,11 +121,10 @@ const SupplierManagement = () => {
 
   // Handle country change for new supplier
   const handleNewSupplierCountryChange = (countryCode: string) => {
-    const phoneCode = getPhoneCodeForCountry(countryCode);
     const updatedSupplier = {
       ...newSupplier,
       country: countryCode,
-      phone: phoneCode + ' '
+      phone: '' // Clear phone when country changes
     };
     updatedSupplier.address = generateAddress(updatedSupplier.city, updatedSupplier.state, countryCode, updatedSupplier.pincode);
     setNewSupplier(updatedSupplier);
@@ -134,11 +133,10 @@ const SupplierManagement = () => {
   // Handle country change for editing supplier
   const handleEditSupplierCountryChange = (countryCode: string) => {
     if (!editingSupplier) return;
-    const phoneCode = getPhoneCodeForCountry(countryCode);
     const updatedSupplier = {
       ...editingSupplier,
       country: countryCode,
-      phone: phoneCode + ' '
+      phone: '' // Clear phone when country changes
     };
     updatedSupplier.address = generateAddress(updatedSupplier.city, updatedSupplier.state, countryCode, updatedSupplier.pincode);
     setEditingSupplier(updatedSupplier);
@@ -165,8 +163,10 @@ const SupplierManagement = () => {
   const handleAddSupplier = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const phoneCode = getPhoneCodeForCountry(newSupplier.country);
       const supplierToAdd = {
         ...newSupplier,
+        phone: phoneCode + newSupplier.phone, // Combine country code with phone number
         address: generateAddress(newSupplier.city, newSupplier.state, newSupplier.country, newSupplier.pincode)
       };
       await addSupplier(supplierToAdd);
@@ -201,8 +201,10 @@ const SupplierManagement = () => {
     if (!editingSupplier) return;
     
     try {
+      const phoneCode = getPhoneCodeForCountry(editingSupplier.country);
       const supplierToUpdate = {
         ...editingSupplier,
+        phone: phoneCode + editingSupplier.phone, // Combine country code with phone number
         address: generateAddress(editingSupplier.city, editingSupplier.state, editingSupplier.country, editingSupplier.pincode)
       };
       await updateSupplier(editingSupplier.id, supplierToUpdate);
@@ -535,7 +537,16 @@ const SupplierManagement = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => {
-                              setEditingSupplier(supplier);
+                              // Extract phone number without country code for editing
+                              const phoneCode = getPhoneCodeForCountry(supplier.country);
+                              const phoneWithoutCode = supplier.phone.startsWith(phoneCode) 
+                                ? supplier.phone.substring(phoneCode.length).trim()
+                                : supplier.phone;
+                              
+                              setEditingSupplier({
+                                ...supplier,
+                                phone: phoneWithoutCode
+                              });
                               setIsEditModalOpen(true);
                             }}
                           >

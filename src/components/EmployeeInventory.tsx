@@ -513,8 +513,14 @@ const EmployeeInventory = () => {
 
   // Calculate summary stats
   const totalItems = stockDetails.length;
-  const lowStockItems = stockDetails.filter(item => getItemStatus(item) === 'low').length;
-  const criticalStockItems = stockDetails.filter(item => getItemStatus(item) === 'critical').length;
+  const lowStockItems = stockDetails.filter(item => {
+    const status = getItemStatus(item);
+    return status === 'low';
+  }).length;
+  const criticalStockItems = stockDetails.filter(item => {
+    const status = getItemStatus(item);
+    return status === 'critical';
+  }).length;
 
   if (loading) {
     return (
