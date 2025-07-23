@@ -547,7 +547,8 @@ const EmployeeDashboard = () => {
                         <th className="text-left p-2">Current Stock</th>
                         <th className="text-left p-2">Min Required</th>
                         <th className="text-left p-2">Safe Quantity Limit</th>
-                        <th className="text-left p-2">Status</th>
+                        <th className="text-left p-2">Stock Status</th>
+                        <th className="text-left p-2">Purchase Status</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -561,6 +562,15 @@ const EmployeeDashboard = () => {
                             <span className={`capitalize ${getStatusColor(item.status)}`}>
                               {item.status}
                             </span>
+                          </td>
+                          <td className="p-2">
+                            {item.lastRequestStatus ? (
+                              <Badge variant={getRequestStatusBadge(item.lastRequestStatus)}>
+                                {item.lastRequestStatus}
+                              </Badge>
+                            ) : (
+                              <span className="text-gray-400">None</span>
+                            )}
                           </td>
                         </tr>
                       ))}
