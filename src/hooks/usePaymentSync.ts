@@ -27,7 +27,7 @@ export const usePaymentSync = () => {
           if (!paymentDoc) continue;
 
           // Create cache key based on payment document's updated timestamp and total amounts
-          const cacheKey = `${invoice.id}-${paymentDoc.totalPaidUSD.toFixed(2)}-${paymentDoc.totalPaidINR.toFixed(2)}-${paymentDoc.updatedAt.toMillis()}`;
+          const cacheKey = `${invoice.id}-${paymentDoc.totalPaidUSD.toFixed(2)}-${paymentDoc.totalPaidINR.toFixed(2)}-${paymentDoc.updatedAt?.toMillis?.() || Date.now()}`;
           
           // Skip if already processed with current payment state
           if (processedInvoicesRef.current.has(cacheKey)) continue;
