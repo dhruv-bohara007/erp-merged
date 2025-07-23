@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { doc, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, Timestamp, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Payment, PartialPayment } from '@/types/firestore';
@@ -14,8 +14,9 @@ export const usePaymentOperations = () => {
     invoiceNumber: string,
     clientId: string,
     clientName: string,
-    partialPayment: Omit<PartialPayment, 'conversionRate'> & {
+    partialPayment: Omit<PartialPayment, 'conversionRate' | 'paymentDate'> & {
       conversionRate: Omit<PartialPayment['conversionRate'], 'timestamp'>;
+      paymentDate: string;
     }
   ) => {
     if (!currentUser?.companyId) {
@@ -27,9 +28,10 @@ export const usePaymentOperations = () => {
       const paymentDocRef = doc(db, 'payments', invoiceId);
       
       // Prepare the partial payment with proper timestamp
+      const paymentDate = new Date(partialPayment.paymentDate);
       const newPartialPayment: PartialPayment = {
         ...partialPayment,
-        paymentDate: Timestamp.fromDate(new Date()),
+        paymentDate: Timestamp.fromDate(paymentDate),
         conversionRate: {
           ...partialPayment.conversionRate,
           timestamp: Timestamp.now()
@@ -41,19 +43,24 @@ export const usePaymentOperations = () => {
       const newTotalPaidINR = partialPayment.amount; // Adjust based on conversion
       const newPendingINR = Math.max(0, partialPayment.pendingPaymentInINR);
 
-      // Check if payment document exists, if not create it
-      try {
-        // Try to update first
+      // Check if payment document exists
+      const existingDoc = await getDoc(paymentDocRef);
+      
+      if (existingDoc.exists()) {
+        // Document exists, append to partialPayments array
+        const existingData = existingDoc.data() as Payment;
+        const existingPartialPayments = existingData.partialPayments || [];
+        
         await updateDoc(paymentDocRef, {
-          partialPayments: [...([] as PartialPayment[]), newPartialPayment],
-          totalPaidUSD: newTotalPaidUSD,
-          totalPaidINR: newTotalPaidINR,
+          partialPayments: [...existingPartialPayments, newPartialPayment],
+          totalPaidUSD: (existingData.totalPaidUSD || 0) + newTotalPaidUSD,
+          totalPaidINR: (existingData.totalPaidINR || 0) + newTotalPaidINR,
           pendingINR: newPendingINR,
           status: newPendingINR <= 0 ? 'completed' : 'partial',
           updatedAt: Timestamp.now()
         });
-      } catch (error) {
-        // If document doesn't exist, create it
+      } else {
+        // Document doesn't exist, create it
         const newPaymentDoc: Payment = {
           id: invoiceId,
           invoiceId,

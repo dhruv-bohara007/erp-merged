@@ -28,6 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { usePayments } from '@/hooks/useFirestore';
 import { useInvoices } from '@/hooks/useFirestore';
+import { usePaymentOperations } from '@/hooks/usePaymentOperations';
 import { getPaymentAmount, getAmountPaidByClient, getOriginalPaymentAmount } from '@/utils/paymentUtils';
 import { toast } from '@/hooks/use-toast';
 import { exchangeRateService } from '@/services/exchangeRateService';
@@ -51,8 +52,9 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [amountAlreadyPaidCompanyCurrency, setAmountAlreadyPaidCompanyCurrency] = useState(0);
-  const { addPayment, payments } = usePayments();
+  const { payments } = usePayments();
   const { invoices, updateInvoice } = useInvoices();
+  const { addPartialPayment, loading: paymentLoading } = usePaymentOperations();
 
   const form = useForm<PaymentFormData>({
     resolver: zodResolver(paymentSchema),
@@ -163,84 +165,37 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
         console.log('Converted amount in client currency:', amountInClientCurrency);
       }
 
-      // Always create a new payment document for each payment
       // Calculate pending amount in INR after this payment
       const existingPayments = payments.filter(p => p.invoiceId === selectedInvoice.id);
-      const totalPaidINRAfterPayment = existingPayments.reduce((sum, p) => sum + getPaymentAmount(p), 0) + convertedAmountINR;
+      const currentTotalPaidINR = existingPayments.reduce((sum, p) => sum + getPaymentAmount(p), 0);
       const totalAmountINR = selectedInvoice.totalAmountINR || selectedInvoice.totalAmount || 0;
-      const pendingAmountINR = Math.max(0, totalAmountINR - totalPaidINRAfterPayment);
+      const pendingAmountINR = Math.max(0, totalAmountINR - currentTotalPaidINR - convertedAmountINR);
 
-      // Determine status based on pending amount
-      const paymentStatus = pendingAmountINR <= 0 ? 'completed' : 'pending';
-
-      // Prepare payment data with all invoice fields copied, filtering out undefined values
-      const paymentData = filterUndefinedValues({
-        // Payment specific fields
-        invoiceId: data.invoiceId,
-        invoiceNumber: selectedInvoice.invoiceNumber,
-        clientId: selectedInvoice.clientId,
-        clientName: selectedInvoice.clientName,
-        amount: convertedAmountINR, // Store converted INR amount
-        paymentMethod: data.paymentMethod,
-        paymentDate: new Date(data.paymentDate),
-        status: paymentStatus,
-        
-        // Copy all invoice fields - only if they are defined
-        clientEmail: selectedInvoice.clientEmail,
-        clientState: selectedInvoice.clientState,
-        clientPhone: selectedInvoice.clientPhone,
-        clientPincode: selectedInvoice.clientPincode,
-        items: selectedInvoice.items,
-        subtotal: selectedInvoice.subtotal,
-        cgst: selectedInvoice.cgst,
-        sgst: selectedInvoice.sgst,
-        igst: selectedInvoice.igst,
-        totalGst: selectedInvoice.totalGst,
-        totalAmount: selectedInvoice.totalAmount,
-        totalAmountINR: selectedInvoice.totalAmountINR,
-        companyCurrency: selectedInvoice.companyCurrency,
-        companyAmount: selectedInvoice.companyAmount,
-        clientCurrency: selectedInvoice.clientCurrency,
-        clientAmount: selectedInvoice.clientAmount,
-        conversionRate: selectedInvoice.conversionRate,
-        companyCountry: selectedInvoice.companyCountry,
-        clientCountry: selectedInvoice.clientCountry,
-        companyName: selectedInvoice.companyName,
-        companyLogoUrl: selectedInvoice.companyLogoUrl,
-        companyEmail: selectedInvoice.companyEmail,
-        companyWebsite: selectedInvoice.companyWebsite,
-        companyPhone: selectedInvoice.companyPhone,
-        companyCity: selectedInvoice.companyCity,
-        companyTaxInfo: selectedInvoice.companyTaxInfo,
-        companyBankDetails: selectedInvoice.companyBankDetails,
-        companyAddress: selectedInvoice.companyAddress,
-        ownerSignatureUrl: selectedInvoice.ownerSignatureUrl,
-        businessOwnerName: selectedInvoice.businessOwnerName,
-        businessOwnerPosition: selectedInvoice.businessOwnerPosition,
-        clientAddress: selectedInvoice.clientAddress,
-        clientTaxInfo: selectedInvoice.clientTaxInfo,
-        bankInfo: selectedInvoice.bankInfo,
-        logoUrl: selectedInvoice.logoUrl,
-        signatureUrl: selectedInvoice.signatureUrl,
-        issueDate: selectedInvoice.issueDate,
-        dueDate: selectedInvoice.dueDate,
-        notes: selectedInvoice.notes,
-        terms: selectedInvoice.terms,
-        
-        // Add pending amount calculation
-        pendingAmountINR: Math.max(0, pendingAmountINR),
-        
-        // Payment specific amounts in original currency
+      // Prepare partial payment data
+      const partialPaymentData = {
+        paymentDate: data.paymentDate,
         originalPaymentAmount: paymentAmount,
-        originalCurrency: companyCurrency,
-        
-        // New field: amount paid by client in client currency
+        paymentMethod: data.paymentMethod as 'neft' | 'rtgs' | 'imps' | 'upi' | 'cash' | 'credit_card' | 'debit_card' | 'cheque',
         amountPaidByClient: amountInClientCurrency,
-      });
+        amount: convertedAmountINR,
+        conversionRate: {
+          clientToCompany: 1, // Since we're paying in company currency
+          companyToINR: convertedAmountINR / paymentAmount
+        },
+        pendingPaymentInINR: pendingAmountINR,
+        clientCurrency: clientCurrency,
+        companyCurrency: companyCurrency
+      };
 
-      console.log('Creating new payment document:', paymentData);
+      console.log('Adding partial payment:', partialPaymentData);
 
-      await addPayment(paymentData);
+      await addPartialPayment(
+        data.invoiceId,
+        selectedInvoice.invoiceNumber,
+        selectedInvoice.clientId,
+        selectedInvoice.clientName,
+        partialPaymentData
+      );
 
       // Update the invoice's amountPaidByClient field with total paid amount
       const totalPaidByClient = existingPayments.reduce((sum, p) => sum + getAmountPaidByClient(p), 0) + amountInClientCurrency;
@@ -394,8 +349,8 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Recording...' : 'Record Payment'}
+              <Button type="submit" disabled={isSubmitting || paymentLoading}>
+                {isSubmitting || paymentLoading ? 'Recording...' : 'Record Payment'}
               </Button>
             </div>
           </form>
