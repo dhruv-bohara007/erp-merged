@@ -187,6 +187,19 @@ const EmployeeInventory = () => {
     loadData();
   }, [currentUser?.companyId]);
 
+  // Calculate status based on new logic - moved earlier to fix hoisting issue
+  const getItemStatus = (item: StockDetailsData) => {
+    const { currentStock, minRequired = 0, safeQuantityLimit = 0 } = item;
+    
+    if (currentStock >= minRequired) {
+      return 'normal';
+    } else if (currentStock <= safeQuantityLimit) {
+      return 'critical';
+    } else {
+      return 'low';
+    }
+  };
+
   const categories = ['all', ...Array.from(new Set(stockDetails.map(item => item.productCategory)))];
 
   const filteredInventory = stockDetails.filter(item => {
@@ -212,19 +225,6 @@ const EmployeeInventory = () => {
       p.productVersion === version
     );
     return (product as any)?.pricePerUnit || 0;
-  };
-
-  // Calculate status based on new logic
-  const getItemStatus = (item: StockDetailsData) => {
-    const { currentStock, minRequired = 0, safeQuantityLimit = 0 } = item;
-    
-    if (currentStock >= minRequired) {
-      return 'normal';
-    } else if (currentStock <= safeQuantityLimit) {
-      return 'critical';
-    } else {
-      return 'low';
-    }
   };
 
   // Check if Flag Low button should be disabled
