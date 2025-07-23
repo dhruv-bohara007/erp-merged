@@ -3,10 +3,8 @@ import { useEffect, useRef } from 'react';
 import { useInvoices, usePayments } from '@/hooks/useFirestore';
 
 export const usePaymentSync = () => {
-  const { invoices, updateInvoice } = useInvoices();
-  const { payments } = usePayments();
-  const processedInvoicesRef = useRef(new Set<string>());
-  const isProcessingRef = useRef(false);
+  // Temporarily disabled during payment restructuring
+  return;
 
   useEffect(() => {
     if (!invoices.length || !payments.length || isProcessingRef.current) return;

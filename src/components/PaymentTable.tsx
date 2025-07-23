@@ -13,7 +13,7 @@ import {
   History,
   Trash2
 } from 'lucide-react';
-import { Payment } from '@/hooks/useFirestore';
+import { Payment } from '@/types/firestore';
 import { useInvoices } from '@/hooks/useFirestore';
 import { useCompanyData } from '@/hooks/useCompanyData';
 import PaymentHistoryModal from './PaymentHistoryModal';
@@ -85,75 +85,26 @@ const PaymentTable = ({ payments, onDeletePayment }: PaymentTableProps) => {
     return `${Math.abs(diffDays)} days before due date`;
   };
 
-  // Group payments by invoice and properly sum all payments
-  const groupedPayments: GroupedPayment[] = payments.reduce((acc, payment) => {
-    const existingGroup = acc.find(group => group.invoiceId === payment.invoiceId);
+  // Convert new payment structure to grouped format
+  const groupedPayments: GroupedPayment[] = payments.map(payment => {
+    const invoice = invoices.find(inv => inv.id === payment.invoiceId);
+    const latestPartialPayment = payment.partialPayments?.[payment.partialPayments.length - 1];
     
-    if (existingGroup) {
-      // Sum all originalPaymentAmount values for the invoice
-      existingGroup.totalAmountPaid += (payment.originalPaymentAmount || 0);
-      existingGroup.paymentIds.push(payment.id);
-      
-      // Update latest payment info if this payment is more recent
-      if (payment.paymentDate > existingGroup.latestPaymentDate) {
-        existingGroup.latestPaymentDate = payment.paymentDate;
-        existingGroup.latestPaymentMethod = payment.paymentMethod;
-        existingGroup.paymentTiming = getPaymentTiming(payment.paymentDate, payment.invoiceId, invoices.find(inv => inv.id === payment.invoiceId));
-      }
-      
-      // Recalculate pending amount based on total amount paid
-      const invoice = invoices.find(inv => inv.id === payment.invoiceId);
-      const companyAmount = invoice?.companyAmount || invoice?.totalAmount || 0;
-      const pendingAmount = Math.max(0, companyAmount - existingGroup.totalAmountPaid);
-      existingGroup.pendingAmountINR = pendingAmount;
-      
-      // Update status based on total payments
-      if (pendingAmount <= 0.01) { // Using small threshold for floating point precision
-        existingGroup.status = 'completed';
-      } else if (existingGroup.totalAmountPaid > 0) {
-        const dueDate = invoice?.dueDate || new Date();
-        const isOverdue = new Date() > dueDate;
-        existingGroup.status = isOverdue ? 'overdue' : 'pending';
-      } else {
-        existingGroup.status = 'pending';
-      }
-    } else {
-      // Create new group with the payment amount
-      const invoice = invoices.find(inv => inv.id === payment.invoiceId);
-      const companyAmount = invoice?.companyAmount || invoice?.totalAmount || 0;
-      const paidAmount = payment.originalPaymentAmount || 0;
-      const pendingAmount = Math.max(0, companyAmount - paidAmount);
-      
-      // Determine status based on pending amount and due date
-      let status: string;
-      if (pendingAmount <= 0.01) { // Using small threshold for floating point precision
-        status = 'completed';
-      } else if (paidAmount > 0) {
-        // Check if overdue
-        const dueDate = invoice?.dueDate || new Date();
-        const isOverdue = new Date() > dueDate;
-        status = isOverdue ? 'overdue' : 'pending';
-      } else {
-        status = 'pending';
-      }
-      
-      acc.push({
-        invoiceId: payment.invoiceId,
-        invoiceNumber: payment.invoiceNumber,
-        clientName: payment.clientName,
-        totalAmountPaid: paidAmount,
-        latestPaymentDate: payment.paymentDate,
-        latestPaymentMethod: payment.paymentMethod,
-        pendingAmountINR: pendingAmount,
-        status: status,
-        paymentTiming: getPaymentTiming(payment.paymentDate, payment.invoiceId, invoice),
-        companyCountry: invoice?.companyCountry,
-        paymentIds: [payment.id]
-      });
-    }
-    
-    return acc;
-  }, [] as GroupedPayment[]);
+    return {
+      invoiceId: payment.invoiceId,
+      invoiceNumber: payment.invoiceNumber,
+      clientName: payment.clientName,
+      totalAmountPaid: payment.totalAmountPaidCompanyCurrency || 0,
+      latestPaymentDate: latestPartialPayment?.paymentDate instanceof Date ? latestPartialPayment.paymentDate : (payment.createdAt instanceof Date ? payment.createdAt : new Date()),
+      latestPaymentMethod: latestPartialPayment?.paymentMethod || 'unknown',
+      pendingAmountINR: payment.pendingAmountINR || 0,
+      status: payment.status,
+      paymentTiming: latestPartialPayment ? 
+        getPaymentTiming(latestPartialPayment.paymentDate, payment.invoiceId, invoice) : '-',
+      companyCountry: invoice?.companyCountry,
+      paymentIds: [payment.id]
+    };
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {

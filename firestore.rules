@@ -91,11 +91,17 @@ service cloud.firestore {
     }
 
     // PAYMENTS: only accessible by users from the same company
+    // Note: New structure with partialPayments array - one document per invoice
     match /payments/{paymentId} {
       allow read, write: if isCompanyAdmin() && 
         (resource == null || resource.data.companyId == getUserData().companyId);
       
       allow create: if isCompanyAdmin() &&
+        request.resource.data.companyId == getUserData().companyId;
+      
+      // Allow updates for adding partial payments
+      allow update: if isCompanyAdmin() &&
+        resource.data.companyId == getUserData().companyId &&
         request.resource.data.companyId == getUserData().companyId;
       
       // Employees can read payments from their company

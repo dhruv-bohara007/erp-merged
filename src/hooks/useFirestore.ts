@@ -16,7 +16,7 @@ import {
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { PurchaseStockService } from '@/services/purchaseStockService';
-import type { Supplier, Purchase, Expense, InventoryItem } from '@/types/firestore';
+import type { Supplier, Purchase, Expense, InventoryItem, Payment as PaymentType } from '@/types/firestore';
 
 export interface Invoice {
   id: string;
@@ -132,29 +132,7 @@ export interface Client {
   updatedAt: Date;
 }
 
-export interface Payment {
-  id: string;
-  invoiceId: string;
-  invoiceNumber: string;
-  clientId: string;
-  clientName: string;
-  amount: number;
-  paymentMethod: string;
-  paymentDate: Date;
-  status: 'completed' | 'pending' | 'failed';
-  referenceNumber?: string;
-  bankDetails?: {
-    fromAccount?: string;
-    toAccount?: string;
-    ifscCode?: string;
-  };
-  notes?: string;
-  pendingAmountINR?: number;
-  originalPaymentAmount?: number;
-  originalCurrency?: string;
-  amountPaidByClient: number;
-  createdAt: Date;
-}
+// Note: Payment interface moved to @/types/firestore.ts
 
 // Note: Using imported types from @/types/firestore for Expense and InventoryItem
 
@@ -533,7 +511,7 @@ export const useClients = () => {
 };
 
 export const usePayments = () => {
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const [payments, setPayments] = useState<PaymentType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { currentUser } = useAuth();
@@ -555,16 +533,44 @@ export const usePayments = () => {
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
         console.log('Payments snapshot received:', snapshot.docs.length, 'documents');
-        const paymentData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          amountPaidByClient: doc.data().amountPaidByClient || 0, // New field
-          paymentDate: doc.data().paymentDate?.toDate(),
-          createdAt: doc.data().createdAt?.toDate(),
-        })) as Payment[];
+        const paymentData = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            // Ensure required fields are present with defaults
+            companyId: data.companyId || currentUser.companyId,
+            invoiceId: data.invoiceId || '',
+            invoiceNumber: data.invoiceNumber || '',
+            clientId: data.clientId || '',
+            clientName: data.clientName || '',
+            totalAmountPaid: data.totalAmountPaid || 0,
+            totalAmountPaidByClient: data.totalAmountPaidByClient || 0,
+            totalAmountPaidCompanyCurrency: data.totalAmountPaidCompanyCurrency || 0,
+            pendingAmountINR: data.pendingAmountINR || 0,
+            status: data.status || 'pending',
+            // Convert timestamps for partial payments
+            partialPayments: data.partialPayments?.map((payment: any) => ({
+              ...payment,
+              paymentDate: payment.paymentDate?.toDate?.() || payment.paymentDate,
+              conversionRate: payment.conversionRate ? {
+                ...payment.conversionRate,
+                timestamp: payment.conversionRate.timestamp?.toDate?.() || payment.conversionRate.timestamp
+              } : undefined
+            })) || [],
+            issueDate: data.issueDate?.toDate?.(),
+            dueDate: data.dueDate?.toDate?.(),
+            createdAt: data.createdAt?.toDate?.(),
+            updatedAt: data.updatedAt?.toDate?.(),
+          };
+        }) as PaymentType[];
         
         // Sort in memory instead of using orderBy to avoid composite index
-        paymentData.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+        paymentData.sort((a, b) => {
+          const aTime = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
+          const bTime = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
+          return bTime - aTime;
+        });
         
         setPayments(paymentData);
         setLoading(false);
@@ -580,27 +586,152 @@ export const usePayments = () => {
     return () => unsubscribe();
   }, [currentUser?.companyId]);
 
-  const addPayment = async (payment: Omit<Payment, 'id' | 'createdAt'>) => {
+  const addPayment = async (invoiceId: string, partialPaymentData: any, invoiceSnapshot: any) => {
     if (!currentUser?.companyId) {
       throw new Error('User company ID not found');
     }
 
     try {
-      const docRef = await addDoc(collection(db, 'payments'), {
-        ...payment,
-        companyId: currentUser.companyId,
-        amountPaidByClient: payment.amountPaidByClient || 0, // Ensure new field is included
-        paymentDate: Timestamp.fromDate(payment.paymentDate),
-        createdAt: Timestamp.now(),
-      });
-      return docRef.id;
+      // Check if payment document already exists for this invoice
+      const paymentQuery = query(
+        collection(db, 'payments'),
+        where('companyId', '==', currentUser.companyId),
+        where('invoiceId', '==', invoiceId)
+      );
+      
+      const existingPayments = await getDocs(paymentQuery);
+      
+      if (existingPayments.empty) {
+        // Create new payment document with first partial payment
+        const newPayment = {
+          companyId: currentUser.companyId,
+          invoiceId,
+          invoiceNumber: invoiceSnapshot.invoiceNumber,
+          clientId: invoiceSnapshot.clientId,
+          clientName: invoiceSnapshot.clientName,
+          
+          // Initialize totals
+          totalAmountPaid: partialPaymentData.amount, // in INR
+          totalAmountPaidByClient: partialPaymentData.amountPaidByClient,
+          totalAmountPaidCompanyCurrency: partialPaymentData.originalPaymentAmount,
+          pendingAmountINR: partialPaymentData.pendingPaymentInINR,
+          status: partialPaymentData.pendingPaymentInINR <= 0 ? 'completed' : 'pending',
+          
+          // Initialize partial payments array
+          partialPayments: [{
+            ...partialPaymentData,
+            paymentDate: Timestamp.fromDate(partialPaymentData.paymentDate),
+            conversionRate: partialPaymentData.conversionRate ? {
+              ...partialPaymentData.conversionRate,
+              timestamp: Timestamp.fromDate(partialPaymentData.conversionRate.timestamp)
+            } : undefined
+          }],
+          
+          // Copy invoice snapshot data
+          ...invoiceSnapshot,
+          issueDate: invoiceSnapshot.issueDate ? Timestamp.fromDate(invoiceSnapshot.issueDate) : undefined,
+          dueDate: invoiceSnapshot.dueDate ? Timestamp.fromDate(invoiceSnapshot.dueDate) : undefined,
+          
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+        };
+        
+        const docRef = await addDoc(collection(db, 'payments'), newPayment);
+        return docRef.id;
+      } else {
+        // Update existing payment document with new partial payment
+        const paymentDoc = existingPayments.docs[0];
+        const existingData = paymentDoc.data();
+        
+        const newPartialPayment = {
+          ...partialPaymentData,
+          paymentDate: Timestamp.fromDate(partialPaymentData.paymentDate),
+          conversionRate: partialPaymentData.conversionRate ? {
+            ...partialPaymentData.conversionRate,
+            timestamp: Timestamp.fromDate(partialPaymentData.conversionRate.timestamp)
+          } : undefined
+        };
+        
+        // Calculate new totals
+        const newTotalAmountPaid = (existingData.totalAmountPaid || 0) + partialPaymentData.amount;
+        const newTotalAmountPaidByClient = (existingData.totalAmountPaidByClient || 0) + partialPaymentData.amountPaidByClient;
+        const newTotalAmountPaidCompanyCurrency = (existingData.totalAmountPaidCompanyCurrency || 0) + partialPaymentData.originalPaymentAmount;
+        
+        await updateDoc(doc(db, 'payments', paymentDoc.id), {
+          totalAmountPaid: newTotalAmountPaid,
+          totalAmountPaidByClient: newTotalAmountPaidByClient,
+          totalAmountPaidCompanyCurrency: newTotalAmountPaidCompanyCurrency,
+          pendingAmountINR: partialPaymentData.pendingPaymentInINR,
+          status: partialPaymentData.pendingPaymentInINR <= 0 ? 'completed' : 'pending',
+          partialPayments: [...(existingData.partialPayments || []), newPartialPayment],
+          updatedAt: Timestamp.now(),
+        });
+        
+        return paymentDoc.id;
+      }
     } catch (err) {
       console.error('Error adding payment:', err);
       throw new Error(err instanceof Error ? err.message : 'Failed to add payment');
     }
   };
 
-  return { payments, loading, error, addPayment };
+  const deletePartialPayment = async (paymentId: string, partialPaymentIndex: number) => {
+    if (!currentUser?.companyId) {
+      throw new Error('User company ID not found');
+    }
+
+    try {
+      const paymentRef = doc(db, 'payments', paymentId);
+      const paymentDoc = await getDoc(paymentRef);
+      
+      if (!paymentDoc.exists()) {
+        throw new Error('Payment document not found');
+      }
+      
+      const paymentData = paymentDoc.data();
+      const partialPayments = [...(paymentData.partialPayments || [])];
+      
+      if (partialPaymentIndex < 0 || partialPaymentIndex >= partialPayments.length) {
+        throw new Error('Invalid partial payment index');
+      }
+      
+      // Remove the partial payment
+      const removedPayment = partialPayments[partialPaymentIndex];
+      partialPayments.splice(partialPaymentIndex, 1);
+      
+      // Recalculate totals
+      const newTotalAmountPaid = partialPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+      const newTotalAmountPaidByClient = partialPayments.reduce((sum, p) => sum + (p.amountPaidByClient || 0), 0);
+      const newTotalAmountPaidCompanyCurrency = partialPayments.reduce((sum, p) => sum + (p.originalPaymentAmount || 0), 0);
+      
+      // Calculate new pending amount (assuming we have the total invoice amount)
+      const totalInvoiceAmountINR = paymentData.totalAmountINR || 0;
+      const newPendingAmountINR = Math.max(0, totalInvoiceAmountINR - newTotalAmountPaid);
+      
+      if (partialPayments.length === 0) {
+        // Delete the entire payment document if no partial payments remain
+        await deleteDoc(paymentRef);
+      } else {
+        // Update the payment document with recalculated values
+        await updateDoc(paymentRef, {
+          totalAmountPaid: newTotalAmountPaid,
+          totalAmountPaidByClient: newTotalAmountPaidByClient,
+          totalAmountPaidCompanyCurrency: newTotalAmountPaidCompanyCurrency,
+          pendingAmountINR: newPendingAmountINR,
+          status: newPendingAmountINR <= 0 ? 'completed' : 'pending',
+          partialPayments,
+          updatedAt: Timestamp.now(),
+        });
+      }
+      
+      return { removedPayment, newTotalAmountPaidByClient };
+    } catch (err) {
+      console.error('Error deleting partial payment:', err);
+      throw new Error(err instanceof Error ? err.message : 'Failed to delete partial payment');
+    }
+  };
+
+  return { payments, loading, error, addPayment, deletePartialPayment };
 };
 
 export const useExpenses = () => {

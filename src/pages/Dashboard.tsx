@@ -28,6 +28,8 @@ const Dashboard = () => {
   const { invoices, loading: invoicesLoading } = useInvoices();
   const { clients, loading: clientsLoading } = useClients();
   const { payments, loading: paymentsLoading } = usePayments();
+  // Use new payment structure for calculations
+  const totalRevenue = payments.reduce((sum, payment) => sum + (payment.totalAmountPaidCompanyCurrency || 0), 0);
   const { companyData } = useCompanyData();
 
   // Get currency symbol based on company currency

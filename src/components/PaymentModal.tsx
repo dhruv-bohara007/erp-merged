@@ -74,8 +74,8 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
       
       // Calculate amount already paid for this invoice in company currency
       if (invoice) {
-        const invoicePayments = payments.filter(p => p.invoiceId === invoice.id);
-        const totalPaidCompanyCurrency = invoicePayments.reduce((sum, p) => sum + (p.originalPaymentAmount || 0), 0);
+        const paymentDoc = payments.find(p => p.invoiceId === invoice.id);
+        const totalPaidCompanyCurrency = paymentDoc?.totalAmountPaidCompanyCurrency || 0;
         setAmountAlreadyPaidCompanyCurrency(totalPaidCompanyCurrency);
       }
     } else {
@@ -86,8 +86,8 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
 
   // Filter invoices to show only those with pending payments
   const invoicesWithPendingPayments = invoices.filter(invoice => {
-    const invoicePayments = payments.filter(p => p.invoiceId === invoice.id);
-    const totalPaidINR = invoicePayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    const paymentDoc = payments.find(p => p.invoiceId === invoice.id);
+    const totalPaidINR = paymentDoc?.totalAmountPaid || 0;
     const totalAmountINR = invoice.totalAmountINR || invoice.totalAmount || 0;
     return totalPaidINR < totalAmountINR;
   });
@@ -162,10 +162,10 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
         console.log('Converted amount in client currency:', amountInClientCurrency);
       }
 
-      // Always create a new payment document for each payment
       // Calculate pending amount in INR after this payment
-      const existingPayments = payments.filter(p => p.invoiceId === selectedInvoice.id);
-      const totalPaidINRAfterPayment = existingPayments.reduce((sum, p) => sum + (p.amount || 0), 0) + convertedAmountINR;
+      const existingPayment = payments.find(p => p.invoiceId === selectedInvoice.id);
+      const currentTotalPaidINR = existingPayment?.totalAmountPaid || 0;
+      const totalPaidINRAfterPayment = currentTotalPaidINR + convertedAmountINR;
       const totalAmountINR = selectedInvoice.totalAmountINR || selectedInvoice.totalAmount || 0;
       const pendingAmountINR = Math.max(0, totalAmountINR - totalPaidINRAfterPayment);
 
@@ -239,10 +239,73 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
 
       console.log('Creating new payment document:', paymentData);
 
-      await addPayment(paymentData);
+      // Prepare partial payment data
+      const partialPaymentData = {
+        paymentDate: new Date(data.paymentDate),
+        originalPaymentAmount: paymentAmount,
+        paymentMethod: data.paymentMethod,
+        amountPaidByClient: amountInClientCurrency,
+        amount: convertedAmountINR,
+        conversionRate: companyCurrency !== 'INR' ? {
+          companyToINR: convertedAmountINR / paymentAmount,
+          INRToClient: amountInClientCurrency / convertedAmountINR,
+          timestamp: new Date()
+        } : undefined,
+        pendingPaymentInINR: pendingAmountINR,
+        clientCurrency,
+        companyCurrency,
+      };
+
+      // Create invoice snapshot data (filter out undefined values)
+      const invoiceSnapshot = filterUndefinedValues({
+        invoiceNumber: selectedInvoice.invoiceNumber,
+        clientEmail: selectedInvoice.clientEmail,
+        clientState: selectedInvoice.clientState,
+        clientPhone: selectedInvoice.clientPhone,
+        clientPincode: selectedInvoice.clientPincode,
+        items: selectedInvoice.items,
+        subtotal: selectedInvoice.subtotal,
+        cgst: selectedInvoice.cgst,
+        sgst: selectedInvoice.sgst,
+        igst: selectedInvoice.igst,
+        totalGst: selectedInvoice.totalGst,
+        totalAmount: selectedInvoice.totalAmount,
+        totalAmountINR: selectedInvoice.totalAmountINR,
+        companyCurrency: selectedInvoice.companyCurrency,
+        companyAmount: selectedInvoice.companyAmount,
+        clientCurrency: selectedInvoice.clientCurrency,
+        clientAmount: selectedInvoice.clientAmount,
+        conversionRate: selectedInvoice.conversionRate,
+        companyCountry: selectedInvoice.companyCountry,
+        clientCountry: selectedInvoice.clientCountry,
+        companyName: selectedInvoice.companyName,
+        companyLogoUrl: selectedInvoice.companyLogoUrl,
+        companyEmail: selectedInvoice.companyEmail,
+        companyWebsite: selectedInvoice.companyWebsite,
+        companyPhone: selectedInvoice.companyPhone,
+        companyCity: selectedInvoice.companyCity,
+        companyTaxInfo: selectedInvoice.companyTaxInfo,
+        companyBankDetails: selectedInvoice.companyBankDetails,
+        companyAddress: selectedInvoice.companyAddress,
+        ownerSignatureUrl: selectedInvoice.ownerSignatureUrl,
+        businessOwnerName: selectedInvoice.businessOwnerName,
+        businessOwnerPosition: selectedInvoice.businessOwnerPosition,
+        clientAddress: selectedInvoice.clientAddress,
+        clientTaxInfo: selectedInvoice.clientTaxInfo,
+        bankInfo: selectedInvoice.bankInfo,
+        logoUrl: selectedInvoice.logoUrl,
+        signatureUrl: selectedInvoice.signatureUrl,
+        issueDate: selectedInvoice.issueDate,
+        dueDate: selectedInvoice.dueDate,
+        notes: selectedInvoice.notes,
+        terms: selectedInvoice.terms,
+      });
+
+      await addPayment(selectedInvoice.id, partialPaymentData, invoiceSnapshot);
 
       // Update the invoice's amountPaidByClient field with total paid amount
-      const totalPaidByClient = existingPayments.reduce((sum, p) => sum + (p.amountPaidByClient || 0), 0) + amountInClientCurrency;
+      const currentTotalPaidByClient = existingPayment?.totalAmountPaidByClient || 0;
+      const totalPaidByClient = currentTotalPaidByClient + amountInClientCurrency;
       await updateInvoice(selectedInvoice.id, {
         amountPaidByClient: totalPaidByClient
       });

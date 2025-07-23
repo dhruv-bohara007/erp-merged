@@ -125,23 +125,85 @@ export interface Invoice {
   updatedAt: Timestamp;
 }
 
+// New partial payment interface for individual payment entries within Payment document
+export interface PartialPayment {
+  paymentDate: Date;
+  originalPaymentAmount: number;
+  paymentMethod: 'neft' | 'rtgs' | 'imps' | 'upi' | 'cash' | 'credit_card' | 'debit_card' | 'cheque';
+  amountPaidByClient: number;
+  amount: number; // in company currency converted to INR
+  conversionRate?: {
+    companyToINR: number;
+    INRToClient: number;
+    timestamp: Timestamp;
+  };
+  pendingPaymentInINR: number;
+  clientCurrency: string;
+  companyCurrency: string;
+  referenceNumber?: string; // UTR/Transaction ID
+  notes?: string;
+}
+
+// Main Payment document - one per invoice with partialPayments array
 export interface Payment {
   id: string;
+  companyId: string;
   invoiceId: string;
   invoiceNumber: string; // denormalized
   clientId: string;
   clientName: string; // denormalized
-  amount: number;
-  paymentMethod: 'neft' | 'rtgs' | 'imps' | 'upi' | 'cash' | 'credit_card' | 'debit_card' | 'cheque';
-  paymentDate: Timestamp;
+  
+  // Payment totals and status
+  totalAmountPaid: number; // Total paid in INR
+  totalAmountPaidByClient: number; // Total paid in client currency
+  totalAmountPaidCompanyCurrency: number; // Total paid in company currency
+  pendingAmountINR: number; // Remaining amount to be paid in INR
   status: 'completed' | 'pending' | 'failed';
-  referenceNumber?: string; // UTR/Transaction ID
-  bankDetails?: {
-    fromAccount?: string;
-    toAccount?: string;
-    ifscCode?: string;
-  };
+  
+  // Array of individual payments
+  partialPayments: PartialPayment[];
+  
+  // Copy of invoice snapshot data for consistency
+  clientEmail?: string;
+  clientState?: string;
+  clientPhone?: string;
+  clientPincode?: string;
+  items?: any[];
+  subtotal?: number;
+  cgst?: number;
+  sgst?: number;
+  igst?: number;
+  totalGst?: number;
+  totalAmount?: number;
+  totalAmountINR?: number;
+  companyCurrency?: string;
+  companyAmount?: number;
+  clientCurrency?: string;
+  clientAmount?: number;
+  companyCountry?: string;
+  clientCountry?: string;
+  companyName?: string;
+  companyLogoUrl?: string;
+  companyEmail?: string;
+  companyWebsite?: string;
+  companyPhone?: string;
+  companyCity?: string;
+  companyTaxInfo?: any;
+  companyBankDetails?: any;
+  companyAddress?: string;
+  ownerSignatureUrl?: string;
+  businessOwnerName?: string;
+  businessOwnerPosition?: string;
+  clientAddress?: string;
+  clientTaxInfo?: any;
+  bankInfo?: any;
+  logoUrl?: string;
+  signatureUrl?: string;
+  issueDate?: Timestamp;
+  dueDate?: Timestamp;
   notes?: string;
+  terms?: string;
+  
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
