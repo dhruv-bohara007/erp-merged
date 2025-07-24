@@ -108,7 +108,8 @@ export interface InvoiceItem {
   productVersion?: string;
   discount?: string;
   productRate?: number;
-  sourceType?: 'available' | 'manual';
+  sourceType?: 'manual' | 'stock' | 'inventory';
+  unit?: string;
 }
 
 export interface Client {

@@ -16,6 +16,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useInventory } from '@/hooks/useFirestore';
 import { useProductDefinitions } from '@/hooks/useProductDefinitions';
+import { useStockDetails } from '@/hooks/useStockDetails';
 import SearchableDropdown from './SearchableDropdown';
 
 interface InvoiceFormItem {
@@ -23,11 +24,12 @@ interface InvoiceFormItem {
   itemName: string;
   productVersion: string;
   quantity: number;
+  unit?: string;
   rate: number;
   discount: string;
   amount: number;
   productRate?: number;
-  sourceType: 'available' | 'manual';
+  sourceType: 'manual' | 'stock' | 'inventory';
 }
 
 const InvoiceForm = () => {
@@ -37,6 +39,7 @@ const InvoiceForm = () => {
   const { clients } = useClients();
   const { inventory } = useInventory();
   const { productDefinitions, addProductDefinition } = useProductDefinitions();
+  const { stockDetails } = useStockDetails();
   const { companyData } = useCompanyData();
   const { calculateTaxes, getTaxDisplayName } = useTaxCalculations();
   const { convertToINR, convertFromINR, formatCurrency, getCurrencyInfo, loading: currencyLoading } = useCurrencyConverter();
@@ -60,17 +63,18 @@ const InvoiceForm = () => {
     terms: 'Payment due within 30 days of invoice date.',
   });
 
-  const [productSourceType, setProductSourceType] = useState<'available' | 'manual'>('available');
+  const [productSourceType, setProductSourceType] = useState<'manual' | 'stock' | 'inventory'>('manual');
   const [items, setItems] = useState<InvoiceFormItem[]>([
     { 
       productCategory: '', 
       itemName: '', 
       productVersion: '', 
       quantity: 1, 
+      unit: '',
       rate: 0, 
       discount: '0', 
       amount: 0,
-      sourceType: 'available'
+      sourceType: 'manual'
     }
   ]);
 
@@ -79,12 +83,37 @@ const InvoiceForm = () => {
   // Get active inventory items
   const activeInventory = inventory.filter(item => item.status === 'active');
   
-  // Get categories, names, and versions from product_definitions
-  const availableCategories = [...new Set(productDefinitions.map(p => p.productCategory))];
-  const getAvailableNames = (category: string) => 
-    [...new Set(productDefinitions.filter(p => p.productCategory === category).map(p => p.itemName))];
-  const getAvailableVersions = (category: string, name: string) =>
-    [...new Set(productDefinitions.filter(p => p.productCategory === category && p.itemName === name).map(p => p.productVersion))];
+  // Get data based on source type
+  const getDataSource = () => {
+    switch (productSourceType) {
+      case 'stock':
+        return {
+          categories: [...new Set(stockDetails.map(p => p.productCategory))],
+          getNames: (category: string) => [...new Set(stockDetails.filter(p => p.productCategory === category).map(p => p.itemName))],
+          getVersions: (category: string, name: string) => [...new Set(stockDetails.filter(p => p.productCategory === category && p.itemName === name).map(p => p.productVersion))],
+          getUnits: (category: string, name: string, version: string) => {
+            const item = stockDetails.find(p => p.productCategory === category && p.itemName === name && p.productVersion === version);
+            return item ? [item.unit] : [];
+          }
+        };
+      case 'inventory':
+        return {
+          categories: [...new Set(activeInventory.map(p => p.productCategory))],
+          getNames: (category: string) => [...new Set(activeInventory.filter(p => p.productCategory === category).map(p => p.itemName))],
+          getVersions: (category: string, name: string) => [...new Set(activeInventory.filter(p => p.productCategory === category && p.itemName === name).map(p => p.productVersion))],
+          getUnits: () => []
+        };
+      default: // manual
+        return {
+          categories: [...new Set(productDefinitions.map(p => p.productCategory))],
+          getNames: (category: string) => [...new Set(productDefinitions.filter(p => p.productCategory === category).map(p => p.itemName))],
+          getVersions: (category: string, name: string) => [...new Set(productDefinitions.filter(p => p.productCategory === category && p.itemName === name).map(p => p.productVersion))],
+          getUnits: () => []
+        };
+    }
+  };
+
+  const dataSource = getDataSource();
 
   // Calculate totals first
   const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
@@ -188,6 +217,7 @@ const InvoiceForm = () => {
       itemName: '',
       productVersion: '',
       quantity: 1,
+      unit: '',
       rate: 0,
       discount: '0',
       amount: 0,
@@ -207,9 +237,22 @@ const InvoiceForm = () => {
       if (i === index) {
         const updatedItem = { ...item, [field]: value };
         
-        // Auto-fill rate when category, name, and version are selected (only for 'available' source type)
-        if ((field === 'productCategory' || field === 'itemName' || field === 'productVersion') && updatedItem.sourceType === 'available') {
-          if (updatedItem.productCategory && updatedItem.itemName && updatedItem.productVersion) {
+        // Auto-fill rate and unit based on source type
+        if ((field === 'productCategory' || field === 'itemName' || field === 'productVersion') && 
+            updatedItem.productCategory && updatedItem.itemName && updatedItem.productVersion) {
+          
+          if (updatedItem.sourceType === 'stock') {
+            const stockItem = stockDetails.find(stock => 
+              stock.productCategory === updatedItem.productCategory &&
+              stock.itemName === updatedItem.itemName &&
+              stock.productVersion === updatedItem.productVersion
+            );
+            if (stockItem) {
+              updatedItem.rate = stockItem.pricePerUnit || 0;
+              updatedItem.productRate = stockItem.pricePerUnit || 0;
+              updatedItem.unit = stockItem.unit;
+            }
+          } else if (updatedItem.sourceType === 'inventory') {
             const inventoryItem = activeInventory.find(inv => 
               inv.productCategory === updatedItem.productCategory &&
               inv.itemName === updatedItem.itemName &&
@@ -217,15 +260,17 @@ const InvoiceForm = () => {
               inv.status === 'active'
             );
             if (inventoryItem) {
-              updatedItem.rate = inventoryItem.rate || 0;
-              updatedItem.productRate = inventoryItem.rate || 0;
+              updatedItem.rate = inventoryItem.unitPrice || 0;
+              updatedItem.productRate = inventoryItem.unitPrice || 0;
+              // For inventory items, don't show quantity and unit fields
             }
           }
         }
         
         // Recalculate amount when quantity, rate, or discount changes
         if (field === 'quantity' || field === 'rate' || field === 'discount') {
-          const subtotalAmount = updatedItem.quantity * updatedItem.rate;
+          const quantity = updatedItem.sourceType === 'inventory' ? 1 : updatedItem.quantity;
+          const subtotalAmount = quantity * updatedItem.rate;
           const discountPercent = typeof updatedItem.discount === 'string' ? parseFloat(updatedItem.discount) || 0 : updatedItem.discount;
           const discountAmount = (subtotalAmount * discountPercent) / 100;
           updatedItem.amount = subtotalAmount - discountAmount;
@@ -285,8 +330,8 @@ const InvoiceForm = () => {
 
       // Convert InvoiceFormItem[] to extended InvoiceItem[] with product details
       const firestoreItems: InvoiceItem[] = items.map(item => ({
-        description: `${item.productCategory} - ${item.itemName} (${item.productVersion})`,
-        quantity: item.quantity,
+        description: `${item.productCategory} - ${item.itemName} (${item.productVersion})${item.unit ? ` [${item.unit}]` : ''}`,
+        quantity: item.sourceType === 'inventory' ? 1 : item.quantity,
         rate: item.rate,
         amount: item.amount,
         // Store all product fields as required
@@ -295,7 +340,8 @@ const InvoiceForm = () => {
         productVersion: item.productVersion,
         discount: item.discount,
         productRate: item.productRate || item.rate,
-        sourceType: item.sourceType
+        sourceType: item.sourceType,
+        unit: item.unit
       }));
 
       const invoice = {
@@ -545,19 +591,35 @@ const InvoiceForm = () => {
           {/* Product Source Selector */}
           <div className="mt-4 p-4 bg-background rounded-lg border">
             <Label className="text-sm font-medium mb-3 block">Select Product Source</Label>
-            <Select value={productSourceType} onValueChange={(value: 'available' | 'manual') => {
+            <Select value={productSourceType} onValueChange={(value: 'manual' | 'stock' | 'inventory') => {
               setProductSourceType(value);
-              // Update all items to use the new source type
-              setItems(items.map(item => ({ ...item, sourceType: value })));
+              // Update all items to use the new source type and reset fields
+              setItems(items.map(item => ({ 
+                ...item, 
+                sourceType: value,
+                productCategory: '',
+                itemName: '',
+                productVersion: '',
+                quantity: value === 'inventory' ? 1 : 1,
+                unit: '',
+                rate: 0,
+                amount: 0
+              })));
             }}>
               <SelectTrigger className="w-64">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="available">From Available Products</SelectItem>
                 <SelectItem value="manual">Manual Entry</SelectItem>
+                <SelectItem value="stock">Through Existing Stock</SelectItem>
+                <SelectItem value="inventory">Through Products (Stockless Items)</SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground mt-2">
+              {productSourceType === 'manual' && 'Enter product details manually with optional quantity and unit fields.'}
+              {productSourceType === 'stock' && 'Select from existing stock. Rate auto-fills from stock price. Unit dropdown appears next to quantity.'}
+              {productSourceType === 'inventory' && 'Select from stockless products. Rate auto-fills from unit price. Quantity and unit fields are hidden.'}
+            </p>
           </div>
         </CardHeader>
         <CardContent className="p-6">
@@ -567,7 +629,11 @@ const InvoiceForm = () => {
                 {/* Item Header */}
                 <div className="flex justify-between items-center mb-4">
                   <span className="text-sm font-medium text-muted-foreground">
-                    Item #{index + 1} • {productSourceType === 'available' ? 'From Inventory' : 'Manual Entry'}
+                    Item #{index + 1} • {
+                      productSourceType === 'manual' ? 'Manual Entry' :
+                      productSourceType === 'stock' ? 'From Existing Stock' :
+                      'From Stockless Products'
+                    }
                   </span>
                   {items.length > 1 && (
                     <Button
@@ -581,13 +647,13 @@ const InvoiceForm = () => {
                   )}
                 </div>
 
-                {productSourceType === 'available' ? (
-                  // Available Products Mode
+                {productSourceType !== 'manual' ? (
+                  // Stock or Inventory Products Mode
                   <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                     <div className="md:col-span-2">
                       <Label className="text-sm font-medium text-foreground mb-2 block">Product Category *</Label>
                       <SearchableDropdown
-                        items={availableCategories}
+                        items={dataSource.categories}
                         value={item.productCategory}
                         onValueChange={(value) => updateItem(index, 'productCategory', value)}
                         placeholder="Select category"
@@ -596,7 +662,7 @@ const InvoiceForm = () => {
                     <div className="md:col-span-2">
                       <Label className="text-sm font-medium text-foreground mb-2 block">Product Name *</Label>
                       <SearchableDropdown
-                        items={item.productCategory ? getAvailableNames(item.productCategory) : []}
+                        items={item.productCategory ? dataSource.getNames(item.productCategory) : []}
                         value={item.itemName}
                         onValueChange={(value) => updateItem(index, 'itemName', value)}
                         placeholder="Select name"
@@ -605,23 +671,39 @@ const InvoiceForm = () => {
                     <div className="md:col-span-2">
                       <Label className="text-sm font-medium text-foreground mb-2 block">Product Version *</Label>
                       <SearchableDropdown
-                        items={item.productCategory && item.itemName ? getAvailableVersions(item.productCategory, item.itemName) : []}
+                        items={item.productCategory && item.itemName ? dataSource.getVersions(item.productCategory, item.itemName) : []}
                         value={item.productVersion}
                         onValueChange={(value) => updateItem(index, 'productVersion', value)}
                         placeholder="Select version"
                       />
                     </div>
                     
-                    <div>
-                      <Label className="text-sm font-medium text-foreground mb-2 block">Quantity *</Label>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={item.quantity}
-                        onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
-                        className="bg-background"
-                      />
-                    </div>
+                    {/* Quantity and Unit for Stock mode only */}
+                    {productSourceType === 'stock' && (
+                      <>
+                        <div>
+                          <Label className="text-sm font-medium text-foreground mb-2 block">Quantity *</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
+                            className="bg-background"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-foreground mb-2 block">Unit</Label>
+                          <Input
+                            type="text"
+                            value={item.unit || ''}
+                            readOnly
+                            className="bg-muted text-muted-foreground"
+                            placeholder="Auto-filled"
+                          />
+                        </div>
+                      </>
+                    )}
+                    
                     <div>
                       <Label className="text-sm font-medium text-foreground mb-2 block">
                         Rate ({companyCurrency.symbol})
@@ -629,9 +711,14 @@ const InvoiceForm = () => {
                       <Input
                         type="text"
                         value={item.rate === 0 ? '' : item.rate.toString()}
-                        readOnly
-                        className="bg-muted text-muted-foreground"
-                        placeholder="Auto-filled"
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
+                            updateItem(index, 'rate', value === '' ? 0 : Number(value));
+                          }
+                        }}
+                        className="bg-background"
+                        placeholder="Auto-filled but editable"
                       />
                     </div>
                     <div>
@@ -683,13 +770,24 @@ const InvoiceForm = () => {
                     </div>
                     
                     <div>
-                      <Label className="text-sm font-medium text-foreground mb-2 block">Quantity *</Label>
+                      <Label className="text-sm font-medium text-foreground mb-2 block">Quantity (Optional)</Label>
                       <Input
                         type="number"
                         min="1"
                         value={item.quantity}
                         onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
                         className="bg-background"
+                        placeholder="1"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-foreground mb-2 block">Unit (Optional)</Label>
+                      <Input
+                        type="text"
+                        value={item.unit || ''}
+                        onChange={(e) => updateItem(index, 'unit', e.target.value)}
+                        className="bg-background"
+                        placeholder="e.g., pcs, kg, meters"
                       />
                     </div>
                     <div>
