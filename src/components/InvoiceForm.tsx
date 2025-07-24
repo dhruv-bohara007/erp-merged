@@ -640,13 +640,24 @@ const InvoiceForm = () => {
                       <Select 
                         value={item.sourceType} 
                         onValueChange={(value: 'manual' | 'stock' | 'inventory') => {
-                          updateItem(index, 'sourceType', value);
-                          // Reset item fields when changing source type
-                          updateItem(index, 'productCategory', '');
-                          updateItem(index, 'itemName', '');
-                          updateItem(index, 'productVersion', '');
-                          updateItem(index, 'rate', 0);
-                          updateItem(index, 'unit', '');
+                          // Batch all updates together to prevent state update issues
+                          setItems(currentItems => 
+                            currentItems.map((currentItem, currentIndex) => {
+                              if (currentIndex === index) {
+                                return {
+                                  ...currentItem,
+                                  sourceType: value,
+                                  productCategory: '',
+                                  itemName: '',
+                                  productVersion: '',
+                                  rate: 0,
+                                  unit: '',
+                                  amount: 0
+                                };
+                              }
+                              return currentItem;
+                            })
+                          );
                         }}
                       >
                         <SelectTrigger className="w-48 h-8 text-xs">
