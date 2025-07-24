@@ -68,10 +68,26 @@ const InvoiceDetailsModal = ({ invoice, open, onOpenChange }: InvoiceDetailsModa
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'paid': return 'bg-green-100 text-green-800 border-green-200';
-      case 'sent': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'draft': return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'pending': return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'sent': return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'draft': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case 'overdue': return 'bg-red-100 text-red-800 border-red-200';
+      case 'partially-paid': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'paid-after-due': return 'bg-blue-100 text-blue-800 border-blue-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const getStatusDisplay = (status: string) => {
+    switch (status) {
+      case 'draft': return '🟡 Created';
+      case 'sent': return '🟠 Pending';
+      case 'pending': return '🟠 Pending';
+      case 'partially-paid': return '🟡 Partially Paid';
+      case 'paid': return '🟢 Paid';
+      case 'overdue': return '🔴 Overdue';
+      case 'paid-after-due': return '🔵 Paid (After Due Date)';
+      default: return '🟡 Created';
     }
   };
 
@@ -212,7 +228,7 @@ Generated on: ${new Date().toLocaleString()}
                     Invoice #{invoice.invoiceNumber}
                   </h1>
                   <Badge className={`${getStatusColor(invoice.status || 'draft')} px-4 py-2 text-base font-semibold border-2 rounded-full`}>
-                    {(invoice.status || 'draft').charAt(0).toUpperCase() + (invoice.status || 'draft').slice(1)}
+                    {getStatusDisplay(invoice.status || 'draft')}
                   </Badge>
                 </div>
                 <div className="text-right">

@@ -890,14 +890,11 @@ const InvoiceForm = () => {
                     <div>
                       <Label className="text-sm font-medium text-foreground mb-2 block">Quantity (Optional)</Label>
                       <Input
-                        type="text"
+                        type="number"
+                        step="any"
+                        min="0"
                         value={item.quantity}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
-                            updateItem(index, 'quantity', value === '' ? 0 : Number(value));
-                          }
-                        }}
+                        onChange={(e) => updateItem(index, 'quantity', Number(e.target.value) || 0)}
                         className="bg-background"
                         placeholder="1"
                       />
