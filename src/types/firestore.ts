@@ -124,6 +124,8 @@ export interface Invoice {
   paidUSD?: number; // Amount paid in company currency
   paidINR?: number; // Amount paid in INR
   pendingINR?: number; // Remaining amount pending in INR
+  // New field: Array to store all partial payments made for this invoice
+  partialPayments?: PartialPayment[]; // Individual payments made towards this invoice
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
