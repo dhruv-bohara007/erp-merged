@@ -795,20 +795,17 @@ const InvoiceForm = () => {
                     {/* Quantity and Unit for Stock mode only */}
                     {item.sourceType === 'stock' && (
                       <>
-                        <div>
-                          <Label className="text-sm font-medium text-foreground mb-2 block">Quantity *</Label>
-                          <Input
-                            type="text"
-                            value={item.quantity}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
-                                updateItem(index, 'quantity', value === '' ? 0 : Number(value));
-                              }
-                            }}
-                            className="bg-background"
-                          />
-                        </div>
+                         <div>
+                           <Label className="text-sm font-medium text-foreground mb-2 block">Quantity *</Label>
+                           <Input
+                             type="number"
+                             step="any"
+                             min="0"
+                             value={item.quantity}
+                             onChange={(e) => updateItem(index, 'quantity', Number(e.target.value) || 0)}
+                             className="bg-background"
+                           />
+                         </div>
                         <div>
                           <Label className="text-sm font-medium text-foreground mb-2 block">Unit</Label>
                           <Input

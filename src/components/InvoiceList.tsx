@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +22,7 @@ import { useCompanyData } from '@/hooks/useCompanyData';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import InvoiceView from './InvoiceView';
+import EmailInvoiceModal from './EmailInvoiceModal';
 import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 import type { Invoice } from '@/hooks/useFirestore';
 
@@ -35,6 +36,7 @@ const InvoiceList = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
 
   // Get company currency info
   const companyCurrencyInfo = companyData?.country 
@@ -111,6 +113,11 @@ const InvoiceList = () => {
   const handleViewInvoice = (invoice: Invoice) => {
     setSelectedInvoice(invoice);
     setIsViewModalOpen(true);
+  };
+
+  const handleEmailInvoice = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    setIsEmailModalOpen(true);
   };
 
   const handleDownloadPDF = (invoice: Invoice) => {
@@ -379,7 +386,12 @@ Terms: ${invoice.terms || 'N/A'}
                             >
                               <Download className="w-3 h-3" />
                             </Button>
-                            <Button variant="outline" size="sm" title="Send Email">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              title="Send Email"
+                              onClick={() => handleEmailInvoice(invoice)}
+                            >
                               <Mail className="w-3 h-3" />
                             </Button>
                             <Button 
@@ -407,6 +419,12 @@ Terms: ${invoice.terms || 'N/A'}
         invoice={selectedInvoice}
         open={isViewModalOpen}
         onOpenChange={setIsViewModalOpen}
+      />
+      
+      <EmailInvoiceModal
+        invoice={selectedInvoice}
+        open={isEmailModalOpen}
+        onOpenChange={setIsEmailModalOpen}
       />
     </div>
   );
