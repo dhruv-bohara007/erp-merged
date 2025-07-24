@@ -444,17 +444,19 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                       };
                       return countryNames[companyCountry] || companyCountry;
                     })()}</div>
-                    ${invoice.companyPhone ? `<div style="font-size: 13px; line-height: 1.2;">📞 <span class="phone-number">${formatPhoneNumber(invoice.companyPhone, companyCountry)}</span></div>` : ''}
-                    ${invoice.companyEmail ? `<div style="font-size: 13px; line-height: 1.2;">📧 ${invoice.companyEmail}</div>` : ''}
-                    ${invoice.companyWebsite ? `<div style="font-size: 13px; line-height: 1.2;">🌐 ${invoice.companyWebsite}</div>` : ''}
-                  </div>
+                     ${invoice.companyPhone ? `<div style="font-size: 13px; line-height: 1.2;">📞 <span class="phone-number">${formatPhoneNumber(invoice.companyPhone, companyCountry)}</span></div>` : ''}
+                     ${invoice.companyEmail ? `<div style="font-size: 13px; line-height: 1.2;">📧 ${invoice.companyEmail}</div>` : ''}
+                     ${invoice.companyWebsite ? `<div style="font-size: 13px; line-height: 1.2;">🌐 ${invoice.companyWebsite}</div>` : ''}
+                   </div>
 
-                  ${invoice.companyTaxInfo && (invoice.companyTaxInfo.primaryType && invoice.companyTaxInfo.primaryId) ? `
-                    <div class="info-section">
-                      <div class="section-title">🏛️ Tax Information</div>
-                      <div style="font-size: 13px; line-height: 1.2;"><strong>${invoice.companyTaxInfo.primaryType}:</strong> ${invoice.companyTaxInfo.primaryId}</div>
-                    </div>
-                  ` : ''}
+                   ${invoice.companyTaxInfo && (invoice.companyTaxInfo.primaryType && invoice.companyTaxInfo.primaryId) ? `
+                     <div class="info-section">
+                       <div class="section-title">🏛️ Tax Information</div>
+                       <div style="font-size: 13px; line-height: 1.2;"><strong>${invoice.companyTaxInfo.primaryType}:</strong> ${invoice.companyTaxInfo.primaryId}</div>
+                       ${invoice.totalGst && invoice.subtotal ? `<div style="font-size: 13px; line-height: 1.2;"><strong>Tax Rate:</strong> ${((invoice.totalGst / invoice.subtotal) * 100).toFixed(2)}%</div>` : ''}
+                       ${invoice.conversionRate ? `<div style="font-size: 13px; line-height: 1.2;"><strong>Exchange Rate:</strong> ${invoice.conversionRate.companyToINR} (${companyCurrency.code} to INR)</div>` : ''}
+                     </div>
+                   ` : ''}
 
                   ${invoice.bankInfo ? `
                     <div class="info-section">
@@ -627,8 +629,8 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
               </div>
             </div>
 
-            <!-- Payment Summary for Partially Paid invoices (placed directly below items table) -->
-            ${['pending', 'partially-paid', 'overdue'].includes(statusResult.status) && invoice.partialPayments && invoice.partialPayments.length > 0 ? `
+            <!-- Payment Summary for Partially Paid, Paid After Due, or Overdue invoices (placed directly below items table) -->
+            ${(['pending', 'partially-paid', 'overdue', 'paid-after-due'].includes(statusResult.status) && invoice.partialPayments && invoice.partialPayments.length > 0) || statusResult.status === 'paid-after-due' ? `
               <div style="margin-top: 30px;">
                 <!-- Payment Summary Cards -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
@@ -676,7 +678,7 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
           </div>
 
           <!-- Third Page: Payment History -->
-          ${['pending', 'partially-paid', 'overdue'].includes(statusResult.status) && invoice.partialPayments && invoice.partialPayments.length > 0 ? `
+          ${(['pending', 'partially-paid', 'overdue', 'paid-after-due'].includes(statusResult.status) && invoice.partialPayments && invoice.partialPayments.length > 0) || statusResult.status === 'paid-after-due' ? `
             <div class="container page-break-before">
               <div class="info-card">
                 <div class="card-header" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);">💳 Client Payment History</div>
@@ -721,33 +723,30 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                       `).join('')}
                     </tbody>
                   </table>
+                  
+                  <!-- Additional Information section placed directly below the payment history table -->
+                  ${(invoice.notes || invoice.terms) ? `
+                    <div style="margin-top: 30px; padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                      <h4 style="margin: 0 0 15px 0; font-size: 16px; font-weight: bold; color: #374151;">📄 Additional Information</h4>
+                      ${invoice.notes ? `
+                        <div style="margin-bottom: 20px;">
+                          <div style="font-weight: bold; margin-bottom: 8px; color: #374151;">📝 Notes</div>
+                          <p style="font-size: 14px; line-height: 1.6; padding: 15px; background: #ffffff; border-radius: 6px; border: 1px solid #e5e7eb; margin: 0;">${invoice.notes}</p>
+                        </div>
+                      ` : ''}
+                      ${invoice.terms ? `
+                        <div>
+                          <div style="font-weight: bold; margin-bottom: 8px; color: #374151;">📋 Terms & Conditions</div>
+                          <p style="font-size: 14px; line-height: 1.6; padding: 15px; background: #ffffff; border-radius: 6px; border: 1px solid #e5e7eb; margin: 0;">${invoice.terms}</p>
+                        </div>
+                      ` : ''}
+                    </div>
+                  ` : ''}
                 </div>
               </div>
             </div>
           ` : ''}
 
-          <!-- Fourth Page: Notes and Terms -->
-          ${(invoice.notes || invoice.terms) ? `
-            <div class="container page-break-before">
-              <div class="info-card">
-                <div class="card-header" style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);">📄 Additional Information</div>
-                <div class="card-content" style="padding: 30px;">
-                  ${invoice.notes ? `
-                    <div style="margin-bottom: 30px;">
-                      <div class="section-title" style="font-size: 18px; margin-bottom: 15px;">📝 Notes</div>
-                      <p style="font-size: 14px; line-height: 1.6; padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">${invoice.notes}</p>
-                    </div>
-                  ` : ''}
-                  ${invoice.terms ? `
-                    <div>
-                      <div class="section-title" style="font-size: 18px; margin-bottom: 15px;">📋 Terms & Conditions</div>
-                      <p style="font-size: 14px; line-height: 1.6; padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">${invoice.terms}</p>
-                    </div>
-                  ` : ''}
-                </div>
-              </div>
-            </div>
-          ` : ''}
 
             <!-- Footer -->
             <div class="invoice-footer">
@@ -1270,8 +1269,8 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
             </CardContent>
           </Card>
 
-          {/* Payment History for Pending, Partially Paid, or Overdue invoices */}
-          {['pending', 'partially-paid', 'overdue'].includes(statusResult.status) && invoice.partialPayments && invoice.partialPayments.length > 0 && (
+          {/* Payment History for Pending, Partially Paid, Overdue, or Paid After Due Date invoices */}
+          {(['pending', 'partially-paid', 'overdue', 'paid-after-due'].includes(statusResult.status) && invoice.partialPayments && invoice.partialPayments.length > 0) || statusResult.status === 'paid-after-due' ? (
             <Card className="border-2 border-gray-200 shadow-xl rounded-xl">
               <CardHeader className="bg-gradient-to-r from-orange-50 to-red-50 border-b-2 border-gray-200 rounded-t-xl">
                 <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
@@ -1390,7 +1389,7 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                 </div>
               </CardContent>
             </Card>
-          )}
+          ) : null}
 
           {/* Notes and Terms */}
           {(invoice.notes || invoice.terms) && (
