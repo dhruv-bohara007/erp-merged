@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Calendar, Download, MapPin, Globe, Phone, Building, FileText, CreditCard, Mail, ExternalLink } from 'lucide-react';
+import { Calendar, Download, MapPin, Globe, Phone, Building, FileText, CreditCard, Mail, ExternalLink, Smartphone, Banknote, IndianRupee } from 'lucide-react';
 import { Invoice } from '@/hooks/useFirestore';
 import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 import { countryPhoneCodes } from '@/data/countryPhoneCodes';
@@ -624,7 +624,100 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
               </div>
             </div>
 
-            <!-- Notes and Terms (Second page) -->
+            <!-- Payment History for Pending, Partially Paid, or Overdue invoices -->
+            ${['pending', 'partially-paid', 'overdue'].includes(statusResult.status) && invoice.partialPayments && invoice.partialPayments.length > 0 ? `
+              <div class="payment-history-section" style="margin-top: 40px; page-break-before: auto;">
+                <div class="section-title">💳 Payment History</div>
+                
+                <!-- Payment Summary -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+                  <div style="background-color: #f0f9ff; padding: 20px; border-radius: 8px; border: 2px solid #0ea5e9;">
+                    <h4 style="margin: 0 0 15px 0; font-size: 16px; font-weight: bold; color: #0c4a6e;">Total Amount Paid</h4>
+                    <div style="font-size: 20px; font-weight: bold; color: #059669; margin-bottom: 5px;">
+                      ${formatCurrency(
+                        invoice.partialPayments.reduce((sum, payment) => sum + (payment.originalPaymentAmount || 0), 0), 
+                        companyCountry
+                      )}
+                    </div>
+                    <div style="font-size: 12px; color: #6b7280;">Company Currency (${companyCurrency.code})</div>
+                    ${showDualCurrency ? `
+                      <div style="font-size: 16px; font-weight: bold; color: #10b981; margin-top: 10px;">
+                        ${formatCurrency(
+                          convertINRToClient(convertCompanyToINR(
+                            invoice.partialPayments.reduce((sum, payment) => sum + (payment.originalPaymentAmount || 0), 0)
+                          )),
+                          clientCountry
+                        )}
+                      </div>
+                      <div style="font-size: 12px; color: #6b7280;">Client Currency (${clientCurrency.code})</div>
+                    ` : ''}
+                  </div>
+                  
+                  <div style="background-color: #fff7ed; padding: 20px; border-radius: 8px; border: 2px solid #f97316;">
+                    <h4 style="margin: 0 0 15px 0; font-size: 16px; font-weight: bold; color: #9a3412;">Pending Amount</h4>
+                    <div style="font-size: 20px; font-weight: bold; color: #ea580c; margin-bottom: 5px;">
+                      ${formatCurrency(
+                        (invoice.companyAmount || invoice.totalAmount || 0) - 
+                        invoice.partialPayments.reduce((sum, payment) => sum + (payment.originalPaymentAmount || 0), 0),
+                        companyCountry
+                      )}
+                    </div>
+                    <div style="font-size: 12px; color: #6b7280;">Company Currency (${companyCurrency.code})</div>
+                    ${showDualCurrency ? `
+                      <div style="font-size: 16px; font-weight: bold; color: #f97316; margin-top: 10px;">
+                        ${formatCurrency(
+                          convertINRToClient(convertCompanyToINR(
+                            (invoice.companyAmount || invoice.totalAmount || 0) - 
+                            invoice.partialPayments.reduce((sum, payment) => sum + (payment.originalPaymentAmount || 0), 0)
+                          )),
+                          clientCountry
+                        )}
+                      </div>
+                      <div style="font-size: 12px; color: #6b7280;">Client Currency (${clientCurrency.code})</div>
+                    ` : ''}
+                  </div>
+                </div>
+
+                <!-- Payment History Table -->
+                <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                  <thead>
+                    <tr style="background-color: #f8fafc;">
+                      <th style="padding: 12px; text-align: left; border: 1px solid #e2e8f0; font-weight: bold;">Payment Date</th>
+                      <th style="padding: 12px; text-align: right; border: 1px solid #e2e8f0; font-weight: bold;">Amount Paid (${companyCurrency.code})</th>
+                      ${showDualCurrency ? `<th style="padding: 12px; text-align: right; border: 1px solid #e2e8f0; font-weight: bold;">Amount Paid (${clientCurrency.code})</th>` : ''}
+                      <th style="padding: 12px; text-align: center; border: 1px solid #e2e8f0; font-weight: bold;">Payment Method</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${invoice.partialPayments.map((payment, index) => `
+                      <tr style="border-bottom: 1px solid #e2e8f0;">
+                        <td style="padding: 12px; border: 1px solid #e2e8f0;">
+                           ${payment.paymentDate instanceof Date 
+                             ? payment.paymentDate.toLocaleDateString() 
+                             : 'Invalid Date'}
+                        </td>
+                        <td style="padding: 12px; text-align: right; border: 1px solid #e2e8f0; font-weight: bold;">
+                          ${formatCurrency(payment.originalPaymentAmount || 0, companyCountry)}
+                        </td>
+                        ${showDualCurrency ? `
+                          <td style="padding: 12px; text-align: right; border: 1px solid #e2e8f0; font-weight: bold;">
+                            ${formatCurrency(
+                              convertINRToClient(convertCompanyToINR(payment.originalPaymentAmount || 0)),
+                              clientCountry
+                            )}
+                          </td>
+                        ` : ''}
+                        <td style="padding: 12px; text-align: center; border: 1px solid #e2e8f0;">
+                          ${payment.paymentMethod.replace('_', ' ').toUpperCase()}
+                        </td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            ` : ''}
+
+            <!-- Notes and Terms -->
             ${(invoice.notes || invoice.terms) ? `
               <div class="notes-section">
                 ${invoice.notes ? `
@@ -1162,6 +1255,139 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Payment History for Pending, Partially Paid, or Overdue invoices */}
+          {['pending', 'partially-paid', 'overdue'].includes(statusResult.status) && invoice.partialPayments && invoice.partialPayments.length > 0 && (
+            <Card className="border-2 border-gray-200 shadow-xl rounded-xl">
+              <CardHeader className="bg-gradient-to-r from-orange-50 to-red-50 border-b-2 border-gray-200 rounded-t-xl">
+                <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
+                  <CreditCard className="w-6 h-6 text-orange-600" />
+                  Payment History
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-8">
+                {/* Payment Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                  <div className="bg-green-50 p-6 rounded-xl border border-green-200">
+                    <h4 className="font-bold text-gray-900 text-lg mb-4">Total Amount Paid</h4>
+                    <div className="space-y-2">
+                      <div className="text-2xl font-bold text-green-600">
+                        {formatCurrency(
+                          invoice.partialPayments.reduce((sum, payment) => sum + (payment.originalPaymentAmount || 0), 0), 
+                          companyCountry
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-600">Company Currency ({companyCurrency.code})</div>
+                      {showDualCurrency && (
+                        <>
+                          <div className="text-xl font-semibold text-green-500">
+                            {formatCurrency(
+                              convertINRToClient(convertCompanyToINR(
+                                invoice.partialPayments.reduce((sum, payment) => sum + (payment.originalPaymentAmount || 0), 0)
+                              )),
+                              clientCountry
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-600">Client Currency ({clientCurrency.code})</div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="bg-orange-50 p-6 rounded-xl border border-orange-200">
+                    <h4 className="font-bold text-gray-900 text-lg mb-4">Pending Amount</h4>
+                    <div className="space-y-2">
+                      <div className="text-2xl font-bold text-orange-600">
+                        {formatCurrency(
+                          (invoice.companyAmount || invoice.totalAmount || 0) - 
+                          invoice.partialPayments.reduce((sum, payment) => sum + (payment.originalPaymentAmount || 0), 0),
+                          companyCountry
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-600">Company Currency ({companyCurrency.code})</div>
+                      {showDualCurrency && (
+                        <>
+                          <div className="text-xl font-semibold text-orange-500">
+                            {formatCurrency(
+                              convertINRToClient(convertCompanyToINR(
+                                (invoice.companyAmount || invoice.totalAmount || 0) - 
+                                invoice.partialPayments.reduce((sum, payment) => sum + (payment.originalPaymentAmount || 0), 0)
+                              )),
+                              clientCountry
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-600">Client Currency ({clientCurrency.code})</div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment History Table */}
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-50">
+                        <TableHead className="font-bold text-gray-900">Payment Date</TableHead>
+                        <TableHead className="font-bold text-gray-900 text-right">Amount Paid (Company Currency)</TableHead>
+                        {showDualCurrency && (
+                          <TableHead className="font-bold text-gray-900 text-right">Amount Paid (Client Currency)</TableHead>
+                        )}
+                        <TableHead className="font-bold text-gray-900 text-center">Payment Method</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {invoice.partialPayments.map((payment, index) => {
+                        const getPaymentMethodIcon = (method: string) => {
+                          switch (method) {
+                            case 'neft':
+                            case 'rtgs':
+                            case 'imps': return <Building className="w-4 h-4" />;
+                            case 'upi': return <Smartphone className="w-4 h-4" />;
+                            case 'credit_card':
+                            case 'debit_card': return <CreditCard className="w-4 h-4" />;
+                            case 'cash': return <Banknote className="w-4 h-4" />;
+                            case 'cheque': return <IndianRupee className="w-4 h-4" />;
+                            default: return <IndianRupee className="w-4 h-4" />;
+                          }
+                        };
+
+                        return (
+                          <TableRow key={index} className="hover:bg-gray-50">
+                            <TableCell>
+                              <div className="flex items-center text-sm">
+                                <Calendar className="w-3 h-3 mr-1 text-gray-400" />
+                                {payment.paymentDate instanceof Date 
+                                  ? payment.paymentDate.toLocaleDateString() 
+                                  : 'Invalid Date'}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              {formatCurrency(payment.originalPaymentAmount || 0, companyCountry)}
+                            </TableCell>
+                            {showDualCurrency && (
+                              <TableCell className="text-right font-medium">
+                                {formatCurrency(
+                                  convertINRToClient(convertCompanyToINR(payment.originalPaymentAmount || 0)),
+                                  clientCountry
+                                )}
+                              </TableCell>
+                            )}
+                            <TableCell>
+                              <div className="flex items-center justify-center gap-2">
+                                {getPaymentMethodIcon(payment.paymentMethod)}
+                                <span className="capitalize">{payment.paymentMethod.replace('_', ' ').toUpperCase()}</span>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Notes and Terms */}
           {(invoice.notes || invoice.terms) && (

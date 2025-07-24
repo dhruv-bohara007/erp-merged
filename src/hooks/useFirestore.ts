@@ -93,6 +93,28 @@ export interface Invoice {
   dueDate: Date;
   notes?: string;
   terms?: string;
+  partialPayments?: Array<{
+    paymentDate: Date;
+    originalPaymentAmount: number;
+    paymentMethod: 'neft' | 'rtgs' | 'imps' | 'upi' | 'cash' | 'credit_card' | 'debit_card' | 'cheque';
+    amountPaidByClient: number;
+    amount: number;
+    conversionRate: {
+      companyToINR: number;
+      INRToClient: number;
+      timestamp: Date;
+    };
+    pendingPaymentInINR: number;
+    clientCurrency: string;
+    companyCurrency: string;
+    referenceNumber?: string;
+    bankDetails?: {
+      fromAccount?: string;
+      toAccount?: string;
+      ifscCode?: string;
+    };
+    notes?: string;
+  }>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -224,6 +246,14 @@ export const useInvoices = () => {
               ...data.conversionRate,
               timestamp: data.conversionRate.timestamp?.toDate?.() || new Date()
             } : undefined,
+            partialPayments: (data.partialPayments || []).map((pp: any) => ({
+              ...pp,
+              paymentDate: pp.paymentDate?.toDate?.() || new Date(pp.paymentDate) || new Date(),
+              conversionRate: {
+                ...pp.conversionRate,
+                timestamp: pp.conversionRate?.timestamp?.toDate?.() || new Date(pp.conversionRate?.timestamp) || new Date()
+              }
+            })),
             status, // Use determined status
             issueDate: data.issueDate?.toDate(),
             dueDate: data.dueDate?.toDate(),
