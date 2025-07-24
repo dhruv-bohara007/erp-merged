@@ -38,11 +38,6 @@ export const usePaymentOperations = () => {
         }
       };
 
-      // Calculate new totals
-      const newTotalPaidUSD = partialPayment.amount;
-      const newTotalPaidINR = partialPayment.amount; // Adjust based on conversion
-      const newPendingINR = Math.max(0, partialPayment.pendingPaymentInINR);
-
       // Check if payment document exists
       const existingDoc = await getDoc(paymentDocRef);
       
@@ -50,17 +45,27 @@ export const usePaymentOperations = () => {
         // Document exists, append to partialPayments array
         const existingData = existingDoc.data() as Payment;
         const existingPartialPayments = existingData.partialPayments || [];
+        const updatedPartialPayments = [...existingPartialPayments, newPartialPayment];
+        
+        // Calculate totals from all partial payments
+        const totalPaidUSD = updatedPartialPayments.reduce((sum, pp) => sum + pp.originalPaymentAmount, 0);
+        const totalPaidINR = updatedPartialPayments.reduce((sum, pp) => sum + (pp.originalPaymentAmount * pp.conversionRate.companyToINR), 0);
+        const newPendingINR = Math.max(0, partialPayment.pendingPaymentInINR);
         
         await updateDoc(paymentDocRef, {
-          partialPayments: [...existingPartialPayments, newPartialPayment],
-          totalPaidUSD: (existingData.totalPaidUSD || 0) + newTotalPaidUSD,
-          totalPaidINR: (existingData.totalPaidINR || 0) + newTotalPaidINR,
+          partialPayments: updatedPartialPayments,
+          totalPaidUSD,
+          totalPaidINR,
           pendingINR: newPendingINR,
           status: newPendingINR <= 0 ? 'completed' : 'partial',
           updatedAt: Timestamp.now()
         });
       } else {
         // Document doesn't exist, create it
+        const totalPaidUSD = newPartialPayment.originalPaymentAmount;
+        const totalPaidINR = newPartialPayment.originalPaymentAmount * newPartialPayment.conversionRate.companyToINR;
+        const newPendingINR = Math.max(0, partialPayment.pendingPaymentInINR);
+        
         const newPaymentDoc: Payment = {
           id: invoiceId,
           invoiceId,
@@ -68,8 +73,8 @@ export const usePaymentOperations = () => {
           clientId,
           clientName,
           companyId: currentUser.companyId,
-          totalPaidUSD: newTotalPaidUSD,
-          totalPaidINR: newTotalPaidINR,
+          totalPaidUSD,
+          totalPaidINR,
           pendingINR: newPendingINR,
           status: newPendingINR <= 0 ? 'completed' : 'partial',
           partialPayments: [newPartialPayment],
@@ -84,6 +89,57 @@ export const usePaymentOperations = () => {
     } catch (error) {
       console.error('Error adding partial payment:', error);
       toast.error('Failed to record payment');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deletePartialPayment = async (invoiceId: string, paymentIndex: number) => {
+    if (!currentUser?.companyId) {
+      throw new Error('User company ID not found');
+    }
+
+    setLoading(true);
+    try {
+      const paymentDocRef = doc(db, 'payments', invoiceId);
+      const existingDoc = await getDoc(paymentDocRef);
+      
+      if (!existingDoc.exists()) {
+        throw new Error('Payment document not found');
+      }
+
+      const existingData = existingDoc.data() as Payment;
+      const partialPayments = existingData.partialPayments || [];
+      
+      if (paymentIndex < 0 || paymentIndex >= partialPayments.length) {
+        throw new Error('Invalid payment index');
+      }
+
+      // Remove the payment at the specified index
+      const updatedPartialPayments = partialPayments.filter((_, index) => index !== paymentIndex);
+      
+      // Recalculate totals from remaining partial payments
+      const totalPaidUSD = updatedPartialPayments.reduce((sum, pp) => sum + pp.originalPaymentAmount, 0);
+      const totalPaidINR = updatedPartialPayments.reduce((sum, pp) => sum + (pp.originalPaymentAmount * pp.conversionRate.companyToINR), 0);
+      
+      // Get pending amount from the last payment or use existing
+      const lastPayment = updatedPartialPayments[updatedPartialPayments.length - 1];
+      const pendingINR = lastPayment?.pendingPaymentInINR || existingData.pendingINR;
+
+      await updateDoc(paymentDocRef, {
+        partialPayments: updatedPartialPayments,
+        totalPaidUSD,
+        totalPaidINR,
+        pendingINR,
+        status: pendingINR <= 0 ? 'completed' : 'partial',
+        updatedAt: Timestamp.now()
+      });
+
+      toast.success('Payment deleted successfully');
+    } catch (error) {
+      console.error('Error deleting partial payment:', error);
+      toast.error('Failed to delete payment');
       throw error;
     } finally {
       setLoading(false);
@@ -124,6 +180,7 @@ export const usePaymentOperations = () => {
 
   return {
     addPartialPayment,
+    deletePartialPayment,
     updatePaymentTotals,
     loading
   };

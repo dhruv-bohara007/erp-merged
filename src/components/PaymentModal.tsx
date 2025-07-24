@@ -179,8 +179,8 @@ const PaymentModal = ({ open, onOpenChange }: PaymentModalProps) => {
         amountPaidByClient: amountInClientCurrency,
         amount: convertedAmountINR,
         conversionRate: {
-          clientToCompany: 1, // Since we're paying in company currency
-          companyToINR: convertedAmountINR / paymentAmount
+          companyToINR: convertedAmountINR / paymentAmount,
+          INRToClient: 1 / (convertedAmountINR / amountInClientCurrency)
         },
         pendingPaymentInINR: pendingAmountINR,
         clientCurrency: clientCurrency,

@@ -12,8 +12,7 @@ import { Payment } from '@/types/firestore';
 import { getPaymentDate, getOriginalPaymentAmount, getPaymentMethod } from '@/utils/paymentUtils';
 import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 import { useToast } from '@/hooks/use-toast';
-import { doc, deleteDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { usePaymentOperations } from '@/hooks/usePaymentOperations';
 
 interface PaymentHistoryModalProps {
   open: boolean;
@@ -35,8 +34,11 @@ const PaymentHistoryModal = ({
   onPaymentDeleted
 }: PaymentHistoryModalProps) => {
   const { toast } = useToast();
-  // Filter payments for this specific invoice
-  const invoicePayments = payments.filter(payment => payment.invoiceId === invoiceId);
+  const { deletePartialPayment, loading } = usePaymentOperations();
+  
+  // Find the payment document for this invoice
+  const invoicePayment = payments.find(payment => payment.invoiceId === invoiceId);
+  const partialPayments = invoicePayment?.partialPayments || [];
 
   const getPaymentMethodIcon = (method: string) => {
     switch (method) {
@@ -58,11 +60,11 @@ const PaymentHistoryModal = ({
     return currencyInfo.symbol;
   };
 
-  const handleDeletePayment = async (paymentId: string) => {
+  const handleDeletePartialPayment = async (paymentIndex: number) => {
     if (!confirm('Are you sure you want to delete this payment?')) return;
     
     try {
-      await deleteDoc(doc(db, 'payments', paymentId));
+      await deletePartialPayment(invoiceId, paymentIndex);
       
       toast({
         title: "Success",
@@ -101,37 +103,38 @@ const PaymentHistoryModal = ({
                 </TableRow>
               </TableHeader>
             <TableBody>
-              {invoicePayments.length === 0 ? (
+              {partialPayments.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center py-8 text-gray-500">
                     No payments found for this invoice
                   </TableCell>
                 </TableRow>
               ) : (
-                invoicePayments.map((payment) => (
-                  <TableRow key={payment.id}>
+                partialPayments.map((partialPayment, index) => (
+                  <TableRow key={index}>
                     <TableCell>
                       <div className="flex items-center text-sm">
                         <Calendar className="w-3 h-3 mr-1 text-gray-400" />
-                        {getPaymentDate(payment).toLocaleDateString()}
+                        {partialPayment.paymentDate.toDate().toLocaleDateString()}
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="font-medium">
-                        {getCompanyCurrencySymbol()}{getOriginalPaymentAmount(payment).toLocaleString()}
+                        {getCompanyCurrencySymbol()}{partialPayment.originalPaymentAmount.toLocaleString()}
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        {getPaymentMethodIcon(getPaymentMethod(payment))}
-                        <span className="capitalize">{getPaymentMethod(payment).replace('_', ' ').toUpperCase()}</span>
+                        {getPaymentMethodIcon(partialPayment.paymentMethod)}
+                        <span className="capitalize">{partialPayment.paymentMethod.replace('_', ' ').toUpperCase()}</span>
                       </div>
                     </TableCell>
                     <TableCell>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDeletePayment(payment.id)}
+                        onClick={() => handleDeletePartialPayment(index)}
+                        disabled={loading}
                         className="text-red-600 hover:text-red-700"
                         title="Delete Payment"
                       >

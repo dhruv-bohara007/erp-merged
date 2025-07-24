@@ -135,9 +135,9 @@ export interface PartialPayment {
   amountPaidByClient: number; // Amount paid in client's currency
   amount: number; // Amount in company currency
   conversionRate: {
-    clientToCompany: number;
-    companyToINR: number;
-    timestamp: Timestamp;
+    companyToINR: number; // Rate used for company currency → INR
+    INRToClient: number; // Rate used for INR → client currency
+    timestamp: Timestamp; // When the conversion was done
   };
   pendingPaymentInINR: number;
   clientCurrency: string;
