@@ -42,7 +42,7 @@ const PaymentSummaryCards = ({ payments }: PaymentSummaryCardsProps) => {
   const totalReceived = payments.reduce((sum, payment) => sum + getOriginalPaymentAmount(payment), 0);
 
   // Calculate Pending from outstanding invoices minus all payments made
-  const pendingAmount = invoices.reduce((total, invoice) => {
+  const pendingAmount = Math.round(invoices.reduce((total, invoice) => {
     if (['draft', 'sent', 'pending', 'overdue'].includes(invoice.status)) {
       const invoiceTotal = invoice.totalAmount || 0;
       const invoicePayments = payments.filter(p => p.invoiceId === invoice.id);
@@ -50,7 +50,7 @@ const PaymentSummaryCards = ({ payments }: PaymentSummaryCardsProps) => {
       return total + Math.max(0, invoiceTotal - totalPaid);
     }
     return total;
-  }, 0);
+  }, 0) * 100) / 100;
   
   // Calculate this month's revenue from payments (current month) - use originalPaymentAmount
   const thisMonthRevenue = payments.filter(payment => {

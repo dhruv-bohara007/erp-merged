@@ -81,8 +81,8 @@ const Dashboard = () => {
     return sum + Math.max(0, invoiceTotal - totalPaid);
   }, 0);
 
-  const paidInvoices = invoices.filter(inv => inv.status === 'paid');
-  const unpaidInvoices = invoices.filter(inv => inv.status === 'sent' || inv.status === 'draft');
+  const paidInvoices = invoices.filter(inv => inv.status === 'paid' || inv.status === 'paid-after-due');
+  const unpaidInvoices = invoices.filter(inv => ['sent', 'draft', 'pending', 'partially-paid'].includes(inv.status || 'draft'));
 
   // Status data for pie chart
   const statusData = [

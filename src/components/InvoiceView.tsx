@@ -783,8 +783,8 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                   <h1 className="text-4xl font-bold text-gray-900 mb-3">
                     Invoice #{invoice.invoiceNumber}
                   </h1>
-                  <Badge className={`${getStatusColor(invoice.status || 'draft')} px-4 py-2 text-base font-semibold border-2 rounded-full`}>
-                    {(invoice.status || 'draft').charAt(0).toUpperCase() + (invoice.status || 'draft').slice(1)}
+                  <Badge className={`${getStatusColor(statusResult.status)} px-4 py-2 text-base font-semibold border-2 rounded-full`}>
+                    {getStatusDisplay(statusResult)}
                   </Badge>
                 </div>
                 <div className="text-right">
