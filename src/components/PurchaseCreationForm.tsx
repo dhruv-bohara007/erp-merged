@@ -875,11 +875,16 @@ const PurchaseCreationForm = () => {
                     <div>
                       <Label className="text-sm font-medium text-foreground mb-2 block">Quantity *</Label>
                       <Input
-                        type="number"
-                        min="1"
+                        type="text"
                         value={item.quantity}
-                        onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
+                            updateItem(index, 'quantity', value === '' ? 0 : Number(value));
+                          }
+                        }}
                         className="bg-background"
+                        placeholder="Enter quantity"
                       />
                     </div>
                     <div>
@@ -996,11 +1001,16 @@ const PurchaseCreationForm = () => {
                     <div>
                       <Label className="text-sm font-medium text-foreground mb-2 block">Quantity *</Label>
                       <Input
-                        type="number"
-                        min="1"
+                        type="text"
                         value={item.quantity}
-                        onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
+                            updateItem(index, 'quantity', value === '' ? 0 : Number(value));
+                          }
+                        }}
                         className="bg-background"
+                        placeholder="Enter quantity"
                       />
                     </div>
                     <div>
