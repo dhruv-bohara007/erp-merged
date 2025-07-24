@@ -629,10 +629,100 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
               </div>
             </div>
 
-            <!-- Payment Summary for Partially Paid, Paid After Due, or Overdue invoices (placed directly below items table) -->
-            ${(['pending', 'partially-paid', 'overdue', 'paid-after-due'].includes(statusResult.status) && invoice.partialPayments && invoice.partialPayments.length > 0) || statusResult.status === 'paid-after-due' ? `
+            <!-- Status-based Payment Information (placed directly below items table) -->
+            ${statusResult.status === 'overdue' ? `
               <div style="margin-top: 30px;">
-                <!-- Payment Summary Cards -->
+                <!-- Payment Summary Cards for Overdue - Show zero paid and full pending -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+                  <div style="background-color: #f0f9ff; padding: 20px; border-radius: 8px; border: 2px solid #0ea5e9;">
+                    <h4 style="margin: 0 0 15px 0; font-size: 16px; font-weight: bold; color: #0c4a6e;">Total Amount Paid by Client</h4>
+                    <div style="font-size: 20px; font-weight: bold; color: #059669; margin-bottom: 5px;">
+                      ${formatCurrency(0, clientCountry)}
+                    </div>
+                    <div style="font-size: 12px; color: #6b7280;">Client Currency (${clientCurrency.code})</div>
+                    <div style="font-size: 16px; font-weight: bold; color: #10b981; margin-top: 10px;">
+                      ${formatCurrency(0, companyCountry)}
+                    </div>
+                    <div style="font-size: 12px; color: #6b7280;">Company Currency (${companyCurrency.code})</div>
+                  </div>
+                  
+                  <div style="background-color: #fff7ed; padding: 20px; border-radius: 8px; border: 2px solid #f97316;">
+                    <h4 style="margin: 0 0 15px 0; font-size: 16px; font-weight: bold; color: #9a3412;">Pending Amount</h4>
+                    <div style="font-size: 20px; font-weight: bold; color: #ea580c; margin-bottom: 5px;">
+                      ${formatCurrency(invoice.clientAmount || convertINRToClient(invoice.totalAmountINR || 0), clientCountry)}
+                    </div>
+                    <div style="font-size: 12px; color: #6b7280;">Client Currency (${clientCurrency.code})</div>
+                    <div style="font-size: 16px; font-weight: bold; color: #f97316; margin-top: 10px;">
+                      ${formatCurrency(invoice.companyAmount || invoice.totalAmount || 0, companyCountry)}
+                    </div>
+                    <div style="font-size: 12px; color: #6b7280;">Company Currency (${companyCurrency.code})</div>
+                  </div>
+                </div>
+                
+                <!-- Additional Information for overdue -->
+                ${(invoice.notes || invoice.terms) ? `
+                  <div style="margin-top: 30px; padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <h4 style="margin: 0 0 15px 0; font-size: 16px; font-weight: bold; color: #374151;">📄 Additional Information</h4>
+                    ${invoice.notes ? `
+                      <div style="margin-bottom: 20px;">
+                        <div style="font-weight: bold; margin-bottom: 8px; color: #374151;">📝 Notes</div>
+                        <p style="font-size: 14px; line-height: 1.6; padding: 15px; background: #ffffff; border-radius: 6px; border: 1px solid #e5e7eb; margin: 0;">${invoice.notes}</p>
+                      </div>
+                    ` : ''}
+                    ${invoice.terms ? `
+                      <div>
+                        <div style="font-weight: bold; margin-bottom: 8px; color: #374151;">📋 Terms & Conditions</div>
+                        <p style="font-size: 14px; line-height: 1.6; padding: 15px; background: #ffffff; border-radius: 6px; border: 1px solid #e5e7eb; margin: 0;">${invoice.terms}</p>
+                      </div>
+                    ` : ''}
+                  </div>
+                ` : ''}
+              </div>
+            ` : statusResult.status === 'paid' ? `
+              <div style="margin-top: 30px; padding: 20px; background: #f0fdf4; border-radius: 8px; border: 2px solid #22c55e; text-align: center;">
+                <div style="font-size: 16px; font-weight: bold; color: #15803d;">
+                  Payment for this invoice has been received in full on ${(() => {
+                    const latestPayment = invoice.partialPayments?.[invoice.partialPayments.length - 1];
+                    if (!latestPayment?.paymentDate) return 'N/A';
+                    const paymentDate = latestPayment.paymentDate;
+                    if (typeof paymentDate === 'object' && 'toDate' in paymentDate && typeof paymentDate.toDate === 'function') {
+                      return paymentDate.toDate().toLocaleDateString();
+                    }
+                    if (paymentDate instanceof Date) {
+                      return paymentDate.toLocaleDateString();
+                    }
+                    return 'N/A';
+                  })()}. No further action is required.
+                </div>
+              </div>
+            ` : statusResult.status === 'paid-after-due' ? `
+              <div style="margin-top: 30px; padding: 20px; background: #dbeafe; border-radius: 8px; border: 2px solid #3b82f6; text-align: center;">
+                <div style="font-size: 16px; font-weight: bold; color: #1d4ed8;">
+                  This invoice has been fully paid, but after the due date. We appreciate your payment. Please ensure timely payments in the future to avoid late fees or disruptions.
+                </div>
+              </div>
+            ` : statusResult.status === 'pending' ? `
+              <!-- Additional Information for pending -->
+              ${(invoice.notes || invoice.terms) ? `
+                <div style="margin-top: 30px; padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                  <h4 style="margin: 0 0 15px 0; font-size: 16px; font-weight: bold; color: #374151;">📄 Additional Information</h4>
+                  ${invoice.notes ? `
+                    <div style="margin-bottom: 20px;">
+                      <div style="font-weight: bold; margin-bottom: 8px; color: #374151;">📝 Notes</div>
+                      <p style="font-size: 14px; line-height: 1.6; padding: 15px; background: #ffffff; border-radius: 6px; border: 1px solid #e5e7eb; margin: 0;">${invoice.notes}</p>
+                    </div>
+                  ` : ''}
+                  ${invoice.terms ? `
+                    <div>
+                      <div style="font-weight: bold; margin-bottom: 8px; color: #374151;">📋 Terms & Conditions</div>
+                      <p style="font-size: 14px; line-height: 1.6; padding: 15px; background: #ffffff; border-radius: 6px; border: 1px solid #e5e7eb; margin: 0;">${invoice.terms}</p>
+                    </div>
+                  ` : ''}
+                </div>
+              ` : ''}
+            ` : (['partially-paid'].includes(statusResult.status) && invoice.partialPayments && invoice.partialPayments.length > 0) ? `
+              <div style="margin-top: 30px;">
+                <!-- Payment Summary Cards for Partially Paid -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
                   <div style="background-color: #f0f9ff; padding: 20px; border-radius: 8px; border: 2px solid #0ea5e9;">
                     <h4 style="margin: 0 0 15px 0; font-size: 16px; font-weight: bold; color: #0c4a6e;">Total Amount Paid by Client</h4>
@@ -677,8 +767,8 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
 
           </div>
 
-          <!-- Third Page: Payment History -->
-          ${(['pending', 'partially-paid', 'overdue', 'paid-after-due'].includes(statusResult.status) && invoice.partialPayments && invoice.partialPayments.length > 0) || statusResult.status === 'paid-after-due' ? `
+          <!-- Third Page: Payment History (only for partially-paid status with payments) -->
+          ${statusResult.status === 'partially-paid' && invoice.partialPayments && invoice.partialPayments.length > 0 ? `
             <div class="container page-break-before">
               <div class="info-card">
                 <div class="card-header" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);">💳 Client Payment History</div>
@@ -1269,8 +1359,8 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
             </CardContent>
           </Card>
 
-          {/* Payment History for Pending, Partially Paid, Overdue, or Paid After Due Date invoices */}
-          {(['pending', 'partially-paid', 'overdue', 'paid-after-due'].includes(statusResult.status) && invoice.partialPayments && invoice.partialPayments.length > 0) || statusResult.status === 'paid-after-due' ? (
+          {/* Status-based Payment Information */}
+          {statusResult.status === 'overdue' ? (
             <Card className="border-2 border-gray-200 shadow-xl rounded-xl">
               <CardHeader className="bg-gradient-to-r from-orange-50 to-red-50 border-b-2 border-gray-200 rounded-t-xl">
                 <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
@@ -1279,7 +1369,98 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-8">
-                {/* Payment Summary */}
+                {/* Payment Summary for Overdue - Show zero paid and full pending */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                  <div className="bg-green-50 p-6 rounded-xl border border-green-200">
+                    <h4 className="font-bold text-gray-900 text-lg mb-4">Total Amount Paid by Client</h4>
+                    <div className="space-y-2">
+                      <div className="text-2xl font-bold text-green-600">
+                        {formatCurrency(0, clientCountry)}
+                      </div>
+                      <div className="text-sm text-gray-600">Client Currency ({clientCurrency.code})</div>
+                      <div className="text-xl font-semibold text-green-500">
+                        {formatCurrency(0, companyCountry)}
+                      </div>
+                      <div className="text-sm text-gray-600">Company Currency ({companyCurrency.code})</div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-orange-50 p-6 rounded-xl border border-orange-200">
+                    <h4 className="font-bold text-gray-900 text-lg mb-4">Pending Amount</h4>
+                    <div className="space-y-2">
+                      <div className="text-2xl font-bold text-orange-600">
+                        {formatCurrency(invoice.clientAmount || convertINRToClient(invoice.totalAmountINR || 0), clientCountry)}
+                      </div>
+                      <div className="text-sm text-gray-600">Client Currency ({clientCurrency.code})</div>
+                      <div className="text-xl font-semibold text-orange-500">
+                        {formatCurrency(invoice.companyAmount || invoice.totalAmount || 0, companyCountry)}
+                      </div>
+                      <div className="text-sm text-gray-600">Company Currency ({companyCurrency.code})</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Additional Information for overdue */}
+                {(invoice.notes || invoice.terms) && (
+                  <div className="bg-blue-50 p-6 rounded-xl border border-blue-200">
+                    <h4 className="font-bold text-gray-900 text-lg mb-4">📄 Additional Information</h4>
+                    {invoice.notes && (
+                      <div className="mb-4">
+                        <div className="font-semibold text-gray-700 mb-2">📝 Notes</div>
+                        <p className="text-gray-700 leading-relaxed bg-white p-4 rounded border">{invoice.notes}</p>
+                      </div>
+                    )}
+                    {invoice.terms && (
+                      <div>
+                        <div className="font-semibold text-gray-700 mb-2">📋 Terms & Conditions</div>
+                        <p className="text-gray-700 leading-relaxed bg-white p-4 rounded border">{invoice.terms}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : statusResult.status === 'paid' ? (
+            <Card className="border-2 border-gray-200 shadow-xl rounded-xl">
+              <CardContent className="p-8">
+                <div className="bg-green-50 p-6 rounded-xl border border-green-200 text-center">
+                  <div className="text-green-600 text-lg font-semibold">
+                    Payment for this invoice has been received in full on {(() => {
+                      const latestPayment = paymentDoc?.partialPayments?.[paymentDoc.partialPayments.length - 1] || invoice.partialPayments?.[invoice.partialPayments.length - 1];
+                      if (!latestPayment?.paymentDate) return 'N/A';
+                      const paymentDate = latestPayment.paymentDate;
+                      if (typeof paymentDate === 'object' && 'toDate' in paymentDate && typeof paymentDate.toDate === 'function') {
+                        return paymentDate.toDate().toLocaleDateString();
+                      }
+                      if (paymentDate instanceof Date) {
+                        return paymentDate.toLocaleDateString();
+                      }
+                      return 'N/A';
+                    })()}. No further action is required.
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : statusResult.status === 'paid-after-due' ? (
+            <Card className="border-2 border-gray-200 shadow-xl rounded-xl">
+              <CardContent className="p-8">
+                <div className="bg-blue-50 p-6 rounded-xl border border-blue-200 text-center">
+                  <div className="text-blue-600 text-lg font-semibold">
+                    This invoice has been fully paid, but after the due date. We appreciate your payment. Please ensure timely payments in the future to avoid late fees or disruptions.
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (['pending', 'partially-paid'].includes(statusResult.status) && invoice.partialPayments && invoice.partialPayments.length > 0) ? (
+            <Card className="border-2 border-gray-200 shadow-xl rounded-xl">
+              <CardHeader className="bg-gradient-to-r from-orange-50 to-red-50 border-b-2 border-gray-200 rounded-t-xl">
+                <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
+                  <CreditCard className="w-6 h-6 text-orange-600" />
+                  Payment History
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-8">
+                {/* Payment Summary for Partially Paid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                   <div className="bg-green-50 p-6 rounded-xl border border-green-200">
                     <h4 className="font-bold text-gray-900 text-lg mb-4">Total Amount Paid by Client</h4>
@@ -1387,29 +1568,29 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                     </TableBody>
                   </Table>
                 </div>
+
+                {/* Additional Information for partially paid */}
+                {(invoice.notes || invoice.terms) && (
+                  <div className="mt-8 bg-blue-50 p-6 rounded-xl border border-blue-200">
+                    <h4 className="font-bold text-gray-900 text-lg mb-4">📄 Additional Information</h4>
+                    {invoice.notes && (
+                      <div className="mb-4">
+                        <div className="font-semibold text-gray-700 mb-2">📝 Notes</div>
+                        <p className="text-gray-700 leading-relaxed bg-white p-4 rounded border">{invoice.notes}</p>
+                      </div>
+                    )}
+                    {invoice.terms && (
+                      <div>
+                        <div className="font-semibold text-gray-700 mb-2">📋 Terms & Conditions</div>
+                        <p className="text-gray-700 leading-relaxed bg-white p-4 rounded border">{invoice.terms}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           ) : null}
 
-          {/* Notes and Terms */}
-          {(invoice.notes || invoice.terms) && (
-            <Card className="border-2 border-gray-200 shadow-xl rounded-xl">
-              <CardContent className="p-8">
-                {invoice.notes && (
-                  <div className="mb-8 bg-blue-50 p-6 rounded-xl border border-blue-200">
-                    <h4 className="font-bold mb-4 text-gray-900 text-lg">Notes:</h4>
-                    <p className="text-gray-700 leading-relaxed text-base">{invoice.notes}</p>
-                  </div>
-                )}
-                {invoice.terms && (
-                  <div className="bg-yellow-50 p-6 rounded-xl border border-yellow-200">
-                    <h4 className="font-bold mb-4 text-gray-900 text-lg">Terms & Conditions:</h4>
-                    <p className="text-gray-700 leading-relaxed text-base">{invoice.terms}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
         </div>
       </DialogContent>
     </Dialog>
