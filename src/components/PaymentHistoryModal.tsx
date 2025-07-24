@@ -115,7 +115,20 @@ const PaymentHistoryModal = ({
                     <TableCell>
                       <div className="flex items-center text-sm">
                         <Calendar className="w-3 h-3 mr-1 text-gray-400" />
-                        {partialPayment.paymentDate.toDate().toLocaleDateString()}
+                        {(() => {
+                          try {
+                            // Handle both Firestore Timestamp and Date objects
+                            if (partialPayment.paymentDate?.toDate) {
+                              return partialPayment.paymentDate.toDate().toLocaleDateString();
+                            } else if (partialPayment.paymentDate) {
+                              return new Date(partialPayment.paymentDate as any).toLocaleDateString();
+                            }
+                            return 'Invalid Date';
+                          } catch (error) {
+                            console.error('Error parsing payment date:', error);
+                            return 'Invalid Date';
+                          }
+                        })()}
                       </div>
                     </TableCell>
                     <TableCell>
