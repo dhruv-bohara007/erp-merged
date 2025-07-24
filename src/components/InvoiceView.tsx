@@ -517,18 +517,20 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                     ${invoice.clientPincode ? `<div style="font-size: 13px; line-height: 1.2;">Pincode: ${invoice.clientPincode}</div>` : ''}
                   </div>
 
-                   ${invoice.clientTaxInfo?.id ? `
-                     <div class="info-section">
-                       <div class="section-title">🏛️ Tax Information</div>
-                       <div style="font-size: 13px; line-height: 1.2;"><strong>${invoice.clientTaxInfo.type || 'Tax ID'}:</strong> ${invoice.clientTaxInfo.id}</div>
-                       ${invoice.conversionRate ? `<div style="font-size: 13px; line-height: 1.2;"><strong>Exchange Rate:</strong> ${invoice.conversionRate.INRToClient} (INR to ${clientCurrency.code})</div>` : ''}
-                     </div>
-                   ` : invoice.conversionRate ? `
-                     <div class="info-section">
-                       <div class="section-title">💱 Exchange Rate</div>
-                       <div style="font-size: 13px; line-height: 1.2;"><strong>Exchange Rate:</strong> ${invoice.conversionRate.INRToClient} (INR to ${clientCurrency.code})</div>
-                     </div>
-                   ` : ''}
+                    ${invoice.clientTaxInfo?.id ? `
+                      <div class="info-section">
+                        <div class="section-title">🏛️ Tax Information</div>
+                        <div style="font-size: 13px; line-height: 1.2;"><strong>Tax ID:</strong> ${invoice.clientTaxInfo.id}</div>
+                      </div>
+                    ` : ''}
+                    
+                    ${invoice.conversionRate ? `
+                      <div style="margin-top: 8px; padding: 6px 8px; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 1px solid #7dd3fc; border-radius: 6px; font-size: 12px;">
+                        <div style="font-weight: 600; color: #0369a1; margin-bottom: 2px;">💱 Exchange Rate</div>
+                        <div style="color: #0c4a6e;">1 ${companyCurrency.code} = ${invoice.conversionRate.companyToINR} INR</div>
+                        <div style="color: #0c4a6e;">1 INR = ${invoice.conversionRate.INRToClient} ${clientCurrency.code}</div>
+                      </div>
+                    ` : ''}
                 </div>
               </div>
             </div>
@@ -1255,16 +1257,30 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                       <FileText className="w-5 h-5 text-yellow-600" />
                       Tax Information
                     </h4>
-                    {invoice.clientTaxInfo.id && (
-                      <div className="p-3 bg-white rounded-lg border">
-                        <span className="font-semibold text-gray-700 text-base">
-                          {invoice.clientTaxInfo.type || 'Tax ID'}: 
-                        </span>
-                        <span className="ml-2 text-gray-900 font-mono bg-gray-100 px-3 py-1 rounded border text-lg">
-                          {invoice.clientTaxInfo.id}
-                        </span>
-                      </div>
-                    )}
+                     {invoice.clientTaxInfo.id && (
+                       <div className="p-3 bg-white rounded-lg border">
+                         <span className="font-semibold text-gray-700 text-base">
+                           Tax ID: 
+                         </span>
+                         <span className="ml-2 text-gray-900 font-mono bg-gray-100 px-3 py-1 rounded border text-lg">
+                           {invoice.clientTaxInfo.id}
+                         </span>
+                       </div>
+                     )}
+                  </div>
+                 )}
+
+                {/* Exchange Rate Box */}
+                {invoice.conversionRate && (
+                  <div className="bg-gradient-to-br from-blue-50 to-sky-50 p-4 rounded-lg border border-sky-200 shadow-sm">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Banknote className="w-4 h-4 text-sky-600" />
+                      <span className="font-semibold text-sky-800 text-sm">Exchange Rate</span>
+                    </div>
+                    <div className="space-y-1 text-sm text-sky-700">
+                      <div>1 {companyCountry === 'US' ? 'USD' : getCurrencyByCountry(companyCountry).code} = {invoice.conversionRate.companyToINR} INR</div>
+                      <div>1 INR = {invoice.conversionRate.INRToClient} {clientCountry === 'US' ? 'USD' : getCurrencyByCountry(clientCountry).code}</div>
+                    </div>
                   </div>
                 )}
 
