@@ -517,24 +517,12 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                     ${invoice.clientPincode ? `<div style="font-size: 13px; line-height: 1.2;">Pincode: ${invoice.clientPincode}</div>` : ''}
                   </div>
 
-                   ${invoice.clientTaxInfo?.id ? `
-                     <div class="info-section">
-                       <div class="section-title">🏛️ Tax Information</div>
-                       <div style="font-size: 13px; line-height: 1.2;"><strong>${invoice.clientTaxInfo.type || 'Tax ID'}:</strong> ${invoice.clientTaxInfo.id}</div>
-                       ${statusResult.status === 'overdue' && !(paymentDoc && (paymentDoc.totalPaidUSD > 0 || invoice.paidUSD > 0)) && invoice.conversionRate ? `
-                         <div style="font-size: 13px; line-height: 1.2; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
-                           <strong>Exchange Rate:</strong> 1 ${companyCurrency.code} = ${invoice.conversionRate.companyToINR} INR, 1 INR = ${invoice.conversionRate.INRToClient} ${clientCurrency.code}
-                         </div>
-                       ` : ''}
-                     </div>
-                   ` : statusResult.status === 'overdue' && !(paymentDoc && (paymentDoc.totalPaidUSD > 0 || invoice.paidUSD > 0)) && invoice.conversionRate ? `
-                     <div class="info-section">
-                       <div class="section-title">💱 Exchange Rate</div>
-                       <div style="font-size: 13px; line-height: 1.2;">
-                         <strong>Exchange Rate:</strong> 1 ${companyCurrency.code} = ${invoice.conversionRate.companyToINR} INR, 1 INR = ${invoice.conversionRate.INRToClient} ${clientCurrency.code}
-                       </div>
-                     </div>
-                   ` : ''}
+                  ${invoice.clientTaxInfo?.id ? `
+                    <div class="info-section">
+                      <div class="section-title">🏛️ Tax Information</div>
+                      <div style="font-size: 13px; line-height: 1.2;"><strong>${invoice.clientTaxInfo.type || 'Tax ID'}:</strong> ${invoice.clientTaxInfo.id}</div>
+                    </div>
+                  ` : ''}
                 </div>
               </div>
             </div>
@@ -779,143 +767,12 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
 
           </div>
 
-          <!-- Third Page: Payment History (for partially-paid and overdue with partial payments) -->
-          ${(statusResult.status === 'partially-paid' && invoice.partialPayments && invoice.partialPayments.length > 0) || 
-            (statusResult.status === 'overdue' && (paymentDoc && (paymentDoc.totalPaidUSD > 0 || invoice.paidUSD > 0))) || 
-            (statusResult.status === 'overdue' && !(paymentDoc && (paymentDoc.totalPaidUSD > 0 || invoice.paidUSD > 0))) || 
-            statusResult.status === 'pending' ? `
+          <!-- Third Page: Payment History (only for partially-paid status with payments) -->
+          ${statusResult.status === 'partially-paid' && invoice.partialPayments && invoice.partialPayments.length > 0 ? `
             <div class="container page-break-before">
-              ${(() => {
-                // For overdue with partial payments or partially paid
-                if ((statusResult.status === 'overdue' && (paymentDoc && (paymentDoc.totalPaidUSD > 0 || invoice.paidUSD > 0))) ||
-                    statusResult.status === 'partially-paid') {
-                  
-                  if (statusResult.status === 'overdue') {
-                    const actualPaidCompany = paymentDoc?.totalPaidUSD || invoice.paidUSD || 0;
-                    const actualPaidClient = paymentDoc?.amountPaidByClient || invoice.amountPaidByClient || 0;
-                    const actualPendingCompany = (invoice.companyAmount || invoice.totalAmount || 0) - actualPaidCompany;
-                    const actualPendingClient = (invoice.clientAmount || convertINRToClient(invoice.totalAmountINR || 0)) - actualPaidClient;
-                    
-                    return `
-                      <h2 style="font-size: 24px; font-weight: bold; color: #1f2937; margin-bottom: 20px; text-align: center;">Payment Details</h2>
-                      
-                      <!-- Payment Summary -->
-                      <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 20px; border-radius: 12px; border: 2px solid #bfdbfe; margin-bottom: 30px;">
-                        <h3 style="font-size: 18px; font-weight: bold; color: #1e40af; margin-bottom: 15px;">Payment Summary</h3>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                          <div>
-                            <div style="margin-bottom: 10px;"><strong>Invoice Total:</strong></div>
-                            <div style="font-size: 16px; color: #059669;">${formatCurrency(invoice.companyAmount || invoice.totalAmount || 0, companyCountry)}</div>
-                            ${showDualCurrency ? `<div style="font-size: 14px; color: #6b7280;">${formatCurrency(invoice.clientAmount || convertINRToClient(invoice.totalAmountINR || 0), clientCountry)}</div>` : ''}
-                          </div>
-                          <div>
-                            <div style="margin-bottom: 10px;"><strong>Amount Paid:</strong></div>
-                            <div style="font-size: 16px; color: #059669;">${formatCurrency(actualPaidCompany, companyCountry)}</div>
-                            ${showDualCurrency ? `<div style="font-size: 14px; color: #6b7280;">${formatCurrency(actualPaidClient, clientCountry)}</div>` : ''}
-                          </div>
-                        </div>
-                        <div style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #60a5fa;">
-                          <div style="margin-bottom: 10px;"><strong>Pending Amount:</strong></div>
-                          <div style="font-size: 18px; font-weight: bold; color: #dc2626;">${formatCurrency(actualPendingCompany, companyCountry)}</div>
-                          ${showDualCurrency ? `<div style="font-size: 16px; color: #dc2626;">${formatCurrency(actualPendingClient, clientCountry)}</div>` : ''}
-                        </div>
-                      </div>
-                      
-                      <!-- Payment History Table -->
-                      <div class="info-card">
-                        <div class="card-header" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);">💳 Client Payment History</div>
-                        <div class="card-content">
-                          <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-                            <thead>
-                              <tr style="background-color: #f8fafc;">
-                                <th style="padding: 12px; text-align: left; border: 1px solid #e2e8f0; font-weight: bold;">Payment Date</th>
-                                <th style="padding: 12px; text-align: right; border: 1px solid #e2e8f0; font-weight: bold;">Amount Paid (${companyCurrency.code})</th>
-                                ${showDualCurrency ? `<th style="padding: 12px; text-align: right; border: 1px solid #e2e8f0; font-weight: bold;">Amount Paid (${clientCurrency.code})</th>` : ''}
-                                <th style="padding: 12px; text-align: center; border: 1px solid #e2e8f0; font-weight: bold;">Payment Method</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              ${(paymentDoc?.partialPayments || []).map((payment, index) => `
-                                <tr style="border-bottom: 1px solid #e2e8f0;">
-                                  <td style="padding: 12px; border: 1px solid #e2e8f0;">
-                                   ${(() => {
-                                     const paymentDate = payment.paymentDate;
-                                     if (!paymentDate) return 'Invalid Date';
-                                     if (typeof paymentDate === 'object' && 'toDate' in paymentDate && typeof paymentDate.toDate === 'function') {
-                                       return paymentDate.toDate().toLocaleDateString();
-                                     }
-                                     if (paymentDate instanceof Date) {
-                                       return paymentDate.toLocaleDateString();
-                                     }
-                                     return 'Invalid Date';
-                                   })()}
-                                  </td>
-                                  <td style="padding: 12px; text-align: right; border: 1px solid #e2e8f0; font-weight: bold;">
-                                    ${formatCurrency(payment.originalPaymentAmount || 0, companyCountry)}
-                                  </td>
-                                  ${showDualCurrency ? `
-                                    <td style="padding: 12px; text-align: right; border: 1px solid #e2e8f0; font-weight: bold;">
-                                      ${formatCurrency(payment.amountPaidByClient || 0, clientCountry)}
-                                    </td>
-                                  ` : ''}
-                                  <td style="padding: 12px; text-align: center; border: 1px solid #e2e8f0;">
-                                    ${payment.paymentMethod.replace('_', ' ').toUpperCase()}
-                                  </td>
-                                </tr>
-                              `).join('')}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    `;
-                  } else {
-                    // For partially paid - use existing payment table from invoice.partialPayments
-                    return `
-                      <div class="info-card">
-                        <div class="card-header" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);">💳 Client Payment History</div>
-                        <div class="card-content">
-                          <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-                            <thead>
-                              <tr style="background-color: #f8fafc;">
-                                <th style="padding: 12px; text-align: left; border: 1px solid #e2e8f0; font-weight: bold;">Payment Date</th>
-                                <th style="padding: 12px; text-align: right; border: 1px solid #e2e8f0; font-weight: bold;">Amount Paid (${companyCurrency.code})</th>
-                                ${showDualCurrency ? `<th style="padding: 12px; text-align: right; border: 1px solid #e2e8f0; font-weight: bold;">Amount Paid (${clientCurrency.code})</th>` : ''}
-                                <th style="padding: 12px; text-align: center; border: 1px solid #e2e8f0; font-weight: bold;">Payment Method</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              ${(invoice.partialPayments || []).map(payment => `
-                                <tr style="border-bottom: 1px solid #e2e8f0;">
-                                  <td style="padding: 12px; border: 1px solid #e2e8f0;">
-                                    ${payment.paymentDate?.toDate?.()?.toLocaleDateString() || payment.paymentDate?.toLocaleDateString?.() || 'N/A'}
-                                  </td>
-                                  <td style="padding: 12px; text-align: right; border: 1px solid #e2e8f0; font-weight: bold;">
-                                    ${formatCurrency(payment.originalPaymentAmount || 0, companyCountry)}
-                                  </td>
-                                  ${showDualCurrency ? `
-                                    <td style="padding: 12px; text-align: right; border: 1px solid #e2e8f0; font-weight: bold;">
-                                      ${formatCurrency(payment.amountPaidByClient || 0, clientCountry)}
-                                    </td>
-                                  ` : ''}
-                                  <td style="padding: 12px; text-align: center; border: 1px solid #e2e8f0;">
-                                    ${payment.paymentMethod.replace('_', ' ').toUpperCase()}
-                                  </td>
-                                </tr>
-                              `).join('')}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    `;
-                  }
-                }
-                // For overdue with no payments or pending - show Additional Information title
-                else {
-                  return `
-                    <h2 style="font-size: 24px; font-weight: bold; color: #1f2937; margin-bottom: 20px; text-align: center;">Additional Information</h2>
-                  `;
-                }
-              })()
+              <div class="info-card">
+                <div class="card-header" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);">💳 Client Payment History</div>
+                <div class="card-content">
                   <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
                     <thead>
                       <tr style="background-color: #f8fafc;">
@@ -957,47 +814,25 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                     </tbody>
                   </table>
                   
-                  ${statusResult.status === 'partially-paid' ? `
-                    <!-- Additional Information section placed directly below the payment history table -->
-                    ${(invoice.notes || invoice.terms) ? `
-                      <div style="margin-top: 30px; padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
-                        <h4 style="margin: 0 0 15px 0; font-size: 16px; font-weight: bold; color: #374151;">📄 Additional Information</h4>
-                        ${invoice.notes ? `
-                          <div style="margin-bottom: 20px;">
-                            <div style="font-weight: bold; margin-bottom: 8px; color: #374151;">📝 Notes</div>
-                            <p style="font-size: 14px; line-height: 1.6; padding: 15px; background: #ffffff; border-radius: 6px; border: 1px solid #e5e7eb; margin: 0;">${invoice.notes}</p>
-                          </div>
-                        ` : ''}
-                        ${invoice.terms ? `
-                          <div>
-                            <div style="font-weight: bold; margin-bottom: 8px; color: #374151;">📋 Terms & Conditions</div>
-                            <p style="font-size: 14px; line-height: 1.6; padding: 15px; background: #ffffff; border-radius: 6px; border: 1px solid #e5e7eb; margin: 0;">${invoice.terms}</p>
-                          </div>
-                        ` : ''}
-                      </div>
-                    ` : ''}
-                      </div>
+                  <!-- Additional Information section placed directly below the payment history table -->
+                  ${(invoice.notes || invoice.terms) ? `
+                    <div style="margin-top: 30px; padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                      <h4 style="margin: 0 0 15px 0; font-size: 16px; font-weight: bold; color: #374151;">📄 Additional Information</h4>
+                      ${invoice.notes ? `
+                        <div style="margin-bottom: 20px;">
+                          <div style="font-weight: bold; margin-bottom: 8px; color: #374151;">📝 Notes</div>
+                          <p style="font-size: 14px; line-height: 1.6; padding: 15px; background: #ffffff; border-radius: 6px; border: 1px solid #e5e7eb; margin: 0;">${invoice.notes}</p>
+                        </div>
+                      ` : ''}
+                      ${invoice.terms ? `
+                        <div>
+                          <div style="font-weight: bold; margin-bottom: 8px; color: #374151;">📋 Terms & Conditions</div>
+                          <p style="font-size: 14px; line-height: 1.6; padding: 15px; background: #ffffff; border-radius: 6px; border: 1px solid #e5e7eb; margin: 0;">${invoice.terms}</p>
+                        </div>
+                      ` : ''}
                     </div>
                   ` : ''}
-                
-                <!-- Additional Information section for overdue (partial payments) and pending/overdue (no payments) -->
-                ${(statusResult.status === 'overdue' || statusResult.status === 'pending') && (invoice.notes || invoice.terms) ? `
-                  <div style="margin: 30px 20px; padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
-                    <h4 style="margin: 0 0 15px 0; font-size: 16px; font-weight: bold; color: #374151;">📄 Additional Information</h4>
-                    ${invoice.notes ? `
-                      <div style="margin-bottom: 20px;">
-                        <div style="font-weight: bold; margin-bottom: 8px; color: #374151;">📝 Notes</div>
-                        <p style="font-size: 14px; line-height: 1.6; padding: 15px; background: #ffffff; border-radius: 6px; border: 1px solid #e5e7eb; margin: 0;">${invoice.notes}</p>
-                      </div>
-                    ` : ''}
-                    ${invoice.terms ? `
-                      <div>
-                        <div style="font-weight: bold; margin-bottom: 8px; color: #374151;">📋 Terms & Conditions</div>
-                        <p style="font-size: 14px; line-height: 1.6; padding: 15px; background: #ffffff; border-radius: 6px; border: 1px solid #e5e7eb; margin: 0;">${invoice.terms}</p>
-                      </div>
-                    ` : ''}
-                  </div>
-                ` : ''}
+                </div>
               </div>
             </div>
           ` : ''}
