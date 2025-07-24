@@ -645,13 +645,48 @@ const InvoiceForm = () => {
                         stock.itemName === item.itemName &&
                         stock.productVersion === item.productVersion
                       );
-                      const currentStock = stockItem?.currentStock || 0;
-                      const remainingStock = Math.max(0, currentStock - (item.quantity || 0));
+                      
+                      if (!stockItem) {
+                        return (
+                          <div className="text-red-600 font-medium">Stock item not found</div>
+                        );
+                      }
+                      
+                      const currentStock = stockItem.currentStock || 0;
+                      const unit = stockItem.unit || 'pcs';
+                      const remainingStock = currentStock - (item.quantity || 0);
+                      const minRequired = stockItem.minRequired || 0;
+                      const safeQuantityLimit = stockItem.safeQuantityLimit || 0;
+                      
+                      // Calculate stock status
+                      let stockStatus = 'normal';
+                      let statusColor = 'text-green-600';
+                      
+                      if (currentStock < safeQuantityLimit) {
+                        stockStatus = 'critical';
+                        statusColor = 'text-red-600';
+                      } else if (currentStock < minRequired) {
+                        stockStatus = 'low';
+                        statusColor = 'text-yellow-600';
+                      }
                       
                       return (
-                        <div className="space-y-1">
-                          <div className="font-medium text-blue-800">Current Stock: {currentStock}</div>
-                          <div className="text-blue-600">Remaining: {remainingStock}</div>
+                        <div className="space-y-2">
+                          <div className="font-medium text-blue-800">
+                            Current Stock: {currentStock} {unit}
+                          </div>
+                          <div className={`font-medium ${statusColor}`}>
+                            Status: {stockStatus.charAt(0).toUpperCase() + stockStatus.slice(1)}
+                          </div>
+                          {remainingStock < 0 ? (
+                            <div className="text-red-600 font-bold bg-red-50 border border-red-200 rounded px-2 py-1">
+                              ⚠️ Stock Depleted
+                            </div>
+                          ) : (
+                            <div className="text-blue-600">
+                              Remaining: {remainingStock} {unit}
+                            </div>
+                          )}
                         </div>
                       );
                     })()}

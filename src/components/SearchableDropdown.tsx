@@ -40,10 +40,10 @@ const SearchableDropdown = ({
           <ChevronDown className="h-4 w-4 opacity-50" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-full min-w-[200px] bg-white border shadow-md z-50">
+      <DropdownMenuContent className="w-full min-w-[200px] bg-background border shadow-md z-50">
         <div className="p-2">
           <div className="relative">
-            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               placeholder="Search..."
               value={searchTerm}
@@ -61,7 +61,7 @@ const SearchableDropdown = ({
                 setIsOpen(false);
                 setSearchTerm('');
               }}
-              className="flex justify-between items-center hover:bg-gray-100"
+              className="flex justify-between items-center hover:bg-accent hover:text-accent-foreground"
             >
               <span className="flex-1">{item}</span>
               {showActions && (
@@ -91,7 +91,7 @@ const SearchableDropdown = ({
             </DropdownMenuItem>
           ))}
           {filteredItems.length === 0 && (
-            <div className="p-2 text-center text-gray-500 text-sm">
+            <div className="p-2 text-center text-muted-foreground text-sm">
               No items found
             </div>
           )}

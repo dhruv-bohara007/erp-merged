@@ -32,13 +32,29 @@ export const useStockDetails = () => {
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
         console.log('Stock details snapshot received:', snapshot.docs.length, 'documents');
-        const stockData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate(),
-          updatedAt: doc.data().updatedAt?.toDate(),
-          lastPurchaseDate: doc.data().lastPurchaseDate?.toDate(),
-        })) as StockDetailsData[];
+        const stockData = snapshot.docs.map(doc => {
+          const data = doc.data();
+          const currentStock = data.currentStock || 0;
+          const minRequired = data.minRequired || 0;
+          const safeQuantityLimit = data.safeQuantityLimit || 0;
+          
+          // Calculate stock_status based on current stock levels
+          let stock_status: 'normal' | 'low' | 'critical' = 'normal';
+          if (currentStock < safeQuantityLimit) {
+            stock_status = 'critical';
+          } else if (currentStock < minRequired) {
+            stock_status = 'low';
+          }
+          
+          return {
+            id: doc.id,
+            ...data,
+            stock_status,
+            createdAt: data.createdAt?.toDate(),
+            updatedAt: data.updatedAt?.toDate(),
+            lastPurchaseDate: data.lastPurchaseDate?.toDate(),
+          };
+        }) as StockDetailsData[];
         
         // Sort by category and name
         stockData.sort((a, b) => {

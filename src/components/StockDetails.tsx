@@ -538,6 +538,7 @@ const StockDetails = () => {
                   <TableHead>Item Name</TableHead>
                   <TableHead>Product Version</TableHead>
                   <TableHead>Current Stock</TableHead>
+                  <TableHead>Stock Status</TableHead>
                   <TableHead>Min Required</TableHead>
                   <TableHead>Safe Quantity Limit</TableHead>
                   <TableHead>Request Status</TableHead>
@@ -553,7 +554,7 @@ const StockDetails = () => {
               <TableBody>
                 {sortedStockDetails.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={14} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={15} className="text-center py-8 text-gray-500">
                       No stock items found
                     </TableCell>
                   </TableRow>
@@ -571,6 +572,32 @@ const StockDetails = () => {
                       </TableCell>
                       <TableCell>
                         <div>{item.currentStock} {item.unit}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center">
+                          {(() => {
+                            const currentStock = item.currentStock || 0;
+                            const minRequired = item.minRequired || 0;
+                            const safeQuantityLimit = item.safeQuantityLimit || 0;
+                            
+                            let stockStatus = 'normal';
+                            let statusColor = 'bg-green-100 text-green-800';
+                            
+                            if (currentStock < safeQuantityLimit) {
+                              stockStatus = 'critical';
+                              statusColor = 'bg-red-100 text-red-800';
+                            } else if (currentStock < minRequired) {
+                              stockStatus = 'low';
+                              statusColor = 'bg-yellow-100 text-yellow-800';
+                            }
+                            
+                            return (
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor}`}>
+                                {stockStatus.charAt(0).toUpperCase() + stockStatus.slice(1)}
+                              </span>
+                            );
+                          })()}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2 items-center">

@@ -356,6 +356,7 @@ export interface StockDetailsData {
   minRequired?: number;
   safeQuantityLimit?: number;
   displayStatus: 'displayed' | 'suspended';
+  stock_status?: 'normal' | 'low' | 'critical';
   createdAt: Date;
   updatedAt: Date;
   // New fields for purchase request status tracking
