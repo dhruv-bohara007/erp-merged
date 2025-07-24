@@ -66,7 +66,7 @@ const InvoiceForm = () => {
     terms: 'Payment due within 30 days of invoice date.',
   });
 
-  const [productSourceType, setProductSourceType] = useState<'manual' | 'stock' | 'inventory'>('manual');
+  
   const [items, setItems] = useState<InvoiceFormItem[]>([
     { 
       productCategory: '', 
@@ -87,8 +87,8 @@ const InvoiceForm = () => {
   const activeInventory = inventory.filter(item => item.status === 'active');
   
   // Get data based on source type
-  const getDataSource = () => {
-    switch (productSourceType) {
+  const getDataSource = (sourceType: 'manual' | 'stock' | 'inventory') => {
+    switch (sourceType) {
       case 'stock':
         return {
           categories: [...new Set(stockDetails.map(p => p.productCategory))],
@@ -115,8 +115,6 @@ const InvoiceForm = () => {
         };
     }
   };
-
-  const dataSource = getDataSource();
 
   // Calculate totals first
   const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
@@ -224,7 +222,7 @@ const InvoiceForm = () => {
       rate: 0,
       discount: '0',
       amount: 0,
-      sourceType: productSourceType
+      sourceType: 'manual'
     };
     setItems([...items, newItem]);
   };
