@@ -59,7 +59,7 @@ const InvoiceForm = () => {
     issueDate: new Date().toISOString().split('T')[0],
     dueDate: '',
     clientId: '',
-    notes: '',
+    notes: 'Prices exclude applicable local taxes, currency conversion charges, international bank transfer fees, import duties, and any additional processing or compliance fees. The client is responsible for covering all applicable charges beyond the invoiced amount.',
     terms: 'Payment due within 30 days of invoice date.',
   });
 
@@ -593,18 +593,7 @@ const InvoiceForm = () => {
             <Label className="text-sm font-medium mb-3 block">Select Product Source</Label>
             <Select value={productSourceType} onValueChange={(value: 'manual' | 'stock' | 'inventory') => {
               setProductSourceType(value);
-              // Update all items to use the new source type and reset fields
-              setItems(items.map(item => ({ 
-                ...item, 
-                sourceType: value,
-                productCategory: '',
-                itemName: '',
-                productVersion: '',
-                quantity: value === 'inventory' ? 1 : 1,
-                unit: '',
-                rate: 0,
-                amount: 0
-              })));
+              // Only affect new items added after this change, don't modify existing items
             }}>
               <SelectTrigger className="w-64">
                 <SelectValue />
@@ -630,8 +619,8 @@ const InvoiceForm = () => {
                 <div className="flex justify-between items-center mb-4">
                   <span className="text-sm font-medium text-muted-foreground">
                     Item #{index + 1} • {
-                      productSourceType === 'manual' ? 'Manual Entry' :
-                      productSourceType === 'stock' ? 'From Existing Stock' :
+                      item.sourceType === 'manual' ? 'Manual Entry' :
+                      item.sourceType === 'stock' ? 'From Existing Stock' :
                       'From Stockless Products'
                     }
                   </span>
@@ -647,13 +636,38 @@ const InvoiceForm = () => {
                   )}
                 </div>
 
-                {productSourceType !== 'manual' ? (
+                {/* Current Stock Display for Stock mode */}
+                {item.sourceType === 'stock' && item.productCategory && item.itemName && item.productVersion && (
+                  <div className="absolute top-4 right-16 bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
+                    {(() => {
+                      const stockItem = stockDetails.find(stock => 
+                        stock.productCategory === item.productCategory &&
+                        stock.itemName === item.itemName &&
+                        stock.productVersion === item.productVersion
+                      );
+                      const currentStock = stockItem?.currentStock || 0;
+                      const remainingStock = Math.max(0, currentStock - (item.quantity || 0));
+                      
+                      return (
+                        <div className="space-y-1">
+                          <div className="font-medium text-blue-800">Current Stock: {currentStock}</div>
+                          <div className="text-blue-600">Remaining: {remainingStock}</div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {item.sourceType !== 'manual' ? (
                   // Stock or Inventory Products Mode
                   <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                     <div className="md:col-span-2">
                       <Label className="text-sm font-medium text-foreground mb-2 block">Product Category *</Label>
                       <SearchableDropdown
-                        items={dataSource.categories}
+                        items={item.sourceType === 'stock' ? 
+                          [...new Set(stockDetails.map(p => p.productCategory))] :
+                          [...new Set(activeInventory.map(p => p.productCategory))]
+                        }
                         value={item.productCategory}
                         onValueChange={(value) => updateItem(index, 'productCategory', value)}
                         placeholder="Select category"
@@ -662,7 +676,11 @@ const InvoiceForm = () => {
                     <div className="md:col-span-2">
                       <Label className="text-sm font-medium text-foreground mb-2 block">Product Name *</Label>
                       <SearchableDropdown
-                        items={item.productCategory ? dataSource.getNames(item.productCategory) : []}
+                        items={item.productCategory ? (
+                          item.sourceType === 'stock' ?
+                            [...new Set(stockDetails.filter(p => p.productCategory === item.productCategory).map(p => p.itemName))] :
+                            [...new Set(activeInventory.filter(p => p.productCategory === item.productCategory).map(p => p.itemName))]
+                        ) : []}
                         value={item.itemName}
                         onValueChange={(value) => updateItem(index, 'itemName', value)}
                         placeholder="Select name"
@@ -671,7 +689,11 @@ const InvoiceForm = () => {
                     <div className="md:col-span-2">
                       <Label className="text-sm font-medium text-foreground mb-2 block">Product Version *</Label>
                       <SearchableDropdown
-                        items={item.productCategory && item.itemName ? dataSource.getVersions(item.productCategory, item.itemName) : []}
+                        items={item.productCategory && item.itemName ? (
+                          item.sourceType === 'stock' ?
+                            [...new Set(stockDetails.filter(p => p.productCategory === item.productCategory && p.itemName === item.itemName).map(p => p.productVersion))] :
+                            [...new Set(activeInventory.filter(p => p.productCategory === item.productCategory && p.itemName === item.itemName).map(p => p.productVersion))]
+                        ) : []}
                         value={item.productVersion}
                         onValueChange={(value) => updateItem(index, 'productVersion', value)}
                         placeholder="Select version"
@@ -679,15 +701,19 @@ const InvoiceForm = () => {
                     </div>
                     
                     {/* Quantity and Unit for Stock mode only */}
-                    {productSourceType === 'stock' && (
+                    {item.sourceType === 'stock' && (
                       <>
                         <div>
                           <Label className="text-sm font-medium text-foreground mb-2 block">Quantity *</Label>
                           <Input
-                            type="number"
-                            min="1"
+                            type="text"
                             value={item.quantity}
-                            onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
+                                updateItem(index, 'quantity', value === '' ? 0 : Number(value));
+                              }
+                            }}
                             className="bg-background"
                           />
                         </div>
@@ -772,10 +798,14 @@ const InvoiceForm = () => {
                     <div>
                       <Label className="text-sm font-medium text-foreground mb-2 block">Quantity (Optional)</Label>
                       <Input
-                        type="number"
-                        min="1"
+                        type="text"
                         value={item.quantity}
-                        onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
+                            updateItem(index, 'quantity', value === '' ? 0 : Number(value));
+                          }
+                        }}
                         className="bg-background"
                         placeholder="1"
                       />
