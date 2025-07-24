@@ -9,6 +9,8 @@ import { Calendar, Download, MapPin, Globe, Phone, Building, FileText, CreditCar
 import { Invoice } from '@/hooks/useFirestore';
 import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
 import { countryPhoneCodes } from '@/data/countryPhoneCodes';
+import { calculateInvoiceStatus, getStatusColor, getStatusDisplay } from '@/utils/invoiceStatusUtils';
+import { usePayments } from '@/hooks/useFirestore';
 
 interface InvoiceViewProps {
   invoice: Invoice | null;
@@ -17,17 +19,14 @@ interface InvoiceViewProps {
 }
 
 const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
+  const { payments } = usePayments();
+  
   if (!invoice) return null;
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'paid': return 'bg-green-100 text-green-800 border-green-200';
-      case 'sent': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'draft': return 'bg-gray-100 text-gray-800 border-gray-200';
-      case 'overdue': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
+  // Calculate current status based on payments
+  const paymentDoc = payments.find(p => p.invoiceId === invoice.id);
+  const paidAmount = paymentDoc?.totalPaidUSD || invoice.paidUSD || 0;
+  const statusResult = calculateInvoiceStatus(invoice, paidAmount);
 
   // Enhanced function to format phone numbers with proper spacing and alignment
   const formatPhoneNumber = (phoneNumber: string, countryCode: string) => {
@@ -392,8 +391,8 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
                 <div>
                   <div class="invoice-title">INVOICE</div>
                   <div class="invoice-number invoice-meta">#${invoice.invoiceNumber}</div>
-                  <span class="invoice-status status-${invoice.status || 'draft'} invoice-meta">
-                    ${(invoice.status || 'draft').toUpperCase()}
+                  <span class="invoice-status status-${statusResult.status} invoice-meta">
+                    ${getStatusDisplay(statusResult)}
                   </span>
                 </div>
               </div>

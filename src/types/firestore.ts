@@ -67,7 +67,7 @@ export interface Invoice {
   clientGSTIN?: string;
   issueDate: Timestamp;
   dueDate: Timestamp;
-  status: 'draft' | 'sent' | 'paid' | 'unpaid' | 'overdue' | 'cancelled';
+  status: 'draft' | 'sent' | 'paid' | 'unpaid' | 'overdue' | 'cancelled' | 'pending' | 'partially-paid' | 'paid-after-due';
   items: InvoiceItem[];
   subtotal: number;
   discount: number;

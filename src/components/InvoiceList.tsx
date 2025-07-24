@@ -24,6 +24,8 @@ import { useToast } from '@/hooks/use-toast';
 import InvoiceView from './InvoiceView';
 import EmailInvoiceModal from './EmailInvoiceModal';
 import { getCurrencyByCountry } from '@/data/countryCurrencyMapping';
+import { calculateInvoiceStatus, getStatusColor, getStatusDisplay } from '@/utils/invoiceStatusUtils';
+import { usePayments } from '@/hooks/useFirestore';
 import type { Invoice } from '@/hooks/useFirestore';
 
 const InvoiceList = () => {
@@ -31,6 +33,7 @@ const InvoiceList = () => {
   const { toast } = useToast();
   const { invoices, loading, deleteInvoice, updateInvoice } = useOptimizedInvoices();
   const { companyData } = useCompanyData();
+  const { payments } = usePayments();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -43,54 +46,26 @@ const InvoiceList = () => {
     ? getCurrencyByCountry(companyData.country)
     : { code: 'USD', symbol: '$', name: 'US Dollar' };
 
-  // Auto-update status to "paid" when pending amount is zero
+  // Calculate status for each invoice based on payments and due dates
   const processedInvoices = invoices.map(invoice => {
-    const paidAmount = invoice.paidUSD || 0;
-    const totalAmount = invoice.totalAmount || 0;
-    const pendingAmount = Math.max(0, totalAmount - paidAmount);
+    const paymentDoc = payments.find(p => p.invoiceId === invoice.id);
+    const paidAmount = paymentDoc?.totalPaidUSD || invoice.paidUSD || 0;
+    const statusResult = calculateInvoiceStatus(invoice, paidAmount);
     
-    // If pending amount is zero and status is not already "paid", update it
-    if (pendingAmount <= 0.01 && invoice.status !== 'paid' && invoice.status !== 'draft') {
-      // Update the invoice status in Firestore
-      updateInvoice(invoice.id, { status: 'paid' }).catch(console.error);
-      return { ...invoice, status: 'paid' as const };
-    }
-    
-    return invoice;
+    return {
+      ...invoice,
+      statusResult,
+      calculatedStatus: statusResult.status
+    };
   });
 
   const filteredInvoices = processedInvoices.filter(invoice => {
     const matchesSearch = (invoice.invoiceNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (invoice.clientName || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
+    const matchesStatus = statusFilter === 'all' || invoice.calculatedStatus === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'paid': return 'bg-green-100 text-green-800';
-      case 'pending': return 'bg-orange-100 text-orange-800';
-      case 'sent': return 'bg-orange-100 text-orange-800';
-      case 'draft': return 'bg-yellow-100 text-yellow-800';
-      case 'overdue': return 'bg-red-100 text-red-800';
-      case 'partially-paid': return 'bg-yellow-100 text-yellow-800';
-      case 'paid-after-due': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusDisplay = (status: string) => {
-    switch (status) {
-      case 'draft': return '🟡 Created';
-      case 'sent': return '🟠 Pending';
-      case 'pending': return '🟠 Pending';
-      case 'partially-paid': return '🟡 Partially Paid';
-      case 'paid': return '🟢 Paid';
-      case 'overdue': return '🔴 Overdue';
-      case 'paid-after-due': return '🔵 Paid (After Due Date)';
-      default: return '🟡 Created';
-    }
-  };
 
   const handleDeleteInvoice = async (id: string) => {
     if (!confirm('Are you sure you want to delete this invoice?')) return;
@@ -166,7 +141,7 @@ Terms: ${invoice.terms || 'N/A'}
   const totalAmount = filteredInvoices.reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
   const paidAmount = filteredInvoices.reduce((sum, invoice) => sum + (invoice.paidUSD || 0), 0);
   const pendingAmount = filteredInvoices.reduce((sum, invoice) => sum + Math.max(0, (invoice.totalAmount || 0) - (invoice.paidUSD || 0)), 0);
-  const overdueAmount = filteredInvoices.filter(inv => inv.status === 'overdue').reduce((sum, invoice) => sum + Math.max(0, (invoice.totalAmount || 0) - (invoice.paidUSD || 0)), 0);
+  const overdueAmount = filteredInvoices.filter(inv => inv.calculatedStatus === 'overdue').reduce((sum, invoice) => sum + Math.max(0, (invoice.totalAmount || 0) - (invoice.paidUSD || 0)), 0);
 
   // Format currency using company's currency with consistent decimal places
   const formatCurrency = (amount: number) => {
@@ -280,8 +255,10 @@ Terms: ${invoice.terms || 'N/A'}
                   <SelectItem value="draft">Draft</SelectItem>
                   <SelectItem value="sent">Sent</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="partially-paid">Partially Paid</SelectItem>
                   <SelectItem value="paid">Paid</SelectItem>
                   <SelectItem value="overdue">Overdue</SelectItem>
+                  <SelectItem value="paid-after-due">Paid (After Due Date)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -350,8 +327,8 @@ Terms: ${invoice.terms || 'N/A'}
                           <div className="font-medium text-yellow-600">{formatCurrency(pendingAmount)}</div>
                         </TableCell>
                         <TableCell>
-                          <Badge className={getStatusColor(invoice.status || 'draft')}>
-                            {getStatusDisplay(invoice.status || 'draft')}
+                          <Badge className={getStatusColor(invoice.calculatedStatus || 'pending')}>
+                            {getStatusDisplay(invoice.statusResult || { status: 'pending' })}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -362,7 +339,7 @@ Terms: ${invoice.terms || 'N/A'}
                         </TableCell>
                         <TableCell>
                           <div className={`flex items-center text-sm ${
-                            invoice.status === 'overdue' ? 'text-red-600' : ''
+                            invoice.calculatedStatus === 'overdue' ? 'text-red-600' : ''
                           }`}>
                             <Calendar className="w-3 h-3 mr-1 text-gray-400" />
                             {invoice.dueDate ? invoice.dueDate.toLocaleDateString() : 'N/A'}

@@ -88,7 +88,7 @@ export interface Invoice {
   bankInfo?: object;
   logoUrl?: string;
   signatureUrl?: string;
-  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'pending';
+  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'pending' | 'partially-paid' | 'paid-after-due';
   issueDate: Date;
   dueDate: Date;
   notes?: string;

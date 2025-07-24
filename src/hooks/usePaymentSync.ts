@@ -1,6 +1,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useInvoices, usePayments } from '@/hooks/useFirestore';
+import { calculateInvoiceStatus } from '@/utils/invoiceStatusUtils';
 
 export const usePaymentSync = () => {
   const { invoices, updateInvoice } = useInvoices();
@@ -37,23 +38,9 @@ export const usePaymentSync = () => {
           const paidINR = paymentDoc.totalPaidINR || 0;
           const pendingINR = paymentDoc.pendingINR || 0;
 
-          // Determine status
-          const companyAmount = invoice.companyAmount || 0;
-          const dueDate = invoice.dueDate || new Date();
-          const isOverdue = new Date() > dueDate;
-          
-          let status: 'draft' | 'sent' | 'paid' | 'overdue' | 'pending';
-          if (paidUSD >= companyAmount || (companyAmount - paidUSD) <= 0.01) {
-            status = 'paid';
-          } else if (paidUSD > 0 && !isOverdue) {
-            status = 'pending';
-          } else if (paidUSD === 0 && !isOverdue) {
-            status = 'sent';
-          } else if (paidUSD < companyAmount && isOverdue) {
-            status = 'overdue';
-          } else {
-            status = invoice.status || 'draft';
-          }
+          // Determine status using new status calculation
+          const statusResult = calculateInvoiceStatus(invoice, paidUSD);
+          const status = statusResult.status;
 
           // Check if update is actually needed
           const needsUpdate = 
