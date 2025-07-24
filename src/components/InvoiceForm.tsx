@@ -12,11 +12,13 @@ import { useInvoices, useClients, InvoiceItem } from '@/hooks/useFirestore';
 import { useCompanyData } from '@/hooks/useCompanyData';
 import { useTaxCalculations } from '@/hooks/useTaxCalculations';
 import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
+import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useInventory } from '@/hooks/useFirestore';
 import { useProductDefinitions } from '@/hooks/useProductDefinitions';
 import { useStockDetails } from '@/hooks/useStockDetails';
+import { InvoiceStockService } from '@/services/invoiceStockService';
 import SearchableDropdown from './SearchableDropdown';
 
 interface InvoiceFormItem {
@@ -35,6 +37,7 @@ interface InvoiceFormItem {
 const InvoiceForm = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { currentUser } = useAuth();
   const { addInvoice } = useInvoices();
   const { clients } = useClients();
   const { inventory } = useInventory();
@@ -317,18 +320,7 @@ const InvoiceForm = () => {
     setLoading(true);
 
     try {
-      // Ensure product definitions exist for manual entries
-      for (const item of items) {
-        if (item.sourceType === 'manual' && item.productCategory && item.itemName && item.productVersion) {
-          await addProductDefinition({
-            productCategory: item.productCategory,
-            itemName: item.itemName,
-            productVersion: item.productVersion
-          });
-        }
-      }
-
-      // Convert InvoiceFormItem[] to extended InvoiceItem[] with product details
+      // Convert InvoiceFormItem[] to extended InvoiceItem[] with product details first
       const firestoreItems: InvoiceItem[] = items.map(item => ({
         description: `${item.productCategory} - ${item.itemName} (${item.productVersion})${item.unit ? ` [${item.unit}]` : ''}`,
         quantity: item.sourceType === 'inventory' ? 1 : item.quantity,
@@ -343,6 +335,40 @@ const InvoiceForm = () => {
         sourceType: item.sourceType,
         unit: item.unit
       }));
+
+      // Validate stock availability for stock items before proceeding
+      if (!currentUser?.companyId) {
+        throw new Error('Company ID not found');
+      }
+
+      const stockValidation = await InvoiceStockService.validateStockAvailability(
+        currentUser.companyId,
+        firestoreItems
+      );
+
+      if (!stockValidation.isValid) {
+        const insufficientItems = stockValidation.insufficientStockItems
+          .map(item => `${item.itemName} (${item.productCategory}): Required ${item.requiredQuantity} ${item.unit}, Available ${item.availableStock} ${item.unit}`)
+          .join('\n');
+        
+        toast({
+          title: "Invoice cannot be created for items with depleted stock.",
+          description: `Insufficient stock for:\n${insufficientItems}`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Ensure product definitions exist for manual entries
+      for (const item of items) {
+        if (item.sourceType === 'manual' && item.productCategory && item.itemName && item.productVersion) {
+          await addProductDefinition({
+            productCategory: item.productCategory,
+            itemName: item.itemName,
+            productVersion: item.productVersion
+          });
+        }
+      }
 
       const invoice = {
         invoiceNumber: invoiceData.invoiceNumber,
@@ -375,6 +401,12 @@ const InvoiceForm = () => {
 
       console.log('Creating invoice with automatic field population from clients and companies collections...');
       await addInvoice(invoice);
+      
+      // Update stock for stock items after successful invoice creation
+      await InvoiceStockService.updateStockOnInvoiceCreation(
+        currentUser.companyId,
+        firestoreItems
+      );
       
       toast({
         title: "Success",
@@ -588,26 +620,10 @@ const InvoiceForm = () => {
             </Button>
           </div>
           
-          {/* Product Source Selector */}
+          {/* Information Text */}
           <div className="mt-4 p-4 bg-background rounded-lg border">
-            <Label className="text-sm font-medium mb-3 block">Select Product Source</Label>
-            <Select value={productSourceType} onValueChange={(value: 'manual' | 'stock' | 'inventory') => {
-              setProductSourceType(value);
-              // Only affect new items added after this change, don't modify existing items
-            }}>
-              <SelectTrigger className="w-64">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="manual">Manual Entry</SelectItem>
-                <SelectItem value="stock">Through Existing Stock</SelectItem>
-                <SelectItem value="inventory">Through Products (Stockless Items)</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground mt-2">
-              {productSourceType === 'manual' && 'Enter product details manually with optional quantity and unit fields.'}
-              {productSourceType === 'stock' && 'Select from existing stock. Rate auto-fills from stock price. Unit dropdown appears next to quantity.'}
-              {productSourceType === 'inventory' && 'Select from stockless products. Rate auto-fills from unit price. Quantity and unit fields are hidden.'}
+            <p className="text-sm text-muted-foreground">
+              Each item can have its own entry type. You can mix manual entries, stock items, and stockless products in a single invoice.
             </p>
           </div>
         </CardHeader>
@@ -615,15 +631,104 @@ const InvoiceForm = () => {
           <div className="space-y-6">
             {items.map((item, index) => (
               <div key={index} className="relative bg-gradient-to-br from-card to-card/80 border border-border/50 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200">
-                {/* Item Header */}
+                {/* Item Header with Individual Entry Type */}
                 <div className="flex justify-between items-center mb-4">
-                  <span className="text-sm font-medium text-muted-foreground">
-                    Item #{index + 1} • {
-                      item.sourceType === 'manual' ? 'Manual Entry' :
-                      item.sourceType === 'stock' ? 'From Existing Stock' :
-                      'From Stockless Products'
-                    }
-                  </span>
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm font-medium text-muted-foreground">
+                      Item #{index + 1}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground">Entry Type:</Label>
+                      <Select 
+                        value={item.sourceType} 
+                        onValueChange={(value: 'manual' | 'stock' | 'inventory') => {
+                          updateItem(index, 'sourceType', value);
+                          // Reset item fields when changing source type
+                          updateItem(index, 'productCategory', '');
+                          updateItem(index, 'itemName', '');
+                          updateItem(index, 'productVersion', '');
+                          updateItem(index, 'rate', 0);
+                          updateItem(index, 'unit', '');
+                        }}
+                      >
+                        <SelectTrigger className="w-48 h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="manual">Manual Entry</SelectItem>
+                          <SelectItem value="stock">Through Existing Stock</SelectItem>
+                          <SelectItem value="inventory">Through Products (Stockless Items)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {/* Stock Information Display in Row for Stock Mode */}
+                    {item.sourceType === 'stock' && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>From Available Stock</span>
+                        {item.productCategory && item.itemName && item.productVersion && (() => {
+                          const stockItem = stockDetails.find(stock => 
+                            stock.productCategory === item.productCategory &&
+                            stock.itemName === item.itemName &&
+                            stock.productVersion === item.productVersion
+                          );
+                          
+                          if (!stockItem) {
+                            return (
+                              <div className="px-2 py-1 bg-red-50 border border-red-200 rounded text-red-600 font-medium">
+                                Stock Not Found
+                              </div>
+                            );
+                          }
+                          
+                          const currentStock = stockItem.currentStock || 0;
+                          const unit = stockItem.unit || 'pcs';
+                          const remainingStock = currentStock - (item.quantity || 0);
+                          const minRequired = stockItem.minRequired || 0;
+                          const safeQuantityLimit = stockItem.safeQuantityLimit || 0;
+                          
+                          // Calculate stock status
+                          let stockStatus = 'normal';
+                          let statusBg = 'bg-green-50 border-green-200 text-green-700';
+                          
+                          if (currentStock < safeQuantityLimit) {
+                            stockStatus = 'critical';
+                            statusBg = 'bg-red-50 border-red-200 text-red-700';
+                          } else if (currentStock < minRequired) {
+                            stockStatus = 'low';
+                            statusBg = 'bg-yellow-50 border-yellow-200 text-yellow-700';
+                          }
+                          
+                          return (
+                            <div className="flex items-center gap-2">
+                              {/* Current Stock */}
+                              <div className="px-2 py-1 bg-blue-50 border border-blue-200 rounded text-blue-700 font-medium">
+                                Current: {currentStock} {unit}
+                              </div>
+                              
+                              {/* Stock Status */}
+                              <div className={`px-2 py-1 border rounded font-medium ${statusBg}`}>
+                                Status: {stockStatus.charAt(0).toUpperCase() + stockStatus.slice(1)}
+                              </div>
+                              
+                              {/* Remaining Stock */}
+                              <div className={`px-2 py-1 border rounded font-medium ${
+                                remainingStock < 0 
+                                  ? 'bg-red-50 border-red-200 text-red-700' 
+                                  : 'bg-gray-50 border-gray-200 text-gray-700'
+                              }`}>
+                                {remainingStock < 0 ? (
+                                  <>⚠️ Depleted by {Math.abs(remainingStock)} {unit}</>
+                                ) : (
+                                  <>Remaining: {remainingStock} {unit}</>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
                   {items.length > 1 && (
                     <Button
                       variant="ghost"
@@ -635,63 +740,6 @@ const InvoiceForm = () => {
                     </Button>
                   )}
                 </div>
-
-                {/* Current Stock Display for Stock mode */}
-                {item.sourceType === 'stock' && item.productCategory && item.itemName && item.productVersion && (
-                  <div className="absolute top-4 right-16 bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
-                    {(() => {
-                      const stockItem = stockDetails.find(stock => 
-                        stock.productCategory === item.productCategory &&
-                        stock.itemName === item.itemName &&
-                        stock.productVersion === item.productVersion
-                      );
-                      
-                      if (!stockItem) {
-                        return (
-                          <div className="text-red-600 font-medium">Stock item not found</div>
-                        );
-                      }
-                      
-                      const currentStock = stockItem.currentStock || 0;
-                      const unit = stockItem.unit || 'pcs';
-                      const remainingStock = currentStock - (item.quantity || 0);
-                      const minRequired = stockItem.minRequired || 0;
-                      const safeQuantityLimit = stockItem.safeQuantityLimit || 0;
-                      
-                      // Calculate stock status
-                      let stockStatus = 'normal';
-                      let statusColor = 'text-green-600';
-                      
-                      if (currentStock < safeQuantityLimit) {
-                        stockStatus = 'critical';
-                        statusColor = 'text-red-600';
-                      } else if (currentStock < minRequired) {
-                        stockStatus = 'low';
-                        statusColor = 'text-yellow-600';
-                      }
-                      
-                      return (
-                        <div className="space-y-2">
-                          <div className="font-medium text-blue-800">
-                            Current Stock: {currentStock} {unit}
-                          </div>
-                          <div className={`font-medium ${statusColor}`}>
-                            Status: {stockStatus.charAt(0).toUpperCase() + stockStatus.slice(1)}
-                          </div>
-                          {remainingStock < 0 ? (
-                            <div className="text-red-600 font-bold bg-red-50 border border-red-200 rounded px-2 py-1">
-                              ⚠️ Stock Depleted
-                            </div>
-                          ) : (
-                            <div className="text-blue-600">
-                              Remaining: {remainingStock} {unit}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                )}
 
                 {item.sourceType !== 'manual' ? (
                   // Stock or Inventory Products Mode
