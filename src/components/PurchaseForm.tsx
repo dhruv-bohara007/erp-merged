@@ -217,12 +217,15 @@ const PurchaseForm = () => {
       // Create a single purchase record document that conforms to Expense interface
       const purchaseRecord = {
         // Required Expense fields
+        id: '', // Will be set by Firebase
         title: `Purchase Record - ${supplierName}`,
         amount: Math.round(totalAmount * 100) / 100,
         expenseDate: new Date(purchaseDate),
         category: 'Purchase',
         description: description || `Purchase from ${supplierName}`,
         status: 'recorded' as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
         
         // Purchase-specific fields (these are allowed in Expense interface)
         purchaseRecordId,
@@ -253,31 +256,11 @@ const PurchaseForm = () => {
       // Add single purchase record to database
       await addPurchase(purchaseRecord);
 
-      // Update stock levels for each item using the service
-      for (const item of items) {
-        const stockUpdateRecord = {
-          ...purchaseRecord,
-          // Override with individual item data for stock update
-          itemName: item.itemName,
-          productCategory: item.productCategory,
-          productVersion: item.productVersion,
-          quantity: item.quantity,
-          unit: item.unit,
-          pricePerUnit: item.pricePerUnit,
-          amount: item.amount,
-          totalAmountAfterTax: totalAmount,
-          totalAmountAfterTaxINR: totalAmountINRFormatted,
-          totalAmountINR: Math.round((await convertToINR(item.amount, companyCountry)).amountInINR * 100) / 100,
-          id: '', // Will be set by Firebase
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
-        
-        await PurchaseStockService.updateStockOnPurchase(
-          stockUpdateRecord,
-          currentUser.companyId
-        );
-      }
+      // Update stock levels using the service (handles all items in the purchase record)
+      await PurchaseStockService.updateStockOnPurchase(
+        purchaseRecord,
+        currentUser.companyId
+      );
 
       // Redirect to Purchase Management page
       navigate('/purchases?section=purchase-record');
