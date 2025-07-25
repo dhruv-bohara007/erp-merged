@@ -9,9 +9,23 @@ export class PurchaseStockService {
    */
   static async updateStockOnPurchase(purchaseRecord: Expense, companyId: string): Promise<void> {
     try {
+      console.log('=== PURCHASE STOCK UPDATE START ===');
+      console.log('Purchase record ID:', purchaseRecord.id);
+      console.log('Company ID:', companyId);
+      console.log('Total items in purchase:', purchaseRecord.items?.length || 0);
+      
       // Handle purchase records with items array (multiple items)
       if (purchaseRecord.items && purchaseRecord.items.length > 0) {
-        for (const item of purchaseRecord.items) {
+        console.log('Processing items array with', purchaseRecord.items.length, 'items');
+        for (let i = 0; i < purchaseRecord.items.length; i++) {
+          const item = purchaseRecord.items[i];
+          console.log(`Processing item ${i + 1}/${purchaseRecord.items.length}:`, {
+            itemName: item.itemName,
+            productCategory: item.productCategory,
+            productVersion: item.productVersion,
+            quantity: item.quantity
+          });
+          
           await this.updateStockForPurchaseItem(companyId, {
             productCategory: item.productCategory,
             itemName: item.itemName,
@@ -22,7 +36,7 @@ export class PurchaseStockService {
             purchaseDate: purchaseRecord.purchaseDate || new Date()
           });
         }
-      } 
+      }
       // Handle single-item purchase records (backwards compatibility)
       else if (purchaseRecord.productCategory && purchaseRecord.itemName && purchaseRecord.productVersion) {
         await this.updateStockForPurchaseItem(companyId, {
@@ -58,6 +72,9 @@ export class PurchaseStockService {
       purchaseDate: Date;
     }
   ): Promise<void> {
+    console.log(`--- Updating stock for item: ${item.itemName} ---`);
+    console.log('Item details:', item);
+    
     const stockDetailsRef = collection(db, 'stock_details');
     const q = query(
       stockDetailsRef,
@@ -68,8 +85,10 @@ export class PurchaseStockService {
     );
 
     const snapshot = await getDocs(q);
+    console.log('Found existing stock records:', snapshot.docs.length);
 
     if (snapshot.empty) {
+      console.log('Creating new stock record with quantity:', item.quantity);
       // Create new stock record if none exists
       await addDoc(stockDetailsRef, {
         companyId,
@@ -88,10 +107,15 @@ export class PurchaseStockService {
         createdAt: new Date(),
         updatedAt: new Date()
       });
+      console.log('New stock record created');
     } else {
       // Update existing stock record
       const stockDoc = snapshot.docs[0];
       const currentData = stockDoc.data() as StockDetailsData;
+      
+      console.log('Current stock before update:', currentData.currentStock);
+      console.log('Adding quantity:', item.quantity);
+      console.log('New stock will be:', currentData.currentStock + item.quantity);
       
       await updateDoc(doc(db, 'stock_details', stockDoc.id), {
         currentStock: currentData.currentStock + item.quantity,
@@ -101,7 +125,9 @@ export class PurchaseStockService {
         lastRecordedOrderQuantity: item.quantity,
         updatedAt: new Date()
       });
+      console.log('Stock record updated successfully');
     }
+    console.log(`--- Finished updating stock for item: ${item.itemName} ---`);
   }
 
   /**
