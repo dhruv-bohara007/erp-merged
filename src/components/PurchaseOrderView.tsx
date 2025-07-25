@@ -474,15 +474,7 @@ const PurchaseOrderView = () => {
                           >
                             <Eye className="w-3 h-3" />
                           </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            title="Download"
-                            onClick={() => handleDownloadPurchaseOrder(order)}
-                          >
-                            <Download className="w-3 h-3" />
-                          </Button>
-                          <Button 
+                          <Button
                             variant="outline" 
                             size="sm" 
                             title="Send Email"

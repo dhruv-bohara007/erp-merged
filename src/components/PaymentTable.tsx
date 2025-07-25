@@ -156,6 +156,21 @@ const PaymentTable = ({ payments, onDeletePayment }: PaymentTableProps) => {
     return acc;
   }, [] as GroupedPayment[]);
 
+  // Sort grouped payments by status for better organization
+  const sortedGroupedPayments = [...groupedPayments].sort((a, b) => {
+    // Define status priority: pending -> overdue -> completed
+    const statusPriority = { pending: 1, overdue: 2, completed: 3 };
+    const priorityA = statusPriority[a.status as keyof typeof statusPriority] || 4;
+    const priorityB = statusPriority[b.status as keyof typeof statusPriority] || 4;
+    
+    if (priorityA !== priorityB) {
+      return priorityA - priorityB;
+    }
+    
+    // If same status, sort by latest payment date (most recent first)
+    return b.latestPaymentDate.getTime() - a.latestPaymentDate.getTime();
+  });
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed': return 'bg-green-100 text-green-800';
@@ -230,14 +245,14 @@ const PaymentTable = ({ payments, onDeletePayment }: PaymentTableProps) => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {groupedPayments.length === 0 ? (
+            {sortedGroupedPayments.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                   No payments found
                 </TableCell>
               </TableRow>
             ) : (
-              groupedPayments.map((group) => (
+              sortedGroupedPayments.map((group) => (
                 <TableRow key={group.invoiceId}>
                   <TableCell>
                     <div className="font-medium">{group.invoiceNumber}</div>

@@ -212,11 +212,10 @@ const Reports = () => {
       <ReportsMetrics />
 
       <Tabs defaultValue="revenue" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="revenue">Revenue Analysis</TabsTrigger>
           <TabsTrigger value="clients">Client Reports</TabsTrigger>
           <TabsTrigger value="aging">Aging Report</TabsTrigger>
-          <TabsTrigger value="gst">GST Summary</TabsTrigger>
         </TabsList>
 
         {/* Revenue Analysis */}
@@ -388,36 +387,6 @@ const Reports = () => {
           </div>
         </TabsContent>
 
-        {/* GST Summary */}
-        <TabsContent value="gst">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-green-500" />
-                GST Summary Report
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {gstSummary.map((gst, index) => (
-                  <div key={index} className="p-6 border rounded-lg">
-                    <div className="text-sm text-gray-600">{gst.type}</div>
-                    <div className="text-2xl font-bold mt-1">{formatCurrency(gst.amount)}</div>
-                    <div className="text-sm text-blue-600 mt-1">Rate: {gst.rate}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                <div className="flex justify-between items-center">
-                  <span className="font-medium">Total GST & TDS</span>
-                  <span className="text-xl font-bold">
-                    {formatCurrency(gstSummary.reduce((sum, gst) => sum + gst.amount, 0))}
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
     </div>
   );
