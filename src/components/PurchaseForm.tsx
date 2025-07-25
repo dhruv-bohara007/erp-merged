@@ -201,7 +201,25 @@ const PurchaseForm = () => {
       }
     }
 
+    // Debug validation
+    console.log('Validation check:', {
+      selectedSupplierId,
+      supplierName,
+      itemsLength: items.length,
+      items: items.map(item => ({
+        itemName: item.itemName,
+        quantity: item.quantity,
+        pricePerUnit: item.pricePerUnit
+      }))
+    });
+
     if (!selectedSupplierId || !supplierName || items.length === 0 || items.some(item => !item.itemName || item.quantity <= 0 || item.pricePerUnit <= 0)) {
+      console.log('Validation failed:', {
+        hasSelectedSupplierId: !!selectedSupplierId,
+        hasSupplierName: !!supplierName,
+        hasItems: items.length > 0,
+        itemsValid: !items.some(item => !item.itemName || item.quantity <= 0 || item.pricePerUnit <= 0)
+      });
       alert('Please select a supplier and fill in all required fields');
       return;
     }
