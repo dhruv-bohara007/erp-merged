@@ -95,46 +95,303 @@ const InvoiceList = () => {
     setIsEmailModalOpen(true);
   };
 
-  const handleDownloadPDF = (invoice: Invoice) => {
-    // Create a basic PDF content
-    const content = `
-INVOICE
+  const handleDownloadPDF = async (invoice: Invoice) => {
+    try {
+      // Import jsPDF and html2canvas dynamically
+      const [jsPDF, html2canvas] = await Promise.all([
+        import('jspdf').then(m => m.default),
+        import('html2canvas').then(m => m.default)
+      ]);
 
-Invoice Number: ${invoice.invoiceNumber}
-Client: ${invoice.clientName}
-Email: ${invoice.clientEmail}
+      // Use the stored country fields from the invoice with fallbacks
+      const companyCountry = invoice.companyCountry || 'US';
+      const clientCountry = invoice.clientCountry || companyCountry;
 
-Issue Date: ${invoice.issueDate?.toLocaleDateString()}
-Due Date: ${invoice.dueDate?.toLocaleDateString()}
+      const companyCurrency = getCurrencyByCountry(companyCountry);
+      const clientCurrency = getCurrencyByCountry(clientCountry);
+      
+      const formatCurrency = (amount: number, countryCode: string) => {
+        const currencyInfo = getCurrencyByCountry(countryCode);
+        return `${currencyInfo.symbol}${amount.toFixed(2)}`;
+      };
 
-Items:
-${invoice.items?.map(item => 
-  `${item.description} - Qty: ${item.quantity} - Rate: ${companyCurrencyInfo.symbol}${item.rate.toFixed(2)} - Amount: ${companyCurrencyInfo.symbol}${item.amount.toFixed(2)}`
-).join('\n')}
+      const showDualCurrency = companyCountry !== clientCountry && invoice.conversionRate;
+      const companyToINRRate = invoice.conversionRate?.companyToINR || 1;
+      const INRToClientRate = invoice.conversionRate?.INRToClient || 1;
 
-Subtotal: ${companyCurrencyInfo.symbol}${(invoice.subtotal || 0).toFixed(2)}
-Total GST: ${companyCurrencyInfo.symbol}${(invoice.totalGst || 0).toFixed(2)}
+      const convertINRToClient = (amountINR: number) => amountINR * INRToClientRate;
 
-TOTAL AMOUNT: ${companyCurrencyInfo.symbol}${(invoice.totalAmount || 0).toFixed(2)}
+      // Get payment status
+      const paymentDoc = payments.find(p => p.invoiceId === invoice.id);
+      const paidAmount = paymentDoc?.totalPaidUSD || invoice.paidUSD || 0;
+      const statusResult = calculateInvoiceStatus(invoice, paidAmount);
 
-Notes: ${invoice.notes || 'N/A'}
-Terms: ${invoice.terms || 'N/A'}
-    `;
+      // Create comprehensive HTML for professional PDF
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              line-height: 1.6; 
+              color: #1f2937;
+              background: #ffffff;
+              padding: 20px;
+            }
+            .container { max-width: 800px; margin: 0 auto; }
+            .invoice-header { 
+              display: flex; 
+              justify-content: space-between; 
+              align-items: flex-start;
+              margin-bottom: 25px;
+              padding: 20px;
+              background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+              border-radius: 12px;
+              border: 2px solid #e2e8f0;
+            }
+            .invoice-title {
+              font-size: 48px;
+              font-weight: bold;
+              color: #1f2937;
+              margin-bottom: 10px;
+            }
+            .invoice-number {
+              font-size: 24px;
+              font-weight: 600;
+              color: #374151;
+              margin-bottom: 15px;
+            }
+            .total-amount {
+              text-align: right;
+              background: white;
+              padding: 20px;
+              border-radius: 12px;
+              border: 2px solid #e5e7eb;
+              box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+              min-width: 240px;
+            }
+            .amount-primary {
+              font-size: 32px;
+              font-weight: bold;
+              color: #059669;
+              margin-bottom: 8px;
+            }
+            .amount-secondary {
+              font-size: 18px;
+              color: #6b7280;
+            }
+            .two-column {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 12px;
+              margin: 8px 0;
+            }
+            .info-card {
+              background: white;
+              border: 1px solid #e5e7eb;
+              border-radius: 8px;
+              overflow: hidden;
+              box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            }
+            .card-header {
+              padding: 8px 12px;
+              font-size: 16px;
+              font-weight: bold;
+              color: #1f2937;
+              border-bottom: 1px solid #e5e7eb;
+            }
+            .company-header { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); }
+            .client-header { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); }
+            .card-content { padding: 10px; }
+            .items-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 4px 0;
+              background: white;
+              border-radius: 4px;
+              overflow: hidden;
+              border: 1px solid #e5e7eb;
+            }
+            .items-table th, .items-table td {
+              padding: 6px 10px;
+              text-align: left;
+              border-bottom: 1px solid #e5e7eb;
+              font-size: 12px;
+              line-height: 1.3;
+            }
+            .items-table th {
+              background: #f9fafb;
+              font-weight: 600;
+              color: #374151;
+            }
+            .summary-section {
+              margin-top: 20px;
+              padding: 20px;
+              background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+              border-radius: 12px;
+              border: 2px solid #bfdbfe;
+            }
+            .summary-row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 12px;
+              font-size: 16px;
+            }
+            .summary-total {
+              font-size: 20px;
+              font-weight: bold;
+              padding-top: 15px;
+              border-top: 2px solid #60a5fa;
+              color: #1e40af;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="invoice-header">
+              <div>
+                <div class="invoice-title">INVOICE</div>
+                <div class="invoice-number">#${invoice.invoiceNumber}</div>
+              </div>
+              <div class="total-amount">
+                <div class="amount-primary">
+                  ${formatCurrency(invoice.companyAmount || invoice.totalAmount || 0, companyCountry)}
+                </div>
+                ${showDualCurrency ? `
+                  <div class="amount-secondary">
+                    ${formatCurrency(invoice.clientAmount || convertINRToClient(invoice.totalAmountINR || 0), clientCountry)}
+                  </div>
+                ` : ''}
+              </div>
+            </div>
 
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Invoice-${invoice.invoiceNumber}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+            <div class="two-column">
+              <div class="info-card">
+                <div class="card-header company-header">Company Information</div>
+                <div class="card-content">
+                  <div><strong>${invoice.companyName}</strong></div>
+                  <div>${invoice.companyAddress}</div>
+                  ${invoice.companyPhone ? `<div>📞 ${invoice.companyPhone}</div>` : ''}
+                  ${invoice.companyEmail ? `<div>📧 ${invoice.companyEmail}</div>` : ''}
+                </div>
+              </div>
+              
+              <div class="info-card">
+                <div class="card-header client-header">Client Information</div>
+                <div class="card-content">
+                  <div><strong>${invoice.clientName}</strong></div>
+                  <div>${invoice.clientAddress}</div>
+                  ${invoice.clientPhone ? `<div>📞 ${invoice.clientPhone}</div>` : ''}
+                  <div>📧 ${invoice.clientEmail}</div>
+                </div>
+              </div>
+            </div>
 
-    toast({
-      title: "Download Started",
-      description: `Invoice ${invoice.invoiceNumber} is being downloaded`,
-    });
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th>Description</th>
+                  <th>Quantity</th>
+                  <th>Rate</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${invoice.items?.map(item => `
+                  <tr>
+                    <td>${item.description}</td>
+                    <td>${item.quantity}</td>
+                    <td>${formatCurrency(item.rate, companyCountry)}</td>
+                    <td>${formatCurrency(item.amount, companyCountry)}</td>
+                  </tr>
+                `).join('') || ''}
+              </tbody>
+            </table>
+
+            <div class="summary-section">
+              <div class="summary-row">
+                <span>Subtotal:</span>
+                <span>${formatCurrency(invoice.subtotal || 0, companyCountry)}</span>
+              </div>
+              ${invoice.totalGst ? `
+                <div class="summary-row">
+                  <span>Total GST:</span>
+                  <span>${formatCurrency(invoice.totalGst, companyCountry)}</span>
+                </div>
+              ` : ''}
+              <div class="summary-row summary-total">
+                <span>Total Amount:</span>
+                <span>${formatCurrency(invoice.totalAmount || 0, companyCountry)}</span>
+              </div>
+            </div>
+
+            ${invoice.notes ? `
+              <div style="margin-top: 20px; padding: 15px; background: #fefce8; border-radius: 8px;">
+                <strong>Notes:</strong><br>
+                ${invoice.notes}
+              </div>
+            ` : ''}
+          </div>
+        </body>
+        </html>
+      `;
+
+      // Create a temporary div to render the HTML
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlContent;
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.width = '800px';
+      document.body.appendChild(tempDiv);
+
+      // Convert to canvas
+      const canvas = await html2canvas(tempDiv, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff'
+      });
+
+      // Clean up
+      document.body.removeChild(tempDiv);
+
+      // Create PDF
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 295; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      pdf.save(`Invoice-${invoice.invoiceNumber}.pdf`);
+
+      toast({
+        title: "Download Started",
+        description: `Invoice ${invoice.invoiceNumber} PDF is being downloaded`,
+      });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF",
+        variant: "destructive",
+      });
+    }
   };
 
   // Calculate totals for filtered invoices using company currency with proper decimal formatting

@@ -229,13 +229,6 @@ const EmployeeManagement = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleSendEmail(employee)}
-                      >
-                        <Mail className="h-4 w-4" />
-                      </Button>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="outline" size="sm">

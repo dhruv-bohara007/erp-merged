@@ -99,40 +99,267 @@ const PurchaseOrderView = () => {
     setSelectedOrder(null);
   };
 
-  const handleDownloadPurchaseOrder = (order: any) => {
-    const companyAmount = order.currencyAmounts?.companyAmount || order.totalAmount || 0;
-    
-    const content = `
-PURCHASE ORDER
+  const handleDownloadPurchaseOrder = async (order: any) => {
+    try {
+      // Import jsPDF and html2canvas dynamically
+      const [jsPDF, html2canvas] = await Promise.all([
+        import('jspdf').then(m => m.default),
+        import('html2canvas').then(m => m.default)
+      ]);
 
-Purchase Order Number: ${order.purchaseNumber || order.id}
-Supplier: ${order.supplier?.name || 'N/A'}
-Email: ${order.supplier?.email || 'N/A'}
+      const companyAmount = order.currencyAmounts?.companyAmount || order.totalAmount || 0;
 
-Issue Date: ${order.issueDate?.toLocaleDateString() || 'N/A'}
-Due Date: ${order.dueDate?.toLocaleDateString() || 'N/A'}
+      // Create comprehensive HTML for professional PDF following the same structure as in PurchaseOrderModal
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              line-height: 1.6; 
+              color: #1f2937;
+              background: #ffffff;
+              padding: 20px;
+            }
+            .container { max-width: 800px; margin: 0 auto; }
+            .purchase-header { 
+              display: flex; 
+              justify-content: space-between; 
+              align-items: flex-start;
+              margin-bottom: 25px;
+              padding: 20px;
+              background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+              border-radius: 12px;
+              border: 2px solid #e2e8f0;
+            }
+            .purchase-title {
+              font-size: 48px;
+              font-weight: bold;
+              color: #1f2937;
+              margin-bottom: 10px;
+            }
+            .purchase-number {
+              font-size: 24px;
+              font-weight: 600;
+              color: #374151;
+              margin-bottom: 15px;
+            }
+            .total-amount {
+              text-align: right;
+              background: white;
+              padding: 20px;
+              border-radius: 12px;
+              border: 2px solid #e5e7eb;
+              box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+              min-width: 240px;
+            }
+            .amount-primary {
+              font-size: 32px;
+              font-weight: bold;
+              color: #059669;
+              margin-bottom: 8px;
+            }
+            .two-column {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 12px;
+              margin: 8px 0;
+            }
+            .info-card {
+              background: white;
+              border: 1px solid #e5e7eb;
+              border-radius: 8px;
+              overflow: hidden;
+              box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            }
+            .card-header {
+              padding: 8px 12px;
+              font-size: 16px;
+              font-weight: bold;
+              color: #1f2937;
+              border-bottom: 1px solid #e5e7eb;
+            }
+            .company-header { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); }
+            .supplier-header { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); }
+            .card-content { padding: 10px; }
+            .items-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 4px 0;
+              background: white;
+              border-radius: 4px;
+              overflow: hidden;
+              border: 1px solid #e5e7eb;
+            }
+            .items-table th, .items-table td {
+              padding: 6px 10px;
+              text-align: left;
+              border-bottom: 1px solid #e5e7eb;
+              font-size: 12px;
+              line-height: 1.3;
+            }
+            .items-table th {
+              background: #f9fafb;
+              font-weight: 600;
+              color: #374151;
+            }
+            .summary-section {
+              margin-top: 20px;
+              padding: 20px;
+              background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+              border-radius: 12px;
+              border: 2px solid #bfdbfe;
+            }
+            .summary-row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 12px;
+              font-size: 16px;
+            }
+            .summary-total {
+              font-size: 20px;
+              font-weight: bold;
+              padding-top: 15px;
+              border-top: 2px solid #60a5fa;
+              color: #1e40af;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="purchase-header">
+              <div>
+                <div class="purchase-title">PURCHASE ORDER</div>
+                <div class="purchase-number">#${order.purchaseNumber || order.id}</div>
+              </div>
+              <div class="total-amount">
+                <div class="amount-primary">
+                  ${companyCurrency.symbol}${companyAmount.toFixed(2)}
+                </div>
+              </div>
+            </div>
 
-Items:
-${order.items?.map((item: any) => 
-  `${item.description || item.itemName} - Qty: ${item.quantity} - Rate: ${companyCurrency.symbol}${(item.rate || 0).toFixed(2)} - Amount: ${companyCurrency.symbol}${(item.amount || 0).toFixed(2)}`
-).join('\n') || 'No items'}
+            <div class="two-column">
+              <div class="info-card">
+                <div class="card-header company-header">Company Information</div>
+                <div class="card-content">
+                  <div><strong>${companyData?.companyName || 'Company Name'}</strong></div>
+                  <div>${companyData?.streetAddress || 'Company Address'}</div>
+                  ${companyData?.phone ? `<div>📞 ${companyData.phone}</div>` : ''}
+                  ${companyData?.email ? `<div>📧 ${companyData.email}</div>` : ''}
+                </div>
+              </div>
+              
+              <div class="info-card">
+                <div class="card-header supplier-header">Supplier Information</div>
+                <div class="card-content">
+                  <div><strong>${order.supplier?.name || 'N/A'}</strong></div>
+                  <div>${order.supplier?.address || 'N/A'}</div>
+                  ${order.supplier?.phoneNumber ? `<div>📞 ${order.supplier.phoneNumber}</div>` : ''}
+                  <div>📧 ${order.supplier?.email || 'N/A'}</div>
+                </div>
+              </div>
+            </div>
 
-Subtotal: ${companyCurrency.symbol}${(order.subtotal || 0).toFixed(2)}
-Total Amount: ${companyCurrency.symbol}${companyAmount.toFixed(2)}
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Description</th>
+                  <th>Quantity</th>
+                  <th>Rate</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${order.items?.map((item: any) => `
+                  <tr>
+                    <td>${item.itemName || item.description}</td>
+                    <td>${item.description || item.itemName}</td>
+                    <td>${item.quantity}</td>
+                    <td>${companyCurrency.symbol}${(item.pricePerUnit || item.rate || 0).toFixed(2)}</td>
+                    <td>${companyCurrency.symbol}${((item.quantity || 0) * (item.pricePerUnit || item.rate || 0)).toFixed(2)}</td>
+                  </tr>
+                `).join('') || ''}
+              </tbody>
+            </table>
 
-Notes: ${order.notes || 'N/A'}
-Terms: ${order.terms || 'N/A'}
-    `;
+            <div class="summary-section">
+              <div class="summary-row">
+                <span>Subtotal:</span>
+                <span>${companyCurrency.symbol}${(order.subtotal || 0).toFixed(2)}</span>
+              </div>
+              <div class="summary-row summary-total">
+                <span>Total Amount:</span>
+                <span>${companyCurrency.symbol}${companyAmount.toFixed(2)}</span>
+              </div>
+            </div>
 
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `PurchaseOrder-${order.purchaseNumber || order.id}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+            ${order.notes ? `
+              <div style="margin-top: 20px; padding: 15px; background: #fefce8; border-radius: 8px;">
+                <strong>Notes:</strong><br>
+                ${order.notes}
+              </div>
+            ` : ''}
+
+            ${order.terms ? `
+              <div style="margin-top: 15px; padding: 15px; background: #f0f9ff; border-radius: 8px;">
+                <strong>Terms & Conditions:</strong><br>
+                ${order.terms}
+              </div>
+            ` : ''}
+          </div>
+        </body>
+        </html>
+      `;
+
+      // Create a temporary div to render the HTML
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlContent;
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.width = '800px';
+      document.body.appendChild(tempDiv);
+
+      // Convert to canvas
+      const canvas = await html2canvas(tempDiv, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff'
+      });
+
+      // Clean up
+      document.body.removeChild(tempDiv);
+
+      // Create PDF
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 295; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      pdf.save(`PurchaseOrder-${order.purchaseNumber || order.id}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF');
+    }
   };
 
   const handleEmailPurchaseOrder = (order: any) => {
