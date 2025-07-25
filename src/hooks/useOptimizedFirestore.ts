@@ -184,6 +184,22 @@ export const useOptimizedInvoices = () => {
 
   const deleteInvoice = async (id) => {
     try {
+      // First, get the invoice data to restore stock
+      const invoiceDoc = await getDoc(doc(db, 'invoices', id));
+      if (invoiceDoc.exists()) {
+        const invoiceData = invoiceDoc.data();
+        
+        // Restore stock for items sourced from stock
+        if (invoiceData.items && invoiceData.companyId) {
+          const { InvoiceStockService } = await import('@/services/invoiceStockService');
+          await InvoiceStockService.restoreStockOnInvoiceDeletion(
+            invoiceData.companyId, 
+            invoiceData.items
+          );
+        }
+      }
+      
+      // Then delete the invoice
       await deleteDoc(doc(db, 'invoices', id));
     } catch (err) {
       console.error('Error deleting invoice:', err);

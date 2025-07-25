@@ -439,6 +439,22 @@ export const useInvoices = () => {
 
   const deleteInvoice = async (id: string) => {
     try {
+      // First, get the invoice data to restore stock
+      const invoiceDoc = await getDoc(doc(db, 'invoices', id));
+      if (invoiceDoc.exists()) {
+        const invoiceData = invoiceDoc.data() as Invoice;
+        
+        // Restore stock for items sourced from stock
+        if (invoiceData.items && invoiceData.companyId) {
+          const { InvoiceStockService } = await import('@/services/invoiceStockService');
+          await InvoiceStockService.restoreStockOnInvoiceDeletion(
+            invoiceData.companyId, 
+            invoiceData.items
+          );
+        }
+      }
+      
+      // Then delete the invoice
       await deleteDoc(doc(db, 'invoices', id));
     } catch (err) {
       console.error('Error deleting invoice:', err);
