@@ -184,23 +184,41 @@ export const useOptimizedInvoices = () => {
 
   const deleteInvoice = async (id) => {
     try {
+      console.log('Starting invoice deletion process for ID:', id);
+      
       // First, get the invoice data to restore stock
       const invoiceDoc = await getDoc(doc(db, 'invoices', id));
       if (invoiceDoc.exists()) {
         const invoiceData = invoiceDoc.data();
+        console.log('Invoice data found:', invoiceData);
+        console.log('Invoice items:', invoiceData.items);
         
         // Restore stock for items sourced from stock
         if (invoiceData.items && invoiceData.companyId) {
-          const { InvoiceStockService } = await import('@/services/invoiceStockService');
-          await InvoiceStockService.restoreStockOnInvoiceDeletion(
-            invoiceData.companyId, 
-            invoiceData.items
-          );
+          console.log('Attempting to restore stock for company:', invoiceData.companyId);
+          const stockItems = invoiceData.items.filter(item => item.sourceType === 'stock');
+          console.log('Stock items to restore:', stockItems);
+          
+          if (stockItems.length > 0) {
+            const { InvoiceStockService } = await import('@/services/invoiceStockService');
+            await InvoiceStockService.restoreStockOnInvoiceDeletion(
+              invoiceData.companyId, 
+              invoiceData.items
+            );
+            console.log('Stock restoration completed');
+          } else {
+            console.log('No stock items found to restore');
+          }
+        } else {
+          console.log('No items or companyId found in invoice');
         }
+      } else {
+        console.log('Invoice document not found');
       }
       
       // Then delete the invoice
       await deleteDoc(doc(db, 'invoices', id));
+      console.log('Invoice deleted successfully');
     } catch (err) {
       console.error('Error deleting invoice:', err);
       throw new Error(err instanceof Error ? err.message : 'Failed to delete invoice');
