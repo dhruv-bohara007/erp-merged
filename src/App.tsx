@@ -20,6 +20,7 @@ import Reports from "./components/Reports";
 import Settings from "./components/Settings";
 import AdminNavigation from "./components/AdminNavigation";
 import NotFound from "./pages/NotFound";
+import LandingPage from "./pages/LandingPage";
 import ExpenseManagement from "./components/ExpenseManagement";
 import InventoryManagement from "./components/InventoryManagement";
 import ProfitabilityReports from "./components/ProfitabilityReports";
@@ -64,6 +65,7 @@ const AuthenticatedApp = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Routes>
         {/* Public routes - Always accessible */}
+        <Route path="/landing" element={<LandingPage />} />
         <Route path="/login" element={<LoginForm />} />
         <Route path="/register" element={<RegisterForm />} />
         <Route path="/password-reset" element={<PasswordResetForm />} />
