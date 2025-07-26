@@ -42,44 +42,20 @@ const LandingPage: React.FC = () => {
         <div style={{ paddingTop: navbarHeight }}>
           <section
             id="home"
+            className="min-h-screen flex items-center justify-center text-white px-4 sm:px-6 lg:px-8 box-border"
             style={{
               minHeight: `calc(100vh - ${navbarHeight})`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              padding: '2em',
-              boxSizing: 'border-box',
             }}
           >
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                maxWidth: '1400px',
-                width: '100%',
-                gap: '4em',
-              }}
-              className="hero-section-content"
-            >
+            <div className="flex flex-col lg:flex-row items-center justify-between max-w-7xl w-full gap-8 lg:gap-16">
               {/* Left: Text Content */}
-              <div style={{ flex: 1, textAlign: 'left', maxWidth: '600px' }}>
+              <div className="flex-1 text-center lg:text-left max-w-2xl lg:max-w-none">
                 <BlurText
                   text="Simplify Your Invoicing & Payment Tracking with Ease"
                   delay={50}
                   animateBy="words"
                   direction="top"
-                  className="text-gradient"
-                  style={{
-                    fontSize: '3.5rem',
-                    marginBottom: '0.75em',
-                    lineHeight: '1.2',
-                    fontWeight: '700',
-                    color: 'white',
-                    cursor: 'pointer',
-                  }}
+                  className="text-gradient text-3xl sm:text-4xl lg:text-5xl xl:text-6xl mb-4 lg:mb-6 leading-tight font-bold text-white cursor-pointer"
                   animationFrom={{ filter: 'blur(12px)', opacity: 0, y: -30 }}
                   animationTo={[
                     { filter: 'blur(6px)', opacity: 0.6, y: 5 },
@@ -95,15 +71,7 @@ const LandingPage: React.FC = () => {
                   delay={30}
                   animateBy="words"
                   direction="bottom"
-                  className="subtitle-text"
-                  style={{
-                    fontSize: '1.25rem',
-                    fontWeight: '300',
-                    lineHeight: '1.6',
-                    marginBottom: '2em',
-                    color: '#cccccc',
-                    cursor: 'pointer',
-                  }}
+                  className="subtitle-text text-base sm:text-lg lg:text-xl font-light leading-relaxed mb-8 lg:mb-12 text-gray-300 cursor-pointer"
                   animationFrom={{ filter: 'blur(8px)', opacity: 0, y: 20 }}
                   animationTo={[
                     { filter: 'blur(4px)', opacity: 0.4, y: -5 },
@@ -118,15 +86,9 @@ const LandingPage: React.FC = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 1.2, duration: 0.5 }}
+                  className="px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold bg-gradient-to-r from-blue-400 to-cyan-400 border-none rounded-full text-white cursor-pointer shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
                   style={{
-                    padding: '1em 2em',
-                    fontSize: '1rem',
-                    fontWeight: '600',
                     background: 'linear-gradient(90deg, #4facfe 0%, #00f2fe 100%)',
-                    border: 'none',
-                    borderRadius: '50px',
-                    color: 'white',
-                    cursor: 'pointer',
                     boxShadow: '0 4px 15px rgba(0, 242, 254, 0.3)',
                   }}
                   whileHover={{
@@ -144,14 +106,8 @@ const LandingPage: React.FC = () => {
                 initial={{ opacity: 0, x: 50 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.8, duration: 0.8 }}
+                className="flex-1 flex justify-center items-center w-full max-w-2xl lg:max-w-none"
                 style={{
-                  flex: 1,
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  maxWidth: '650px',
-                  width: '100%',
-                  height: 'auto',
                   aspectRatio: '16 / 9',
                 }}
               >

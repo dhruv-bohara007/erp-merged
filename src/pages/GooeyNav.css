@@ -20,12 +20,24 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1em 2em;
+  padding: 0.5em 1em;
   background: black;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   transition: background 0.3s ease, backdrop-filter 0.3s ease, box-shadow 0.3s ease;
   position: relative;
   transform: translate3d(0, 0, 0.01px);
+}
+
+@media (min-width: 640px) {
+  .gooey-nav-flex {
+    padding: 0.75em 1.5em;
+  }
+}
+
+@media (min-width: 1024px) {
+  .gooey-nav-flex {
+    padding: 1em 2em;
+  }
 }
 
 .gooey-nav-container:hover nav {
@@ -42,9 +54,15 @@ body {
 }
 
 .nav-center {
-  flex: 2;
-  display: flex;
-  justify-content: center;
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .nav-center {
+    display: flex;
+    flex: 2;
+    justify-content: center;
+  }
 }
 
 .nav-right {
@@ -56,15 +74,29 @@ body {
 
 .navbar-brand {
   color: white;
-  font-size: 1.8em;
+  font-size: 1.2em;
   font-weight: bold;
-  padding-left: 0.5em;
+  padding-left: 0.25em;
+}
+
+@media (min-width: 640px) {
+  .navbar-brand {
+    font-size: 1.5em;
+    padding-left: 0.375em;
+  }
+}
+
+@media (min-width: 1024px) {
+  .navbar-brand {
+    font-size: 1.8em;
+    padding-left: 0.5em;
+  }
 }
 
 .main-nav-links,
 .action-buttons {
   display: flex;
-  gap: 2em;
+  gap: 0.75em;
   list-style: none;
   padding: 0;
   margin: 0;
@@ -72,6 +104,20 @@ body {
   z-index: 3;
   color: white;
   text-shadow: 0 1px 1px hsl(205deg 30% 10% / 0.2);
+}
+
+@media (min-width: 640px) {
+  .main-nav-links,
+  .action-buttons {
+    gap: 1.25em;
+  }
+}
+
+@media (min-width: 1024px) {
+  .main-nav-links,
+  .action-buttons {
+    gap: 2em;
+  }
 }
 
 .gooey-nav-container nav ul li {
@@ -94,9 +140,24 @@ body {
 
 .gooey-nav-container nav ul li a {
   display: inline-block;
-  padding: 0.6em 1em;
+  padding: 0.4em 0.6em;
   text-decoration: none;
   color: inherit;
+  font-size: 0.8em;
+}
+
+@media (min-width: 640px) {
+  .gooey-nav-container nav ul li a {
+    padding: 0.5em 0.8em;
+    font-size: 0.9em;
+  }
+}
+
+@media (min-width: 1024px) {
+  .gooey-nav-container nav ul li a {
+    padding: 0.6em 1em;
+    font-size: 1em;
+  }
 }
 
 .gooey-nav-container nav ul li:focus-within:has(:focus-visible) {
@@ -113,11 +174,28 @@ body {
 .gooey-nav-container nav ul li.login-button {
   background-color: white;
   color: black;
-  border-radius: 8px;
-  padding: 0.4em 0.9em;
-  font-size: 0.9rem;
-  box-shadow: 0 0 6px rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  padding: 0.3em 0.6em;
+  font-size: 0.7rem;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.3);
   transition: background-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+@media (min-width: 640px) {
+  .gooey-nav-container nav ul li.login-button {
+    border-radius: 8px;
+    padding: 0.35em 0.75em;
+    font-size: 0.8rem;
+    box-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+  }
+}
+
+@media (min-width: 1024px) {
+  .gooey-nav-container nav ul li.login-button {
+    padding: 0.4em 0.9em;
+    font-size: 0.9rem;
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.3);
+  }
 }
 
 .gooey-nav-container nav ul li.login-button:hover {
@@ -129,15 +207,32 @@ body {
 .gooey-nav-container nav ul li.login-button:hover a {
   color: black;
 }
+
 /* GET STARTED Button - Match Hero Button + Glow */
 .gooey-nav-container nav ul li.get-started-button {
-  background: linear-gradient(to right, #00bfff, #1e90ff); /* same as hero button */
+  background: linear-gradient(to right, #00bfff, #1e90ff);
   color: white;
   border-radius: 100vw;
-  padding: 0.4em 1em;
-  font-size: 0.9rem;
-  box-shadow: 0 0 8px rgba(30, 144, 255, 0.5); /* glow effect */
+  padding: 0.3em 0.6em;
+  font-size: 0.7rem;
+  box-shadow: 0 0 6px rgba(30, 144, 255, 0.4);
   transition: background 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+@media (min-width: 640px) {
+  .gooey-nav-container nav ul li.get-started-button {
+    padding: 0.35em 0.8em;
+    font-size: 0.8rem;
+    box-shadow: 0 0 7px rgba(30, 144, 255, 0.45);
+  }
+}
+
+@media (min-width: 1024px) {
+  .gooey-nav-container nav ul li.get-started-button {
+    padding: 0.4em 1em;
+    font-size: 0.9rem;
+    box-shadow: 0 0 8px rgba(30, 144, 255, 0.5);
+  }
 }
 
 .gooey-nav-container nav ul li.get-started-button:hover {
