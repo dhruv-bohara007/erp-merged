@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { Mail, Paperclip, Send } from 'lucide-react';
+import { Mail, Paperclip, Send, Upload, X } from 'lucide-react';
 import { Invoice } from '@/hooks/useFirestore';
 import { useToast } from '@/hooks/use-toast';
 
@@ -22,7 +22,9 @@ const EmailInvoiceModal = ({ invoice, open, onOpenChange }: EmailInvoiceModalPro
     subject: '',
     message: ''
   });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   // Initialize email data when invoice changes
@@ -52,6 +54,36 @@ ${invoice.companyName || 'Your Company'}`
     }
   }, [invoice]);
 
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.type !== 'application/pdf') {
+        toast({
+          title: "Error",
+          description: "Please select a PDF file",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          title: "Error",
+          description: "File size must be less than 10MB",
+          variant: "destructive",
+        });
+        return;
+      }
+      setSelectedFile(file);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSendEmail = async () => {
     if (!emailData.to) {
       toast({
@@ -71,18 +103,44 @@ ${invoice.companyName || 'Your Company'}`
       return;
     }
 
+    if (!selectedFile) {
+      toast({
+        title: "Error",
+        description: "Please select a PDF file to attach",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSending(true);
     try {
-      // Here you would integrate with your email service
-      // For now, we'll simulate the email sending
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      toast({
-        title: "Success",
-        description: "Invoice email sent successfully",
+      const formData = new FormData();
+      formData.append('to', emailData.to);
+      formData.append('cc', emailData.cc);
+      formData.append('subject', emailData.subject);
+      formData.append('message', emailData.message);
+      formData.append('pdf', selectedFile);
+
+      const response = await fetch('/api/send-invoice-email', {
+        method: 'POST',
+        body: formData,
       });
-      
-      onOpenChange(false);
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: "Invoice email sent successfully",
+        });
+        onOpenChange(false);
+        setSelectedFile(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      } else {
+        throw new Error(result.message || 'Failed to send email');
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -116,7 +174,7 @@ ${invoice.companyName || 'Your Company'}`
               <div>Amount: {invoice.companyCurrency || 'USD'} {invoice.companyAmount || invoice.totalAmount || 0}</div>
               <div className="flex items-center gap-2">
                 <Paperclip className="w-3 h-3" />
-                PDF Invoice will be attached
+                {selectedFile ? `Attached: ${selectedFile.name}` : 'Select PDF to attach'}
               </div>
             </div>
           </div>
@@ -168,6 +226,50 @@ ${invoice.companyName || 'Your Company'}`
                 rows={8}
                 className="resize-none"
               />
+            </div>
+
+            <div>
+              <Label>PDF Attachment *</Label>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="gap-2"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Select PDF
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                </div>
+                
+                {selectedFile && (
+                  <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Paperclip className="w-4 h-4" />
+                      <span className="text-sm">{selectedFile.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRemoveFile}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

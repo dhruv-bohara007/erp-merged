@@ -2,10 +2,27 @@
 const express = require('express');
 const nodemailer = require('nodemailer');
 const cors = require('cors');
+const multer = require('multer');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Configure Multer for memory storage
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF files are allowed'), false);
+    }
+  }
+});
 
 // Middleware
 app.use(cors());
@@ -21,6 +38,53 @@ const createTransporter = () => {
     }
   });
 };
+
+// Send invoice email with PDF attachment
+app.post('/api/send-invoice-email', upload.single('pdf'), async (req, res) => {
+  try {
+    const { to, cc, subject, message } = req.body;
+    const pdfFile = req.file;
+
+    if (!to || !subject || !pdfFile) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: to, subject, and PDF file'
+      });
+    }
+
+    const transporter = createTransporter();
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: to,
+      cc: cc || undefined,
+      subject: subject,
+      text: message || '',
+      attachments: [
+        {
+          filename: pdfFile.originalname || 'invoice.pdf',
+          content: pdfFile.buffer,
+          contentType: 'application/pdf'
+        }
+      ]
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.json({
+      success: true,
+      message: 'Invoice email sent successfully'
+    });
+
+  } catch (error) {
+    console.error('Error sending invoice email:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send email',
+      error: error.message
+    });
+  }
+});
 
 // Send registration invitation to new employee
 app.post('/api/send-registration-invite', async (req, res) => {
