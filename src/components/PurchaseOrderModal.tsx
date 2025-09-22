@@ -42,12 +42,14 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({ order, isOpen, 
     const countryInfo = countryPhoneCodes[countryCode];
     const code = countryInfo?.code || '';
     
-    // Remove any existing country code from the phone number to avoid duplication
-    let cleanPhoneNumber = phoneNumber.replace(/^\+?\d{1,4}\s*/, '').trim();
-    
-    // If the phone number is empty after cleaning, use the original
-    if (!cleanPhoneNumber) {
-      cleanPhoneNumber = phoneNumber;
+    // Only remove country code if it's explicitly prefixed with + or matches exactly
+    let cleanPhoneNumber = phoneNumber;
+    if (code && phoneNumber.startsWith('+')) {
+      // Remove the + and country code if it matches exactly
+      const codeWithoutPlus = code.replace('+', '');
+      if (phoneNumber.startsWith('+' + codeWithoutPlus)) {
+        cleanPhoneNumber = phoneNumber.substring(codeWithoutPlus.length + 1).trim();
+      }
     }
     
     // Format with consistent spacing: country code + single space + phone number
