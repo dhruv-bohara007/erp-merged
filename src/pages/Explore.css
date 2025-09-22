@@ -1,0 +1,55 @@
+/* src/components/Explore.css */
+.explore-section {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  background-color: #FFFFFF; /* White background for this section */
+  color: #000000; /* Default text color black */
+  padding: 1em 2em 0; /* Reduced top padding to make the box shorter */
+  box-sizing: border-box;
+  overflow: hidden; /* Crucial for clipping the repeating text and showing only the scrolling part */
+  width: 100%;
+}
+
+.explore-content {
+  text-align: center;
+  margin-bottom: 0;
+  width: 100%;
+  padding: 0;
+}
+
+/* Styles for the text within ScrollVelocity specific to this section */
+.explore-scroll-text {
+  font-size: 3rem; /* Still large, but this is the wrapper for the scroller */
+  font-weight: 800;
+  color: #000000; /* Text color is pure black */
+  text-transform: uppercase;
+  white-space: nowrap; /* Ensures text stays in one line for smooth scrolling */
+  width: 100%; /* Important for the flex container */
+  padding-bottom: 1em; /* Reduced bottom padding to shorten the box */
+}
+
+/* Override or extend ScrollVelocity's default .scroller styles if necessary for this section */
+.explore-section .scroller {
+  /* This directly controls the size of the *actual* text content that gets repeated */
+  font-size: 6rem; /* Large font size for the repeated text */
+  line-height: 1.2;
+}
+
+@media (min-width: 768px) {
+  .explore-section .scroller {
+    font-size: 8rem; /* Even larger on desktop for prominence */
+  }
+}
+
+/* This is a new rule for the black background immediately following the white section */
+.explore-black-background {
+  background-color: black;
+  width: 100%;
+  min-height: 50vh; /* Adjust as needed for the black section's height */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white; /* Text color for content in this black section */
+}
