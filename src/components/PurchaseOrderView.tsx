@@ -18,6 +18,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCompanyData } from '@/hooks/useCompanyData';
 import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
 import PurchaseOrderModal from './PurchaseOrderModal';
+import EmailPurchaseOrderModal from './EmailPurchaseOrderModal';
 
 const PurchaseOrderView = () => {
   const navigate = useNavigate();
@@ -28,6 +29,8 @@ const PurchaseOrderView = () => {
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [emailModalOrder, setEmailModalOrder] = useState<any>(null);
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
 
   // Get company currency info
   const companyCountry = companyData?.country || 'US';
@@ -363,7 +366,8 @@ const PurchaseOrderView = () => {
   };
 
   const handleEmailPurchaseOrder = (order: any) => {
-    console.log('Email purchase order:', order);
+    setEmailModalOrder(order);
+    setIsEmailModalOpen(true);
   };
 
   const handleDeletePurchaseOrder = async (orderId: string) => {
@@ -507,6 +511,13 @@ const PurchaseOrderView = () => {
         order={selectedOrder}
         isOpen={isModalOpen}
         onClose={closeModal}
+      />
+
+      {/* Email Purchase Order Modal */}
+      <EmailPurchaseOrderModal
+        isOpen={isEmailModalOpen}
+        onClose={() => setIsEmailModalOpen(false)}
+        purchaseOrder={emailModalOrder}
       />
     </div>
   );

@@ -154,6 +154,53 @@ app.post('/api/send-registration-invite', async (req, res) => {
   }
 });
 
+// Send purchase order email with PDF attachment
+app.post('/api/send-purchase-order-email', upload.single('pdf'), async (req, res) => {
+  try {
+    const { to, cc, subject, message } = req.body;
+    const pdfFile = req.file;
+
+    if (!to || !subject || !pdfFile) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: to, subject, and PDF file'
+      });
+    }
+
+    const transporter = createTransporter();
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: to,
+      cc: cc || undefined,
+      subject: subject,
+      text: message || '',
+      attachments: [
+        {
+          filename: pdfFile.originalname || 'purchase-order.pdf',
+          content: pdfFile.buffer,
+          contentType: 'application/pdf'
+        }
+      ]
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.json({
+      success: true,
+      message: 'Purchase order email sent successfully'
+    });
+
+  } catch (error) {
+    console.error('Error sending purchase order email:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send email',
+      error: error.message
+    });
+  }
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ 

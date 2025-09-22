@@ -36,8 +36,14 @@ const InvoiceView = ({ invoice, open, onOpenChange }: InvoiceViewProps) => {
     const countryInfo = countryPhoneCodes[countryCode];
     const code = countryInfo?.code || '';
     
-    // Remove any existing country code from the phone number to avoid duplication
-    let cleanPhoneNumber = phoneNumber.replace(/^\+?\d{1,4}\s*/, '').trim();
+    // Only remove country code if the phone number starts with + followed by the country code
+    let cleanPhoneNumber = phoneNumber;
+    if (code && phoneNumber.startsWith(code.replace(/\s/g, ''))) {
+      cleanPhoneNumber = phoneNumber.replace(new RegExp(`^\\${code.replace(/\s/g, '')}\\s*`), '').trim();
+    } else if (phoneNumber.startsWith('+')) {
+      // Remove any country code that starts with +
+      cleanPhoneNumber = phoneNumber.replace(/^\+\d{1,4}\s*/, '').trim();
+    }
     
     // If the phone number is empty after cleaning, use the original
     if (!cleanPhoneNumber) {
