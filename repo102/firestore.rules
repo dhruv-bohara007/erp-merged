@@ -1,0 +1,331 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function to get user data
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Helper function to check if user belongs to a company
+    function belongsToCompany(companyId) {
+      return getUserData().companyId == companyId;
+    }
+
+    // Helper function to check if user is company admin with valid company
+    function isCompanyAdmin() {
+      return request.auth != null &&
+        getUserData().role == 'company_admin' &&
+        getUserData().companyId != null;
+    }
+
+    // Helper function to check if user is super admin
+    function isSuperAdmin() {
+      return request.auth != null &&
+        getUserData().role == 'super_admin';
+    }
+
+    // Helper function to check if user has employee role in users collection
+    function isEmployeeUser() {
+      return request.auth != null &&
+        getUserData().role == 'employee';
+    }
+
+    // USERS: each user can only access their own document
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Super admin can read/update any user document
+      allow read, update: if isSuperAdmin();
+    }
+
+    // COMPANIES: company admins can only access their own company
+    match /companies/{companyId} {
+      // Company admin can read/write their own company
+      allow read, write: if isCompanyAdmin() && belongsToCompany(companyId);
+      
+      // Employees can read their company data
+      allow read: if isEmployeeUser() && getUserData().companyId == companyId;
+      
+      // Super admin can access all companies
+      allow read, write: if isSuperAdmin();
+      
+      // Allow company creation during signup - company ID must match user ID
+      allow create: if request.auth != null &&
+        getUserData().role == 'company_admin' &&
+        companyId == request.auth.uid;
+    }
+
+    // CLIENTS: only accessible by users from the same company
+    match /clients/{clientId} {
+      // For existing documents, check if the document's companyId matches user's companyId
+      allow read, write: if isCompanyAdmin() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      // For new documents, ensure the companyId is set to user's companyId
+      allow create: if isCompanyAdmin() &&
+        request.resource.data.companyId == getUserData().companyId;
+      
+      // Employees can read clients from their company
+      allow read: if isEmployeeUser() && getUserData().companyId != null &&
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      // Super admin has full access
+      allow read, write: if isSuperAdmin();
+    }
+
+    // INVOICES: only accessible by users from the same company
+    match /invoices/{invoiceId} {
+      allow read, write: if isCompanyAdmin() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow create: if isCompanyAdmin() &&
+        request.resource.data.companyId == getUserData().companyId;
+      
+      // Employees can read invoices from their company
+      allow read: if isEmployeeUser() && getUserData().companyId != null &&
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow read, write: if isSuperAdmin();
+    }
+
+    // PAYMENTS: only accessible by users from the same company
+    // Note: paymentId should match invoiceId since we have one payment document per invoice
+    match /payments/{paymentId} {
+      allow read, write: if isCompanyAdmin() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow create: if isCompanyAdmin() &&
+        request.resource.data.companyId == getUserData().companyId;
+      
+      // Employees can read payments from their company
+      allow read: if isEmployeeUser() && getUserData().companyId != null &&
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow read, write: if isSuperAdmin();
+    }
+
+    // PURCHASE_RECORDS: only accessible by users from the same company
+    match /purchase_records/{purchaseRecordId} {
+      allow read, write: if isCompanyAdmin() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow create: if isCompanyAdmin() &&
+        request.resource.data.companyId == getUserData().companyId;
+      
+      // Employees can read purchase records from their company
+      allow read: if isEmployeeUser() && getUserData().companyId != null &&
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow read, write: if isSuperAdmin();
+    }
+
+    // PURCHASES: only accessible by users from the same company
+    match /purchases/{purchaseId} {
+      allow read, write: if isCompanyAdmin() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow create: if isCompanyAdmin() &&
+        request.resource.data.companyId == getUserData().companyId;
+      
+      // Employees can read purchases from their company and create purchase requests
+      allow read: if isEmployeeUser() && getUserData().companyId != null &&
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      // Employees can create purchase requests
+      allow create: if isEmployeeUser() && getUserData().companyId != null &&
+        request.resource.data.companyId == getUserData().companyId &&
+        request.resource.data.type == 'request';
+      
+      allow read, write: if isSuperAdmin();
+    }
+
+    // INVENTORY: only accessible by users from the same company
+    match /inventory/{inventoryId} {
+      allow read, write: if isCompanyAdmin() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow create: if isCompanyAdmin() &&
+        request.resource.data.companyId == getUserData().companyId;
+      
+      // Employees can read inventory from their company
+      allow read: if isEmployeeUser() && getUserData().companyId != null &&
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow read, write: if isSuperAdmin();
+    }
+
+    // TDS RECORDS: only accessible by users from the same company
+    match /tds_records/{tdsId} {
+      allow read, write: if isCompanyAdmin() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow create: if isCompanyAdmin() &&
+        request.resource.data.companyId == getUserData().companyId;
+      
+      // Employees can read TDS records from their company
+      allow read: if isEmployeeUser() && getUserData().companyId != null &&
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow read, write: if isSuperAdmin();
+    }
+
+    // SUPPLIERS: only accessible by users from the same company
+    match /suppliers/{supplierId} {
+      allow read, write: if isCompanyAdmin() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow create: if isCompanyAdmin() &&
+        request.resource.data.companyId == getUserData().companyId;
+      
+      // Employees can read suppliers from their company
+      allow read: if isEmployeeUser() && getUserData().companyId != null &&
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow read, write: if isSuperAdmin();
+    }
+
+    // EMPLOYEES: only accessible by users from the same company
+    match /employees/{employeeId} {
+      allow read, write: if isCompanyAdmin() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow create: if isCompanyAdmin() &&
+        request.resource.data.companyId == getUserData().companyId;
+      
+      // Allow employee to read documents with their email during registration process
+      allow read: if request.auth != null &&
+        resource.data.email == getUserData().email;
+      
+      // Allow updating employee status during registration (when user has employee role and email matches)
+      allow update: if request.auth != null &&
+        getUserData().role == 'employee' &&
+        resource.data.email == getUserData().email &&
+        request.resource.data.email == resource.data.email;
+      
+      // Employees can read their own document by userId
+      allow read, update: if request.auth != null && 
+        isEmployeeUser() &&
+        (resource.data.userId == request.auth.uid || resource.data.email == getUserData().email);
+      
+      allow read, write: if isSuperAdmin();
+    }
+
+    // STOCK_DETAILS: only accessible by users from the same company
+    match /stock_details/{stockId} {
+      allow read, write: if isCompanyAdmin() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow create: if isCompanyAdmin() &&
+        request.resource.data.companyId == getUserData().companyId;
+      
+      // Employees can read stock details from their company
+      allow read: if isEmployeeUser() && getUserData().companyId != null &&
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      // Employees can update stock details for purchase request tracking
+      allow update: if isEmployeeUser() && getUserData().companyId != null &&
+        resource.data.companyId == getUserData().companyId &&
+        request.resource.data.companyId == resource.data.companyId;
+      
+      // Admins can update stock details for purchase request synchronization
+      allow update: if isCompanyAdmin() && getUserData().companyId != null &&
+        resource.data.companyId == getUserData().companyId &&
+        request.resource.data.companyId == resource.data.companyId;
+      
+      allow read, write: if isSuperAdmin();
+    }
+
+    // PRODUCT_DEFINITIONS: only accessible by users from the same company
+    match /product_definitions/{definitionId} {
+      allow read, write: if isCompanyAdmin() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow create: if isCompanyAdmin() &&
+        request.resource.data.companyId == getUserData().companyId;
+      
+      // Employees can read product definitions from their company
+      allow read: if isEmployeeUser() && getUserData().companyId != null &&
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow read, write: if isSuperAdmin();
+    }
+
+    // INVENTORY_DEFINITIONS: only accessible by users from the same company
+    match /inventory_definitions/{inventoryDefinitionId} {
+      allow read, write: if isCompanyAdmin() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow create: if isCompanyAdmin() &&
+        request.resource.data.companyId == getUserData().companyId;
+      
+      // Employees can read inventory definitions from their company
+      allow read: if isEmployeeUser() && getUserData().companyId != null &&
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow read, write: if isSuperAdmin();
+    }
+
+    // PURCHASE_REQUESTS: employees can create, admins can read and update
+    match /purchase_requests/{requestId} {
+      // Company admins can read and update purchase requests from their company
+      allow read, update: if isCompanyAdmin() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      // Employees can create purchase requests for their company
+      allow create: if isEmployeeUser() && getUserData().companyId != null &&
+        request.resource.data.companyId == getUserData().companyId;
+      
+      // Employees can read purchase requests from their company or their own requests
+      allow read: if isEmployeeUser() && getUserData().companyId != null &&
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      // Additional read access for employees accessing via employeeEmail field
+      allow read: if isEmployeeUser() && getUserData().email != null &&
+        (resource == null || resource.data.employeeEmail == getUserData().email);
+      
+      // Employees can delete their own pending purchase requests
+      allow delete: if isEmployeeUser() && getUserData().email != null &&
+        resource.data.employeeEmail == getUserData().email &&
+        resource.data.status == 'pending';
+      
+      allow read, write: if isSuperAdmin();
+    }
+
+    // PURCHASE_ORDERS: only accessible by users from the same company
+    match /purchase_orders/{purchaseOrderId} {
+      allow read, write: if isCompanyAdmin() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow create: if isCompanyAdmin() &&
+        request.resource.data.companyId == getUserData().companyId;
+      
+      // Employees can read purchase orders from their company
+      allow read: if isEmployeeUser() && getUserData().companyId != null &&
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      allow read, write: if isSuperAdmin();
+    }
+
+    // MESSAGES: employees can read/write their messages, admins can read/write all company messages
+    match /messages/{messageId} {
+      // Company admins can read and write all messages from their company
+      allow read, write: if isCompanyAdmin() && 
+        (resource == null || resource.data.companyId == getUserData().companyId);
+      
+      // Employees can create messages for their company where they are the sender
+      allow create: if isEmployeeUser() && getUserData().companyId != null &&
+        request.resource.data.companyId == getUserData().companyId &&
+        request.resource.data.senderEmail == getUserData().email &&
+        getUserData().email in request.resource.data.participants;
+      
+      // Employees can read messages from their company where they are in participants array
+      allow read: if isEmployeeUser() && getUserData().companyId != null &&
+        (resource == null || (resource.data.companyId == getUserData().companyId &&
+         getUserData().email in resource.data.participants));
+      
+      allow read, write: if isSuperAdmin();
+    }
+  }
+}
