@@ -1,0 +1,76 @@
+
+export interface CurrencyInfo {
+  code: string;
+  symbol: string;
+  name: string;
+}
+
+export const countryCurrencyMapping: Record<string, CurrencyInfo> = {
+  'US': { code: 'USD', symbol: '$', name: 'US Dollar' },
+  'IN': { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
+  'GB': { code: 'GBP', symbol: '£', name: 'British Pound' },
+  'DE': { code: 'EUR', symbol: '€', name: 'Euro' },
+  'FR': { code: 'EUR', symbol: '€', name: 'Euro' },
+  'IT': { code: 'EUR', symbol: '€', name: 'Euro' },
+  'ES': { code: 'EUR', symbol: '€', name: 'Euro' },
+  'NL': { code: 'EUR', symbol: '€', name: 'Euro' },
+  'BE': { code: 'EUR', symbol: '€', name: 'Euro' },
+  'AT': { code: 'EUR', symbol: '€', name: 'Euro' },
+  'PT': { code: 'EUR', symbol: '€', name: 'Euro' },
+  'IE': { code: 'EUR', symbol: '€', name: 'Euro' },
+  'FI': { code: 'EUR', symbol: '€', name: 'Euro' },
+  'GR': { code: 'EUR', symbol: '€', name: 'Euro' },
+  'CA': { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar' },
+  'AU': { code: 'AUD', symbol: 'A$', name: 'Australian Dollar' },
+  'JP': { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
+  'CN': { code: 'CNY', symbol: '¥', name: 'Chinese Yuan' },
+  'KR': { code: 'KRW', symbol: '₩', name: 'South Korean Won' },
+  'SG': { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar' },
+  'HK': { code: 'HKD', symbol: 'HK$', name: 'Hong Kong Dollar' },
+  'MX': { code: 'MXN', symbol: '$', name: 'Mexican Peso' },
+  'BR': { code: 'BRL', symbol: 'R$', name: 'Brazilian Real' },
+  'AR': { code: 'ARS', symbol: '$', name: 'Argentine Peso' },
+  'CL': { code: 'CLP', symbol: '$', name: 'Chilean Peso' },
+  'CO': { code: 'COP', symbol: '$', name: 'Colombian Peso' },
+  'PE': { code: 'PEN', symbol: 'S/', name: 'Peruvian Sol' },
+  'ZA': { code: 'ZAR', symbol: 'R', name: 'South African Rand' },
+  'NG': { code: 'NGN', symbol: '₦', name: 'Nigerian Naira' },
+  'EG': { code: 'EGP', symbol: '£', name: 'Egyptian Pound' },
+  'KE': { code: 'KES', symbol: 'KSh', name: 'Kenyan Shilling' },
+  'AE': { code: 'AED', symbol: 'د.إ', name: 'UAE Dirham' },
+  'SA': { code: 'SAR', symbol: '﷼', name: 'Saudi Riyal' },
+  'IL': { code: 'ILS', symbol: '₪', name: 'Israeli Shekel' },
+  'TR': { code: 'TRY', symbol: '₺', name: 'Turkish Lira' },
+  'RU': { code: 'RUB', symbol: '₽', name: 'Russian Ruble' },
+  'PL': { code: 'PLN', symbol: 'zł', name: 'Polish Zloty' },
+  'CZ': { code: 'CZK', symbol: 'Kč', name: 'Czech Koruna' },
+  'HU': { code: 'HUF', symbol: 'Ft', name: 'Hungarian Forint' },
+  'RO': { code: 'RON', symbol: 'lei', name: 'Romanian Leu' },
+  'BG': { code: 'BGN', symbol: 'лв', name: 'Bulgarian Lev' },
+  'HR': { code: 'HRK', symbol: 'kn', name: 'Croatian Kuna' },
+  'SK': { code: 'EUR', symbol: '€', name: 'Euro' },
+  'SI': { code: 'EUR', symbol: '€', name: 'Euro' },
+  'EE': { code: 'EUR', symbol: '€', name: 'Euro' },
+  'LV': { code: 'EUR', symbol: '€', name: 'Euro' },
+  'LT': { code: 'EUR', symbol: '€', name: 'Euro' },
+  'CH': { code: 'CHF', symbol: 'Fr', name: 'Swiss Franc' },
+  'NO': { code: 'NOK', symbol: 'kr', name: 'Norwegian Krone' },
+  'SE': { code: 'SEK', symbol: 'kr', name: 'Swedish Krona' },
+  'DK': { code: 'DKK', symbol: 'kr', name: 'Danish Krone' },
+  'IS': { code: 'ISK', symbol: 'kr', name: 'Icelandic Krona' },
+  'NZ': { code: 'NZD', symbol: 'NZ$', name: 'New Zealand Dollar' },
+  'MY': { code: 'MYR', symbol: 'RM', name: 'Malaysian Ringgit' },
+  'TH': { code: 'THB', symbol: '฿', name: 'Thai Baht' },
+  'ID': { code: 'IDR', symbol: 'Rp', name: 'Indonesian Rupiah' },
+  'PH': { code: 'PHP', symbol: '₱', name: 'Philippine Peso' },
+  'VN': { code: 'VND', symbol: '₫', name: 'Vietnamese Dong' },
+  'BD': { code: 'BDT', symbol: '৳', name: 'Bangladeshi Taka' },
+  'PK': { code: 'PKR', symbol: '₨', name: 'Pakistani Rupee' },
+  'LK': { code: 'LKR', symbol: '₨', name: 'Sri Lankan Rupee' },
+  'NP': { code: 'NPR', symbol: '₨', name: 'Nepalese Rupee' },
+  // Add more countries as needed
+};
+
+export const getCurrencyByCountry = (countryCode: string): CurrencyInfo => {
+  return countryCurrencyMapping[countryCode] || { code: 'USD', symbol: '$', name: 'US Dollar' };
+};
