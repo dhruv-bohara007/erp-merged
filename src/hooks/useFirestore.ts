@@ -184,28 +184,9 @@ export const useInvoices = () => {
         console.log('Invoices snapshot received:', snapshot.docs.length, 'documents');
         const invoiceData = snapshot.docs.map(doc => {
           const data = doc.data();
-          
-          // Determine status based on amountPaidByClient and due date
           const amountPaidByClient = data.amountPaidByClient || 0;
-          const clientAmount = data.clientAmount || data.totalAmount || 0;
-          const dueDate = data.dueDate?.toDate() || new Date();
-          const isOverdue = new Date() > dueDate;
-          
-          let status = data.status || 'draft';
-          
-          // Apply status determination logic only if not draft
-          if (status !== 'draft') {
-            if (amountPaidByClient === 0 && !isOverdue) {
-              status = 'sent';
-            } else if (amountPaidByClient > 0 && !isOverdue && amountPaidByClient < clientAmount) {
-              status = 'pending';
-            } else if (amountPaidByClient < clientAmount && isOverdue) {
-              status = 'overdue';
-            } else if (amountPaidByClient >= clientAmount) {
-              status = 'paid';
-            }
-          }
-          
+          const status = data.status || 'draft';
+
           return {
             id: doc.id,
             ...data,
@@ -254,7 +235,7 @@ export const useInvoices = () => {
                 timestamp: pp.conversionRate?.timestamp?.toDate?.() || new Date(pp.conversionRate?.timestamp) || new Date()
               }
             })),
-            status, // Use determined status
+            status,
             issueDate: data.issueDate?.toDate(),
             dueDate: data.dueDate?.toDate(),
             createdAt: data.createdAt?.toDate(),

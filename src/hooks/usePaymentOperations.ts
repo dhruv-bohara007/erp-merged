@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { doc, setDoc, updateDoc, Timestamp, getDoc, arrayUnion } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, Timestamp, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Payment, PartialPayment } from '@/types/firestore';
 import { toast } from 'sonner';
+import { recalculateInvoice } from '@/services/invoiceRecalc';
 
 export const usePaymentOperations = () => {
   const [loading, setLoading] = useState(false);
@@ -26,8 +27,7 @@ export const usePaymentOperations = () => {
     setLoading(true);
     try {
       const paymentDocRef = doc(db, 'payments', invoiceId);
-      const invoiceDocRef = doc(db, 'invoices', invoiceId);
-      
+
       // Prepare the partial payment with proper timestamp
       const paymentDate = new Date(partialPayment.paymentDate);
       const newPartialPayment: PartialPayment = {
@@ -51,7 +51,6 @@ export const usePaymentOperations = () => {
         // Calculate totals from all partial payments
         const totalPaidUSD = updatedPartialPayments.reduce((sum, pp) => sum + pp.originalPaymentAmount, 0);
         const totalPaidINR = updatedPartialPayments.reduce((sum, pp) => sum + (pp.originalPaymentAmount * pp.conversionRate.companyToINR), 0);
-        const totalAmountPaidByClient = updatedPartialPayments.reduce((sum, pp) => sum + pp.amountPaidByClient, 0);
         const newPendingINR = Math.max(0, partialPayment.pendingPaymentInINR);
         
         // Update payments collection
@@ -63,20 +62,10 @@ export const usePaymentOperations = () => {
           status: newPendingINR <= 0 ? 'completed' : 'partial',
           updatedAt: Timestamp.now()
         });
-
-        // Update invoice document with partial payment and calculated totals
-        await updateDoc(invoiceDocRef, {
-          partialPayments: arrayUnion(newPartialPayment),
-          paidUSD: totalPaidUSD,
-          paidINR: totalPaidINR,
-          amountPaidByClient: totalAmountPaidByClient,
-          updatedAt: Timestamp.now()
-        });
       } else {
         // Document doesn't exist, create it
         const totalPaidUSD = newPartialPayment.originalPaymentAmount;
         const totalPaidINR = newPartialPayment.originalPaymentAmount * newPartialPayment.conversionRate.companyToINR;
-        const totalAmountPaidByClient = newPartialPayment.amountPaidByClient;
         const newPendingINR = Math.max(0, partialPayment.pendingPaymentInINR);
         
         const newPaymentDoc: Payment = {
@@ -96,16 +85,9 @@ export const usePaymentOperations = () => {
         };
 
         await setDoc(paymentDocRef, newPaymentDoc);
-
-        // Update invoice document with partial payment and calculated totals
-        await updateDoc(invoiceDocRef, {
-          partialPayments: [newPartialPayment],
-          paidUSD: totalPaidUSD,
-          paidINR: totalPaidINR,
-          amountPaidByClient: totalAmountPaidByClient,
-          updatedAt: Timestamp.now()
-        });
       }
+
+      await recalculateInvoice(invoiceId);
 
       toast.success('Payment recorded successfully');
     } catch (error) {
@@ -125,7 +107,6 @@ export const usePaymentOperations = () => {
     setLoading(true);
     try {
       const paymentDocRef = doc(db, 'payments', invoiceId);
-      const invoiceDocRef = doc(db, 'invoices', invoiceId);
       const existingDoc = await getDoc(paymentDocRef);
       
       if (!existingDoc.exists()) {
@@ -145,13 +126,15 @@ export const usePaymentOperations = () => {
       // Recalculate totals from remaining partial payments
       const totalPaidUSD = updatedPartialPayments.reduce((sum, pp) => sum + pp.originalPaymentAmount, 0);
       const totalPaidINR = updatedPartialPayments.reduce((sum, pp) => sum + (pp.originalPaymentAmount * pp.conversionRate.companyToINR), 0);
-      const totalAmountPaidByClient = updatedPartialPayments.reduce((sum, pp) => sum + pp.amountPaidByClient, 0);
-      
-      // Get pending amount from the last payment or use existing
-      const lastPayment = updatedPartialPayments[updatedPartialPayments.length - 1];
-      const pendingINR = lastPayment?.pendingPaymentInINR || existingData.pendingINR;
 
-      // Update payments collection
+      const invoiceSnap = await getDoc(doc(db, 'invoices', invoiceId));
+      if (!invoiceSnap.exists()) {
+        throw new Error('Invoice not found');
+      }
+      const invData = invoiceSnap.data();
+      const totalAmountINR = Number(invData.totalAmountINR ?? invData.totalAmount ?? 0);
+      const pendingINR = Math.max(0, totalAmountINR - totalPaidINR);
+
       await updateDoc(paymentDocRef, {
         partialPayments: updatedPartialPayments,
         totalPaidUSD,
@@ -161,14 +144,7 @@ export const usePaymentOperations = () => {
         updatedAt: Timestamp.now()
       });
 
-      // Update invoice document with new partial payments array and recalculated totals
-      await updateDoc(invoiceDocRef, {
-        partialPayments: updatedPartialPayments,
-        paidUSD: totalPaidUSD,
-        paidINR: totalPaidINR,
-        amountPaidByClient: totalAmountPaidByClient,
-        updatedAt: Timestamp.now()
-      });
+      await recalculateInvoice(invoiceId);
 
       toast.success('Payment deleted successfully');
     } catch (error) {
@@ -201,6 +177,8 @@ export const usePaymentOperations = () => {
         status: pendingINR <= 0 ? 'completed' : 'partial',
         updatedAt: Timestamp.now()
       });
+
+      await recalculateInvoice(invoiceId);
 
       toast.success('Payment totals updated');
     } catch (error) {

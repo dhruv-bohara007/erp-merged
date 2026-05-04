@@ -1,9 +1,15 @@
 import { Payment } from '@/types/firestore';
 
 // Utility functions to handle both old and new payment structures during migration
+
+/** Company-currency total paid (field name is `totalPaidUSD`; not INR). */
 export const getPaymentAmount = (payment: any): number => {
-  // For new structure, use totalPaidUSD; for old structure, use amount
   return payment.totalPaidUSD ?? payment.amount ?? 0;
+};
+
+/** Total paid in INR from the payment aggregate field. */
+export const getTotalPaidINR = (payment: any): number => {
+  return Number(payment.totalPaidINR) || 0;
 };
 
 export const getOriginalPaymentAmount = (payment: any): number => {
